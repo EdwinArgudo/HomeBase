@@ -15,6 +15,13 @@
       "when": 1786334992952,
       "tag": "0001_normal_warhawk",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1786337219292,
+      "tag": "0002_light_nightshade",
+      "breakpoints": true
     }
   ]
 }

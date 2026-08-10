@@ -53,3 +53,17 @@ test("protects personal budgets while allowing exact categorization", async () =
   assert.match(transactionReview, /category\.owner_member_id !== member\.id/);
   assert.match(transactionReview, /category_id = \?/);
 });
+
+test("keeps Plaid credentials server-side and encrypts saved access tokens", async () => {
+  const plaidSource = await readFile(new URL("../lib/plaid.ts", import.meta.url), "utf8");
+  const pageSource = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
+  const migration = await readFile(new URL("../drizzle/0002_light_nightshade.sql", import.meta.url), "utf8");
+
+  assert.match(plaidSource, /AES-GCM/);
+  assert.match(plaidSource, /PLAID-SECRET/);
+  assert.match(plaidSource, /access_token_ciphertext/);
+  assert.doesNotMatch(pageSource, /PLAID_SECRET|BANK_TOKEN_ENCRYPTION_KEY/);
+  assert.match(pageSource, /https:\/\/cdn\.plaid\.com\/link\/v2\/stable\/link-initialize\.js/);
+  assert.match(migration, /CREATE TABLE `bank_connections`/);
+  assert.doesNotMatch(migration, /`access_token` text/);
+});

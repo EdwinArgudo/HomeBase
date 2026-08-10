@@ -16,16 +16,32 @@ type Task = { id: string; text: string; owner: string; done: boolean };
 type Grocery = { id: string; text: string; checked: boolean };
 type Transaction = { id: string; merchant: string; detail: string; amount: number; scope: string; category: string; mark: string; reviewStatus: string };
 type Member = { id: string; displayName: string; email: string; role: string };
+type BankConnection = { id: string; institutionName: string; scope: "ours" | "mine"; status: string; lastSyncedAt: string | null; accountCount: number };
 type HouseholdPayload = {
   user: { id: string; displayName: string; email: string; role: string };
   household: { id: string; name: string; minimumMode: boolean };
   members: Member[];
   invitation: { id: string; email: string; status: string } | null;
+  plaid: { configured: boolean; environment: "sandbox" | "development" | "production"; connections: BankConnection[] };
   budgets: Record<Scope, Budget[]>;
   tasks: Task[];
   groceries: Grocery[];
   transactions: Transaction[];
 };
+
+type PlaidLinkHandler = { open(): void; destroy(): void };
+
+declare global {
+  interface Window {
+    Plaid?: {
+      create(config: {
+        token: string;
+        onSuccess(publicToken: string, metadata: { institution?: { name?: string } | null }): void;
+        onExit(error: { display_message?: string | null } | null): void;
+      }): PlaidLinkHandler;
+    };
+  }
+}
 
 const fallbackBudgets: Record<Scope, Budget[]> = {
   ours: [
@@ -73,6 +89,32 @@ function formatMoney(value: number) {
   }).format(value);
 }
 
+function formatLastSync(value: string | null) {
+  if (!value) return "Not synced yet";
+  const timestamp = new Date(value.includes("T") ? value : `${value.replace(" ", "T")}Z`);
+  if (Number.isNaN(timestamp.getTime())) return "Recently synced";
+  return `Synced ${timestamp.toLocaleDateString("en-US", { month: "short", day: "numeric" })} at ${timestamp.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`;
+}
+
+function loadPlaidScript() {
+  if (window.Plaid) return Promise.resolve();
+  return new Promise<void>((resolve, reject) => {
+    const existing = document.querySelector<HTMLScriptElement>("script[data-homebase-plaid]");
+    if (existing) {
+      existing.addEventListener("load", () => resolve(), { once: true });
+      existing.addEventListener("error", () => reject(new Error("Plaid Link could not load.")), { once: true });
+      return;
+    }
+    const script = document.createElement("script");
+    script.src = "https://cdn.plaid.com/link/v2/stable/link-initialize.js";
+    script.async = true;
+    script.dataset.homebasePlaid = "true";
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error("Plaid Link could not load."));
+    document.head.appendChild(script);
+  });
+}
+
 function BrandMark() {
   return (
     <div className="brand-mark" aria-hidden="true">
@@ -107,7 +149,11 @@ export default function Home() {
   const [household, setHousehold] = useState({ id: "", name: "Our household" });
   const [members, setMembers] = useState<Member[]>([]);
   const [invitation, setInvitation] = useState<HouseholdPayload["invitation"]>(null);
+  const [plaid, setPlaid] = useState<HouseholdPayload["plaid"]>({ configured: false, environment: "sandbox", connections: [] });
   const [showHousehold, setShowHousehold] = useState(false);
+  const [showConnect, setShowConnect] = useState(false);
+  const [connectionScope, setConnectionScope] = useState<"ours" | "mine">("mine");
+  const [plaidBusy, setPlaidBusy] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
   const [editingLimits, setEditingLimits] = useState(false);
   const [limitDrafts, setLimitDrafts] = useState<Record<string, string>>({});
@@ -121,6 +167,7 @@ export default function Home() {
     setHousehold(data.household);
     setMembers(data.members);
     setInvitation(data.invitation);
+    setPlaid(data.plaid);
     setBudgets(data.budgets);
     setTransactions(data.transactions);
     setTasks(data.tasks);
@@ -278,6 +325,77 @@ export default function Home() {
     } catch { /* The shared sync message already explains the error. */ }
   }
 
+  async function launchPlaid() {
+    if (!plaid.configured) {
+      setSyncStatus("error");
+      setSyncMessage("Add Plaid sandbox credentials to activate bank connections.");
+      return;
+    }
+    setPlaidBusy(true);
+    setSyncStatus("saving");
+    setSyncMessage("Opening Plaid…");
+    try {
+      const response = await fetch("/api/plaid/link-token", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" });
+      const result = await response.json() as { linkToken?: string; error?: string };
+      if (!response.ok || !result.linkToken) throw new Error(result.error ?? "Plaid Link could not start.");
+      await loadPlaidScript();
+      if (!window.Plaid) throw new Error("Plaid Link could not load.");
+      const handler: PlaidLinkHandler = window.Plaid.create({
+        token: result.linkToken,
+        onSuccess: (publicToken, metadata) => {
+          setPlaidBusy(true);
+          setSyncStatus("saving");
+          setSyncMessage("Importing accounts and transactions…");
+          fetch("/api/plaid/exchange", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ publicToken, ownership: connectionScope, institutionName: metadata.institution?.name }),
+          })
+            .then(async (exchangeResponse) => {
+              const exchangeResult = await exchangeResponse.json() as { error?: string };
+              if (!exchangeResponse.ok) throw new Error(exchangeResult.error ?? "That bank connection could not be saved.");
+              await loadHouseholdData();
+              setShowConnect(false);
+              setSyncStatus("saved");
+              setSyncMessage("Bank connected and transactions imported");
+            })
+            .catch((error) => {
+              setSyncStatus("error");
+              setSyncMessage(error instanceof Error ? error.message : "That bank connection could not be saved.");
+            })
+            .finally(() => { setPlaidBusy(false); handler.destroy(); });
+        },
+        onExit: (error) => {
+          setPlaidBusy(false);
+          if (error) {
+            setSyncStatus("error");
+            setSyncMessage(error.display_message || "Plaid Link closed before connecting.");
+          } else {
+            setSyncStatus("saved");
+            setSyncMessage("No bank connection was changed");
+          }
+          handler.destroy();
+        },
+      });
+      handler.open();
+    } catch (error) {
+      setSyncStatus("error");
+      setSyncMessage(error instanceof Error ? error.message : "Plaid Link could not start.");
+    } finally {
+      setPlaidBusy(false);
+    }
+  }
+
+  async function syncBank(connectionId: string) {
+    setPlaidBusy(true);
+    try {
+      await post("/api/plaid/sync", { connectionId });
+      await loadHouseholdData();
+      setSyncMessage("Bank transactions are up to date");
+    } catch { /* The shared sync message already explains the error. */ }
+    finally { setPlaidBusy(false); }
+  }
+
   const firstName = user.displayName.split(/\s+/)[0] || "there";
   const initials = user.displayName.split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase() || "H";
   const reviewItem = transactions.find((transaction) => transaction.reviewStatus === "needs_review");
@@ -391,7 +509,7 @@ export default function Home() {
 
         {tab === "money" && (
           <div className="page money-page">
-            <header className="page-heading"><div><p className="eyebrow">August 2026</p><h1>Money</h1><p>Detailed when you need it. Quiet when you don’t.</p></div><button className="primary-button">+ Connect account</button></header>
+            <header className="page-heading"><div><p className="eyebrow">August 2026</p><h1>Money</h1><p>Detailed when you need it. Quiet when you don’t.</p></div><button className="primary-button" onClick={() => setShowConnect(true)}>+ Connect with Plaid</button></header>
             <div className="scope-switcher" role="tablist" aria-label="Budget scope">
               {(Object.keys(scopeLabels) as Scope[]).map((item) => <button role="tab" aria-selected={scope === item} key={item} className={scope === item ? "active" : ""} onClick={() => { setScope(item); stopLimitEditing(); }}>{scopeLabels[item]}</button>)}
             </div>
@@ -401,6 +519,7 @@ export default function Home() {
               <div className="summary-stat"><span>Left this month</span><strong>{formatMoney(budgetTotals.limit - budgetTotals.spent)}</strong><small>21 days remaining</small></div>
               <div className="summary-stat"><span>Projected</span><strong>{formatMoney(Math.round(budgetTotals.spent * 1.75))}</strong><small className="positive">Within your limits</small></div>
             </section>
+            {plaid.connections.length > 0 && <section className="panel bank-connections"><div className="panel-heading"><div><p className="card-label">Automatic imports</p><h2>Connected institutions</h2></div><span className="plaid-environment">{plaid.environment}</span></div><div className="connection-list">{plaid.connections.map((connection) => <div className="connection-row" key={connection.id}><span className="bank-mark">$</span><div><strong>{connection.institutionName}</strong><p>{connection.accountCount} {connection.accountCount === 1 ? "account" : "accounts"} · {scopeLabels[connection.scope]}</p><small>{formatLastSync(connection.lastSyncedAt)}</small></div><span className={`connection-status ${connection.status}`}>{connection.status === "healthy" ? "Connected" : "Needs attention"}</span><button onClick={() => syncBank(connection.id)} disabled={plaidBusy}>Sync now</button></div>)}</div></section>}
             <div className="money-layout">
               <section className="panel categories-panel">
                 <div className="panel-heading"><div><p className="card-label">Fixed limits</p><h2>{scopeLabels[scope]} categories</h2></div>{scope !== "yours" && (editingLimits ? <div className="edit-actions"><button className="quiet-button" onClick={stopLimitEditing}>Cancel</button><button className="save-button" onClick={saveLimits}>Save limits</button></div> : <button className="quiet-button" onClick={startLimitEditing}>Edit limits</button>)}</div>
@@ -475,6 +594,16 @@ export default function Home() {
             <div><input id="partner-email" type="email" required value={inviteEmail} onChange={(event) => setInviteEmail(event.target.value)} placeholder="partner@example.com" /><button>Save invitation</button></div>
           </form> : null}
           <footer><span className={`privacy-dot ${syncStatus}`} />{syncStatus === "error" ? syncMessage : "Only household members can access this data."}</footer>
+        </section>
+      </div>}
+      {showConnect && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !plaidBusy) setShowConnect(false); }}>
+        <section className="household-modal connect-modal" role="dialog" aria-modal="true" aria-labelledby="connect-title">
+          <header><div><p className="card-label">Secure bank connection</p><h2 id="connect-title">Connect with Plaid</h2></div><button aria-label="Close bank connection" disabled={plaidBusy} onClick={() => setShowConnect(false)}>×</button></header>
+          <div className="connect-intro"><span>⌁</span><div><strong>Automatic transaction imports</strong><p>Homebase never receives your bank password. Plaid handles sign-in and sends transaction data through an encrypted connection.</p></div></div>
+          <fieldset className="ownership-choice"><legend>How should these accounts count?</legend><button type="button" className={connectionScope === "mine" ? "active" : ""} onClick={() => setConnectionScope("mine")}><span>○</span><strong>Mine</strong><small>Private to me by default</small></button><button type="button" className={connectionScope === "ours" ? "active" : ""} onClick={() => setConnectionScope("ours")}><span>⌂</span><strong>Ours</strong><small>Shared household spending</small></button></fieldset>
+          {!plaid.configured && <div className="plaid-setup-note"><strong>Plaid setup is the last step</strong><p>The connection flow is built. Add a sandbox client ID, secret, and encryption key to activate it.</p></div>}
+          <button className="plaid-continue" onClick={launchPlaid} disabled={plaidBusy || !plaid.configured}>{plaidBusy ? "Connecting…" : plaid.configured ? "Continue securely with Plaid" : "Waiting for Plaid credentials"}</button>
+          <footer><span className="privacy-dot saved" />Plaid access tokens are encrypted before they are stored.</footer>
         </section>
       </div>}
     </main>

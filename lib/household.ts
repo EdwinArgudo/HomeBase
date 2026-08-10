@@ -101,6 +101,23 @@ async function ensureSchema() {
     )`),
     db.prepare(`CREATE INDEX IF NOT EXISTS idx_accounts_household_ownership ON accounts(household_id, ownership_type)`),
     db.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_accounts_provider_account_id ON accounts(provider_account_id)`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS bank_connections (
+      id TEXT PRIMARY KEY NOT NULL,
+      household_id TEXT NOT NULL REFERENCES households(id),
+      owner_member_id TEXT REFERENCES members(id),
+      ownership_type TEXT NOT NULL,
+      provider TEXT DEFAULT 'plaid' NOT NULL,
+      item_id TEXT NOT NULL,
+      access_token_ciphertext TEXT NOT NULL,
+      cursor TEXT,
+      institution_name TEXT NOT NULL,
+      status TEXT DEFAULT 'healthy' NOT NULL,
+      last_synced_at TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`),
+    db.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_bank_connections_item_id ON bank_connections(item_id)`),
+    db.prepare(`CREATE INDEX IF NOT EXISTS idx_bank_connections_household ON bank_connections(household_id, status)`),
     db.prepare(`CREATE TABLE IF NOT EXISTS categories (
       id TEXT PRIMARY KEY NOT NULL,
       household_id TEXT NOT NULL REFERENCES households(id),
@@ -273,6 +290,14 @@ async function requireMember(request: Request) {
   return ensureMember(request, false);
 }
 
+export async function requireHouseholdMember(request: Request) {
+  return requireMember(request);
+}
+
+export function householdDatabase() {
+  return database();
+}
+
 function relativeScope(type: string | null, ownerMemberId: string | null, currentMemberId: string) {
   if (type === "shared") return "ours" as const;
   return ownerMemberId === currentMemberId ? "mine" as const : "yours" as const;
@@ -315,12 +340,31 @@ export async function loadHousehold(request: Request) {
     WHERE t.household_id = ?
     ORDER BY t.transaction_date DESC, t.created_at DESC LIMIT 20`).bind(member.household_id).all()).results as Array<Record<string, string | number | null>>;
   const pendingInvitation = await db.prepare("SELECT id, email, status FROM invitations WHERE household_id = ? AND status = 'pending' LIMIT 1").bind(member.household_id).first<{ id: string; email: string; status: string }>();
+  const connectionRows = (await db.prepare(`SELECT bc.id, bc.owner_member_id, bc.ownership_type, bc.institution_name, bc.status, bc.last_synced_at,
+      COUNT(a.id) AS account_count
+    FROM bank_connections bc
+    LEFT JOIN accounts a ON a.provider_item_id = bc.item_id AND a.household_id = bc.household_id
+    WHERE bc.household_id = ?
+    GROUP BY bc.id, bc.owner_member_id, bc.ownership_type, bc.institution_name, bc.status, bc.last_synced_at
+    ORDER BY bc.created_at`).bind(member.household_id).all()).results as Array<{ id: string; owner_member_id: string | null; ownership_type: string; institution_name: string; status: string; last_synced_at: string | null; account_count: number }>;
 
   return {
     user: { id: member.id, displayName: identity.displayName, email: identity.email, role: member.role },
     household: { id: household!.id, name: household!.name, minimumMode: Boolean(household!.minimum_mode) },
     members: memberRows.map((row) => ({ id: row.id, displayName: row.display_name, email: row.email, role: row.role })),
     invitation: pendingInvitation ?? null,
+    plaid: {
+      configured: Boolean(env.PLAID_CLIENT_ID && env.PLAID_SECRET && env.BANK_TOKEN_ENCRYPTION_KEY),
+      environment: env.PLAID_ENV === "production" ? "production" : env.PLAID_ENV === "development" ? "development" : "sandbox",
+      connections: connectionRows.filter((row) => row.ownership_type === "shared" || row.owner_member_id === member.id).map((row) => ({
+        id: row.id,
+        institutionName: row.institution_name,
+        scope: relativeScope(row.ownership_type, row.owner_member_id, member.id),
+        status: row.status,
+        lastSyncedAt: row.last_synced_at,
+        accountCount: Number(row.account_count),
+      })),
+    },
     budgets,
     tasks: taskRows.map((row) => ({ id: row.id, text: row.title, owner: row.owner_member_id ? (row.owner_member_id === member.id ? "You" : membersById.get(row.owner_member_id)?.display_name ?? "Partner") : "Together", done: row.status === "complete" })),
     groceries: groceryRows.map((row) => ({ id: row.id, text: row.name, checked: Boolean(row.checked) })),

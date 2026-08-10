@@ -55,6 +55,25 @@ export const accounts = sqliteTable("accounts", {
   uniqueIndex("idx_accounts_provider_account_id").on(table.providerAccountId),
 ]);
 
+export const bankConnections = sqliteTable("bank_connections", {
+  id: text("id").primaryKey(),
+  householdId: text("household_id").notNull().references(() => households.id),
+  ownerMemberId: text("owner_member_id").references(() => members.id),
+  ownershipType: text("ownership_type", { enum: ["personal", "shared"] }).notNull(),
+  provider: text("provider").notNull().default("plaid"),
+  itemId: text("item_id").notNull(),
+  accessTokenCiphertext: text("access_token_ciphertext").notNull(),
+  cursor: text("cursor"),
+  institutionName: text("institution_name").notNull(),
+  status: text("status", { enum: ["healthy", "attention"] }).notNull().default("healthy"),
+  lastSyncedAt: text("last_synced_at"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("idx_bank_connections_item_id").on(table.itemId),
+  index("idx_bank_connections_household").on(table.householdId, table.status),
+]);
+
 export const categories = sqliteTable("categories", {
   id: text("id").primaryKey(),
   householdId: text("household_id").notNull().references(() => households.id),
