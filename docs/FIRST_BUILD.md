@@ -14,7 +14,16 @@ Homebase is a calm shared household system. It reduces upkeep by importing and o
 - Flexible workout and language-learning momentum.
 - A passive apartment display controlled from either phone.
 
-The current interface is an interactive product prototype with representative household data. The database schema is ready for durable household records, but the interface does not yet write to it.
+The current build uses durable household storage for membership, partner invitations, tasks, groceries, transaction review, budgets, and Minimum Mode. Initial financial records are representative data; no bank connection is active yet.
+
+## Household access
+
+- The first signed-in visitor becomes the private household owner.
+- The owner saves one partner email in Homebase.
+- A matching signed-in visitor accepts that invitation automatically on first access.
+- Every read and write is scoped to the authenticated member's household on the server.
+- Personal categories are stored against a neutral member owner, so Mine and Yours correctly reverse for the other partner.
+- Personal transaction details remain private to their owner unless that member explicitly changes the visibility setting.
 
 ## Accounting rules
 
@@ -37,13 +46,11 @@ The current interface is an interactive product prototype with representative ho
 
 ## Next implementation milestones
 
-1. Seed a private household and connect the interface to D1 persistence.
-2. Add household invitation and member authorization.
-3. Implement account-linking in provider sandbox mode.
-4. Import transactions from webhooks and run deterministic merchant rules.
-5. Add budget setup, transaction splits, transfers, refunds, and monthly close.
-6. Add install onboarding, web push, and shareable Siri Shortcuts.
-7. Pair a browser dashboard to the household with a revocable display token.
+1. Implement account-linking in provider sandbox mode.
+2. Import transactions from webhooks and run deterministic merchant rules.
+3. Add budget setup, transaction splits, transfers, refunds, and monthly close.
+4. Add install onboarding, web push, and shareable Siri Shortcuts.
+5. Pair a browser dashboard to the household with a revocable display token.
 
 ## Decisions still needed
 

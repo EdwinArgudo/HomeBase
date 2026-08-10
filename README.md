@@ -13,9 +13,11 @@ The first build is an interactive prototype with realistic demonstration data. I
 - Minimum Mode for guilt-free goal recovery
 - A full-screen apartment display
 - An installable web-app manifest
-- A D1-ready relational schema and migration
+- Durable D1-backed tasks, groceries, transaction review, and Minimum Mode
+- Private signed-in household membership and partner invitations
+- Perspective-safe Mine/Yours/Ours accounting for both members
 
-The interface does not yet write to the database or connect to a financial provider. See `docs/FIRST_BUILD.md` for accounting rules, security boundaries, and the implementation sequence.
+Financial accounts are still represented by seeded demonstration data and no financial provider is connected. See `docs/FIRST_BUILD.md` for accounting rules, security boundaries, and the implementation sequence.
 
 ## Local development
 

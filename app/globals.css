@@ -36,6 +36,8 @@ button { color: inherit; }
 .nav-symbol { width: 24px; height: 24px; display: grid; place-items: center; font-size: 18px; }
 .display-button { margin-top: auto; padding: 12px; border: 1px solid #d9dfd6; border-radius: 12px; background: rgba(255,255,255,.55); display: flex; align-items: center; gap: 10px; font-size: 13px; font-weight: 700; cursor: pointer; }
 .profile { display: flex; gap: 10px; align-items: center; margin-top: 22px; padding-top: 20px; border-top: 1px solid #d9dfd6; }
+.profile-button { width: 100%; border: 0; background: transparent; text-align: left; cursor: pointer; }
+.profile-button:hover strong { color: var(--forest); }
 .avatars { display: flex; }
 .avatars span { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font-size: 10px; font-weight: 800; background: var(--forest); color: white; border: 2px solid #f0f1e9; }
 .avatars span + span { margin-left: -8px; background: var(--coral); }
@@ -51,6 +53,12 @@ button { color: inherit; }
 .page-heading p:last-child { margin: 0; color: var(--muted); font-size: 14px; }
 .avatar-button { width: 42px; height: 42px; border-radius: 50%; border: 0; background: var(--forest); color: white; font-weight: 800; }
 .mobile-header, .bottom-nav { display: none; }
+.sync-indicator { position: fixed; z-index: 9; top: 20px; right: 24px; display: flex; align-items: center; gap: 7px; padding: 7px 10px; border: 1px solid rgba(220,226,219,.9); border-radius: 99px; background: rgba(255,255,251,.88); box-shadow: 0 2px 8px rgba(39,57,48,.05); backdrop-filter: blur(12px); color: var(--muted); font-size: 9px; font-weight: 700; }
+.sync-indicator span, .privacy-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--sage); }
+.sync-indicator.loading span, .sync-indicator.saving span { background: var(--gold); animation: pulse 1s infinite alternate; }
+.sync-indicator.error { color: #9a513f; border-color: #efd5cd; background: rgba(255,247,244,.92); }
+.sync-indicator.error span, .privacy-dot.error { background: var(--coral); }
+@keyframes pulse { to { opacity: .35; } }
 
 .status-banner { display: flex; align-items: center; justify-content: space-between; gap: 22px; padding: 18px 20px; margin-bottom: 20px; border-radius: 17px; background: #dfeae1; border: 1px solid #d4e2d7; }
 .status-banner > div { display: flex; gap: 13px; align-items: center; }
@@ -118,6 +126,9 @@ button { color: inherit; }
 .budget-row > div:first-child span { color: var(--muted); font-size: 10px; }
 .budget-row p { margin: 6px 0 0; font-size: 9px; color: var(--muted); }
 .budget-row p strong { color: var(--ink); }
+.empty-categories { min-height: 220px; display: grid; place-content: center; text-align: center; color: var(--muted); }
+.empty-categories strong { color: var(--ink); font: 500 16px Georgia, serif; }
+.empty-categories p { max-width: 240px; margin: 7px auto 0; font-size: 10px; line-height: 1.5; }
 .count-badge { width: 24px; height: 24px; display: grid; place-items: center; border-radius: 50%; background: var(--coral-light); color: #aa5b49; font-size: 10px; font-weight: 800; }
 .review-merchant { display: flex; align-items: center; gap: 10px; margin-top: 24px; }
 .merchant-mark { width: 38px; height: 38px; border-radius: 11px; display: grid; place-items: center; background: #e8eee8; color: var(--forest); font: 700 14px Georgia, serif; flex: none; }
@@ -227,6 +238,35 @@ button { color: inherit; }
 .dots i { background: #dfe4dd; }
 .momentum-display blockquote { margin: 28px 0 0; padding: 17px 0 0; border-top: 1px solid #e9ede7; color: var(--forest); font: italic 500 16px/1.4 Georgia, serif; }
 
+.modal-backdrop { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 18px; background: rgba(25,39,32,.42); backdrop-filter: blur(5px); }
+.household-modal { width: min(480px, 100%); max-height: calc(100vh - 36px); overflow: auto; padding: 24px; border: 1px solid rgba(255,255,255,.7); border-radius: 22px; background: var(--card); box-shadow: 0 25px 80px rgba(28,45,36,.24); animation: modal-in .2s ease-out; }
+@keyframes modal-in { from { opacity: 0; transform: translateY(8px) scale(.985); } }
+.household-modal > header { display: flex; justify-content: space-between; gap: 20px; align-items: flex-start; padding-bottom: 18px; border-bottom: 1px solid var(--line); }
+.household-modal h2 { margin: 0; font: 500 24px/1.2 Georgia, serif; }
+.household-modal > header > button { width: 32px; height: 32px; border: 1px solid var(--line); border-radius: 9px; background: #f4f5f0; color: var(--muted); font-size: 20px; cursor: pointer; }
+.member-list { display: grid; padding: 11px 0; }
+.member-row { display: grid; grid-template-columns: auto 1fr auto; gap: 11px; align-items: center; padding: 11px 0; }
+.member-row > span { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 50%; background: var(--forest); color: white; font-size: 11px; font-weight: 800; }
+.member-row:nth-child(2) > span { background: var(--coral); }
+.member-row > div { display: grid; gap: 3px; }
+.member-row strong { font-size: 12px; }
+.member-row small { color: var(--muted); font-size: 9px; }
+.member-row em { padding: 5px 8px; border-radius: 99px; background: #e7eee8; color: var(--forest); font-style: normal; font-size: 8px; font-weight: 800; text-transform: uppercase; letter-spacing: .6px; }
+.invite-form { margin-top: 4px; padding: 17px; border-radius: 14px; background: #f0f4ed; }
+.invite-form label { display: block; font: 500 17px Georgia, serif; }
+.invite-form > p { margin: 5px 0 13px; color: var(--muted); font-size: 10px; line-height: 1.5; }
+.invite-form > div { display: flex; gap: 8px; }
+.invite-form input { min-width: 0; flex: 1; padding: 10px 11px; border: 1px solid #d8e0d8; border-radius: 9px; outline: none; background: white; font-size: 11px; }
+.invite-form input:focus { border-color: var(--sage); box-shadow: 0 0 0 3px rgba(156,184,168,.22); }
+.invite-form button { border: 0; border-radius: 9px; padding: 0 13px; background: var(--forest); color: white; font-size: 9px; font-weight: 800; cursor: pointer; }
+.pending-invite { display: flex; gap: 11px; align-items: center; margin-top: 4px; padding: 15px; border: 1px solid #eadfc6; border-radius: 14px; background: #f7f0df; }
+.pending-invite > span { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 10px; background: white; }
+.pending-invite > div { display: grid; gap: 2px; }
+.pending-invite strong { font-size: 11px; }
+.pending-invite p { margin: 0; color: #665f4d; font-size: 10px; }
+.pending-invite small { color: #95876a; font-size: 8px; }
+.household-modal > footer { display: flex; align-items: center; gap: 7px; margin-top: 18px; padding-top: 15px; border-top: 1px solid var(--line); color: var(--muted); font-size: 9px; }
+
 @media (max-width: 960px) {
   .app-shell { grid-template-columns: 200px 1fr; }
   .side-rail { width: 200px; padding-inline: 16px; }
@@ -246,7 +286,9 @@ button { color: inherit; }
   .mobile-header { position: sticky; top: 0; z-index: 10; height: 62px; display: flex; align-items: center; justify-content: space-between; padding: 0 18px; background: rgba(245,245,239,.92); border-bottom: 1px solid rgba(221,226,218,.8); backdrop-filter: blur(12px); }
   .mobile-header .brand { font-size: 16px; }
   .mobile-header .brand-mark { width: 25px; height: 25px; }
-  .mobile-header button { border: 0; background: #e4e9e1; border-radius: 9px; width: 34px; height: 34px; }
+  .mobile-header > div:last-child { display: flex; gap: 7px; }
+  .mobile-header button { border: 0; background: #e4e9e1; border-radius: 9px; width: 34px; height: 34px; font-size: 9px; font-weight: 800; }
+  .sync-indicator { position: static; width: fit-content; margin: 10px 16px -12px auto; }
   .page { padding: 28px 16px 40px; }
   .page-heading { margin-bottom: 22px; }
   .page-heading h1 { font-size: 31px; }
@@ -282,6 +324,9 @@ button { color: inherit; }
   .display-time { font-size: 26px; }
   .display-grid { grid-template-columns: 1fr; }
   .momentum-display { grid-column: auto; }
+  .household-modal { padding: 20px; }
+  .invite-form > div { flex-direction: column; }
+  .invite-form button { padding: 10px 12px; }
 }
 
 @media (prefers-reduced-motion: no-preference) {

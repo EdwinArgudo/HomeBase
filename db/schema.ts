@@ -5,6 +5,7 @@ export const households = sqliteTable("households", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   timezone: text("timezone").notNull().default("America/New_York"),
+  minimumMode: integer("minimum_mode", { mode: "boolean" }).notNull().default(false),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
 
@@ -12,20 +13,35 @@ export const members = sqliteTable("members", {
   id: text("id").primaryKey(),
   householdId: text("household_id").notNull().references(() => households.id),
   externalUserId: text("external_user_id").notNull(),
+  email: text("email").notNull().default(""),
   displayName: text("display_name").notNull(),
   role: text("role", { enum: ["owner", "member"] }).notNull().default("member"),
   personalDetailVisibility: text("personal_detail_visibility", { enum: ["private", "shared"] }).notNull().default("private"),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 }, (table) => [
   uniqueIndex("idx_members_household_external_user").on(table.householdId, table.externalUserId),
+  uniqueIndex("idx_members_household_email").on(table.householdId, table.email),
   index("idx_members_household_id").on(table.householdId),
+]);
+
+export const invitations = sqliteTable("invitations", {
+  id: text("id").primaryKey(),
+  householdId: text("household_id").notNull().references(() => households.id),
+  email: text("email").notNull(),
+  invitedByMemberId: text("invited_by_member_id").notNull().references(() => members.id),
+  status: text("status", { enum: ["pending", "accepted", "revoked"] }).notNull().default("pending"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  acceptedAt: text("accepted_at"),
+}, (table) => [
+  uniqueIndex("idx_invitations_household_email").on(table.householdId, table.email),
+  index("idx_invitations_email_status").on(table.email, table.status),
 ]);
 
 export const accounts = sqliteTable("accounts", {
   id: text("id").primaryKey(),
   householdId: text("household_id").notNull().references(() => households.id),
   ownerMemberId: text("owner_member_id").references(() => members.id),
-  scope: text("scope", { enum: ["mine", "yours", "ours"] }).notNull(),
+  ownershipType: text("ownership_type", { enum: ["personal", "shared"] }).notNull(),
   providerItemId: text("provider_item_id"),
   providerAccountId: text("provider_account_id"),
   institutionName: text("institution_name"),
@@ -35,20 +51,21 @@ export const accounts = sqliteTable("accounts", {
   connectionStatus: text("connection_status", { enum: ["manual", "healthy", "attention"] }).notNull().default("manual"),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 }, (table) => [
-  index("idx_accounts_household_scope").on(table.householdId, table.scope),
+  index("idx_accounts_household_ownership").on(table.householdId, table.ownershipType),
   uniqueIndex("idx_accounts_provider_account_id").on(table.providerAccountId),
 ]);
 
 export const categories = sqliteTable("categories", {
   id: text("id").primaryKey(),
   householdId: text("household_id").notNull().references(() => households.id),
-  scope: text("scope", { enum: ["mine", "yours", "ours"] }).notNull(),
+  ownerMemberId: text("owner_member_id").references(() => members.id),
+  ownershipType: text("ownership_type", { enum: ["personal", "shared"] }).notNull(),
   name: text("name").notNull(),
   monthlyLimitCents: integer("monthly_limit_cents").notNull(),
   rolloverEnabled: integer("rollover_enabled", { mode: "boolean" }).notNull().default(false),
   archivedAt: text("archived_at"),
 }, (table) => [
-  uniqueIndex("idx_categories_household_scope_name").on(table.householdId, table.scope, table.name),
+  index("idx_categories_household_ownership").on(table.householdId, table.ownershipType, table.ownerMemberId),
 ]);
 
 export const transactions = sqliteTable("transactions", {
@@ -59,7 +76,8 @@ export const transactions = sqliteTable("transactions", {
   merchantName: text("merchant_name").notNull(),
   amountCents: integer("amount_cents").notNull(),
   transactionDate: text("transaction_date").notNull(),
-  scope: text("scope", { enum: ["mine", "yours", "ours"] }),
+  spendingType: text("spending_type", { enum: ["personal", "shared"] }),
+  personalMemberId: text("personal_member_id").references(() => members.id),
   categoryId: text("category_id").references(() => categories.id),
   reviewStatus: text("review_status", { enum: ["ready", "needs_review", "split"] }).notNull().default("needs_review"),
   isTransfer: integer("is_transfer", { mode: "boolean" }).notNull().default(false),
@@ -75,7 +93,8 @@ export const transactionSplits = sqliteTable("transaction_splits", {
   id: text("id").primaryKey(),
   transactionId: text("transaction_id").notNull().references(() => transactions.id),
   categoryId: text("category_id").notNull().references(() => categories.id),
-  scope: text("scope", { enum: ["mine", "yours", "ours"] }).notNull(),
+  spendingType: text("spending_type", { enum: ["personal", "shared"] }).notNull(),
+  personalMemberId: text("personal_member_id").references(() => members.id),
   amountCents: integer("amount_cents").notNull(),
 }, (table) => [index("idx_transaction_splits_transaction_id").on(table.transactionId)]);
 
@@ -102,7 +121,7 @@ export const goals = sqliteTable("goals", {
   id: text("id").primaryKey(),
   householdId: text("household_id").notNull().references(() => households.id),
   ownerMemberId: text("owner_member_id").references(() => members.id),
-  scope: text("scope", { enum: ["personal", "shared"] }).notNull(),
+  ownershipType: text("ownership_type", { enum: ["personal", "shared"] }).notNull(),
   name: text("name").notNull(),
   trackingType: text("tracking_type", { enum: ["sessions", "amount"] }).notNull(),
   targetValue: integer("target_value").notNull(),

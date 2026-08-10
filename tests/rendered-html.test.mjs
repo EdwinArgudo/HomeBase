@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 async function render() {
@@ -20,7 +21,7 @@ test("server-renders the Homebase product shell", async () => {
 
   const html = await response.text();
   assert.match(html, /<title>Homebase — Your shared household rhythm<\/title>/i);
-  assert.match(html, /Good morning, Edwin/);
+  assert.match(html, /Good morning,[\s\S]{0,40}Edwin/);
   assert.match(html, /Your household is on track/);
   assert.match(html, /Open apartment display/);
   assert.match(html, /Money snapshot/);
@@ -34,4 +35,11 @@ test("publishes PWA and social metadata", async () => {
   assert.match(html, /property="og:title" content="Homebase"/i);
   assert.match(html, /property="og:image" content="http:\/\/localhost(?::3000)?\/og\.png"/i);
   assert.match(html, /name="twitter:card" content="summary_large_image"/i);
+});
+
+test("authenticates before touching household storage", async () => {
+  const source = await readFile(new URL("../lib/household.ts", import.meta.url), "utf8");
+  const ensureMember = source.slice(source.indexOf("async function ensureMember"), source.indexOf("async function requireMember"));
+  assert.ok(ensureMember.indexOf("identityFromRequest(request)") < ensureMember.indexOf("ensureSchema()"));
+  assert.match(source, /WHERE id = \? AND household_id = \?/);
 });
