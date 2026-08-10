@@ -1,0 +1,9 @@
+{
+  "name": "Homebase",
+  "short_name": "Homebase",
+  "description": "A calm shared home for money, plans, and goals.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f5f5ef",
+  "theme_color": "#365d4c"
+}
