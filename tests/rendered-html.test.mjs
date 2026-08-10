@@ -43,3 +43,13 @@ test("authenticates before touching household storage", async () => {
   assert.ok(ensureMember.indexOf("identityFromRequest(request)") < ensureMember.indexOf("ensureSchema()"));
   assert.match(source, /WHERE id = \? AND household_id = \?/);
 });
+
+test("protects personal budgets while allowing exact categorization", async () => {
+  const source = await readFile(new URL("../lib/household.ts", import.meta.url), "utf8");
+  const budgetUpdates = source.slice(source.indexOf("export async function saveBudgetLimits"), source.indexOf("export async function createBudgetCategory"));
+  const transactionReview = source.slice(source.indexOf("export async function reviewTransaction"), source.indexOf("export async function setMinimumMode"));
+
+  assert.match(budgetUpdates, /ownership_type = 'shared' OR owner_member_id = \?/);
+  assert.match(transactionReview, /category\.owner_member_id !== member\.id/);
+  assert.match(transactionReview, /category_id = \?/);
+});

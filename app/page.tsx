@@ -109,6 +109,10 @@ export default function Home() {
   const [invitation, setInvitation] = useState<HouseholdPayload["invitation"]>(null);
   const [showHousehold, setShowHousehold] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
+  const [editingLimits, setEditingLimits] = useState(false);
+  const [limitDrafts, setLimitDrafts] = useState<Record<string, string>>({});
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [newCategoryLimit, setNewCategoryLimit] = useState("");
   const [syncStatus, setSyncStatus] = useState<"loading" | "saved" | "saving" | "error">("loading");
   const [syncMessage, setSyncMessage] = useState("Loading your household…");
 
@@ -132,9 +136,25 @@ export default function Home() {
   }
 
   useEffect(() => {
-    loadHouseholdData()
-      .then(() => { setSyncStatus("saved"); setSyncMessage("Saved to your household"); })
-      .catch((error) => { setSyncStatus("error"); setSyncMessage(error instanceof Error ? error.message : "Homebase could not load."); });
+    let active = true;
+    fetch("/api/household", { headers: { accept: "application/json" } })
+      .then(async (response) => {
+        const data = await response.json() as HouseholdPayload & { error?: string };
+        if (!response.ok) throw new Error(data.error ?? "Unable to load your household.");
+        return data;
+      })
+      .then((data) => {
+        if (!active) return;
+        applyHouseholdData(data);
+        setSyncStatus("saved");
+        setSyncMessage("Saved to your household");
+      })
+      .catch((error) => {
+        if (!active) return;
+        setSyncStatus("error");
+        setSyncMessage(error instanceof Error ? error.message : "Homebase could not load.");
+      });
+    return () => { active = false; };
   }, []);
 
   async function post(path: string, body: unknown) {
@@ -158,7 +178,7 @@ export default function Home() {
       (total, budget) => ({ spent: total.spent + budget.spent, limit: total.limit + budget.limit }),
       { spent: 0, limit: 0 },
     );
-  }, [scope]);
+  }, [scope, budgets]);
 
   async function toggleTask(id: string) {
     setTasks((current) => current.map((task) => (task.id === id ? { ...task, done: !task.done } : task)));
@@ -186,10 +206,58 @@ export default function Home() {
     }
   }
 
-  async function chooseTransaction(id: string, choice: "ours" | "mine") {
-    setTransactions((current) => current.map((transaction) => transaction.id === id ? { ...transaction, reviewStatus: "ready", scope: choice === "ours" ? "Ours" : "Mine", category: choice === "ours" ? "Household" : "Personal" } : transaction));
-    try { await post("/api/transactions/review", { id, choice }); await loadHouseholdData(); }
+  async function chooseTransaction(id: string, categoryId: string) {
+    const categoryScope = budgets.ours.some((budget) => budget.id === categoryId) ? "Ours" : "Mine";
+    const category = [...budgets.ours, ...budgets.mine].find((budget) => budget.id === categoryId);
+    setTransactions((current) => current.map((transaction) => transaction.id === id ? { ...transaction, reviewStatus: "ready", scope: categoryScope, category: category?.name ?? "Uncategorized" } : transaction));
+    try { await post("/api/transactions/review", { id, categoryId }); await loadHouseholdData(); }
     catch { await loadHouseholdData().catch(() => undefined); }
+  }
+
+  function startLimitEditing() {
+    setLimitDrafts(Object.fromEntries(budgets[scope].map((budget) => [budget.id, String(budget.limit)])));
+    setNewCategoryName("");
+    setNewCategoryLimit("");
+    setEditingLimits(true);
+  }
+
+  function stopLimitEditing() {
+    setEditingLimits(false);
+    setLimitDrafts({});
+    setNewCategoryName("");
+    setNewCategoryLimit("");
+  }
+
+  async function saveLimits() {
+    const changes = budgets[scope].map((budget) => ({
+      id: budget.id,
+      limitCents: Math.round(Number(limitDrafts[budget.id]) * 100),
+    }));
+    if (changes.some((change) => !Number.isInteger(change.limitCents) || change.limitCents < 0)) {
+      setSyncStatus("error");
+      setSyncMessage("Enter a valid amount for every fixed limit.");
+      return;
+    }
+    try {
+      await post("/api/budgets/categories", { action: "update-limits", changes });
+      await loadHouseholdData();
+      stopLimitEditing();
+    } catch { /* The shared sync message already explains the error. */ }
+  }
+
+  async function addBudgetCategory(event: FormEvent) {
+    event.preventDefault();
+    const limitCents = Math.round(Number(newCategoryLimit) * 100);
+    if (!newCategoryName.trim() || !Number.isInteger(limitCents) || limitCents < 0) {
+      setSyncStatus("error");
+      setSyncMessage("Add a category name and a valid monthly limit.");
+      return;
+    }
+    try {
+      await post("/api/budgets/categories", { action: "create", scope, name: newCategoryName, limitCents });
+      await loadHouseholdData();
+      stopLimitEditing();
+    } catch { /* The shared sync message already explains the error. */ }
   }
 
   async function toggleMinimumMode() {
@@ -213,6 +281,7 @@ export default function Home() {
   const firstName = user.displayName.split(/\s+/)[0] || "there";
   const initials = user.displayName.split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase() || "H";
   const reviewItem = transactions.find((transaction) => transaction.reviewStatus === "needs_review");
+  const reviewCount = transactions.filter((transaction) => transaction.reviewStatus === "needs_review").length;
   const sharedGroceries = budgets.ours.find((budget) => budget.name === "Groceries");
   const sharedDining = budgets.ours.find((budget) => budget.name === "Dining out");
   const sharedLeft = budgets.ours.reduce((total, budget) => total + Math.max(0, budget.limit - budget.spent), 0);
@@ -324,7 +393,7 @@ export default function Home() {
           <div className="page money-page">
             <header className="page-heading"><div><p className="eyebrow">August 2026</p><h1>Money</h1><p>Detailed when you need it. Quiet when you don’t.</p></div><button className="primary-button">+ Connect account</button></header>
             <div className="scope-switcher" role="tablist" aria-label="Budget scope">
-              {(Object.keys(scopeLabels) as Scope[]).map((item) => <button role="tab" aria-selected={scope === item} key={item} className={scope === item ? "active" : ""} onClick={() => setScope(item)}>{scopeLabels[item]}</button>)}
+              {(Object.keys(scopeLabels) as Scope[]).map((item) => <button role="tab" aria-selected={scope === item} key={item} className={scope === item ? "active" : ""} onClick={() => { setScope(item); stopLimitEditing(); }}>{scopeLabels[item]}</button>)}
             </div>
             <section className="money-summary">
               <div><p className="card-label">{scopeLabels[scope]} spent</p><h2>{formatMoney(budgetTotals.spent)}</h2><p>of {formatMoney(budgetTotals.limit)} across active categories</p></div>
@@ -334,19 +403,21 @@ export default function Home() {
             </section>
             <div className="money-layout">
               <section className="panel categories-panel">
-                <div className="panel-heading"><div><p className="card-label">Fixed limits</p><h2>{scopeLabels[scope]} categories</h2></div><button className="quiet-button">Edit limits</button></div>
+                <div className="panel-heading"><div><p className="card-label">Fixed limits</p><h2>{scopeLabels[scope]} categories</h2></div>{scope !== "yours" && (editingLimits ? <div className="edit-actions"><button className="quiet-button" onClick={stopLimitEditing}>Cancel</button><button className="save-button" onClick={saveLimits}>Save limits</button></div> : <button className="quiet-button" onClick={startLimitEditing}>Edit limits</button>)}</div>
                 {budgets[scope].length === 0 && <div className="empty-categories"><strong>No {scopeLabels[scope].toLowerCase()} categories yet</strong><p>{scope === "yours" ? "Invite your partner and their personal limits will appear here." : "Add a fixed limit to start tracking this area."}</p></div>}
                 {budgets[scope].map((budget) => {
-                  const percent = Math.round((budget.spent / budget.limit) * 100);
-                  return <div className="budget-row" key={budget.name}><div><strong>{budget.name}</strong><span>{percent}%</span></div><div className={`progress ${budget.tone}`}><i style={{ width: `${percent}%` }} /></div><p><span>{formatMoney(budget.spent)} spent</span><strong>{formatMoney(budget.limit - budget.spent)} left</strong></p></div>;
+                  const percent = budget.limit ? Math.round((budget.spent / budget.limit) * 100) : 0;
+                  return <div className={`budget-row ${editingLimits ? "editing" : ""}`} key={budget.id}><div><strong>{budget.name}</strong>{editingLimits ? <label className="limit-input"><span>$</span><input aria-label={`${budget.name} monthly limit`} type="number" min="0" step="1" inputMode="decimal" value={limitDrafts[budget.id] ?? ""} onChange={(event) => setLimitDrafts((current) => ({ ...current, [budget.id]: event.target.value }))} /></label> : <span>{percent}%</span>}</div><div className={`progress ${budget.tone}`}><i style={{ width: `${Math.min(100, percent)}%` }} /></div><p><span>{formatMoney(budget.spent)} spent</span><strong>{formatMoney(budget.limit - budget.spent)} left</strong></p></div>;
                 })}
+                {editingLimits && <form className="add-category" onSubmit={addBudgetCategory}><div><label htmlFor="new-category-name">New category</label><input id="new-category-name" value={newCategoryName} onChange={(event) => setNewCategoryName(event.target.value)} placeholder="e.g. Pets" /></div><div><label htmlFor="new-category-limit">Monthly limit</label><span className="money-field">$<input id="new-category-limit" type="number" min="0" step="1" inputMode="decimal" value={newCategoryLimit} onChange={(event) => setNewCategoryLimit(event.target.value)} placeholder="100" /></span></div><button>Add</button></form>}
+                {scope === "yours" && budgets.yours.length > 0 && <p className="privacy-note">Your partner controls their own fixed limits. You see totals here without access to private purchases.</p>}
               </section>
               <section className="panel review-panel">
-                <div className="panel-heading"><div><p className="card-label">Review inbox</p><h2>{reviewItem ? "1 needs attention" : "You’re all caught up"}</h2></div>{reviewItem && <span className="count-badge">1</span>}</div>
+                <div className="panel-heading"><div><p className="card-label">Review inbox</p><h2>{reviewItem ? `${reviewCount} ${reviewCount === 1 ? "needs" : "need"} attention` : "You’re all caught up"}</h2></div>{reviewItem && <span className="count-badge">{reviewCount}</span>}</div>
                 {reviewItem ? <>
                   <div className="review-merchant"><div className="merchant-mark">{reviewItem.mark}</div><div><strong>{reviewItem.merchant}</strong><span>{reviewItem.detail}</span></div><b>${reviewItem.amount.toFixed(2)}</b></div>
-                  <p className="review-question">How should this purchase count?</p>
-                  <div className="choice-row"><button onClick={() => chooseTransaction(reviewItem.id, "ours")}><span>⌂</span><strong>Ours</strong><small>Household</small></button><button onClick={() => chooseTransaction(reviewItem.id, "mine")}><span>○</span><strong>Mine</strong><small>Personal</small></button></div>
+                  <p className="review-question">Choose its exact budget category.</p>
+                  <div className="category-choices">{(["ours", "mine"] as const).map((choiceScope) => <div className="category-choice-group" key={choiceScope}><strong>{scopeLabels[choiceScope]}</strong><div>{budgets[choiceScope].map((budget) => <button key={budget.id} onClick={() => chooseTransaction(reviewItem.id, budget.id)}><span>{choiceScope === "ours" ? "⌂" : "○"}</span>{budget.name}</button>)}</div></div>)}</div>
                 </> : <div className="empty-review"><span>✓</span><p>Everything imported has a home.</p></div>}
               </section>
             </div>

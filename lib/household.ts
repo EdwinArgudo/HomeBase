@@ -286,11 +286,22 @@ export async function loadHousehold(request: Request) {
   const categoryRows = (await db.prepare("SELECT * FROM categories WHERE household_id = ? AND archived_at IS NULL ORDER BY ownership_type DESC, name").bind(member.household_id).all()).results as Array<{ id: string; owner_member_id: string | null; ownership_type: string; name: string; monthly_limit_cents: number }>;
   const spendingRows = (await db.prepare("SELECT category_id, COALESCE(SUM(amount_cents), 0) AS spent FROM transactions WHERE household_id = ? AND review_status = 'ready' AND is_transfer = 0 GROUP BY category_id").bind(member.household_id).all()).results as Array<{ category_id: string; spent: number }>;
   const spending = new Map(spendingRows.map((row) => [row.category_id, Number(row.spent)]));
+  const membersById = new Map(memberRows.map((row) => [row.id, row]));
   const toneByName: Record<string, string> = { "Dining out": "coral", Household: "gold", Transportation: "blue", Hobbies: "blue", Clothing: "sage", "Personal care": "gold" };
   const budgets = { ours: [], mine: [], yours: [] } as Record<"ours" | "mine" | "yours", Array<{ id: string; name: string; spent: number; limit: number; tone: string }>>;
+  const privatePartnerBudget = { spent: 0, limit: 0 };
   for (const row of categoryRows) {
     const scope = relativeScope(row.ownership_type, row.owner_member_id, member.id);
+    const owner = row.owner_member_id ? membersById.get(row.owner_member_id) : null;
+    if (scope === "yours" && owner?.personal_detail_visibility !== "shared") {
+      privatePartnerBudget.spent += (spending.get(row.id) ?? 0) / 100;
+      privatePartnerBudget.limit += row.monthly_limit_cents / 100;
+      continue;
+    }
     budgets[scope].push({ id: row.id, name: row.name, spent: (spending.get(row.id) ?? 0) / 100, limit: row.monthly_limit_cents / 100, tone: toneByName[row.name] ?? "sage" });
+  }
+  if (privatePartnerBudget.limit || privatePartnerBudget.spent) {
+    budgets.yours.push({ id: "private-partner-budget", name: "Personal spending", ...privatePartnerBudget, tone: "sage" });
   }
 
   const taskRows = (await db.prepare("SELECT * FROM tasks WHERE household_id = ? ORDER BY status, created_at").bind(member.household_id).all()).results as Array<{ id: string; owner_member_id: string | null; title: string; status: string }>;
@@ -305,7 +316,6 @@ export async function loadHousehold(request: Request) {
     ORDER BY t.transaction_date DESC, t.created_at DESC LIMIT 20`).bind(member.household_id).all()).results as Array<Record<string, string | number | null>>;
   const pendingInvitation = await db.prepare("SELECT id, email, status FROM invitations WHERE household_id = ? AND status = 'pending' LIMIT 1").bind(member.household_id).first<{ id: string; email: string; status: string }>();
 
-  const membersById = new Map(memberRows.map((row) => [row.id, row]));
   return {
     user: { id: member.id, displayName: identity.displayName, email: identity.email, role: member.role },
     household: { id: household!.id, name: household!.name, minimumMode: Boolean(household!.minimum_mode) },
@@ -372,15 +382,59 @@ export async function updateGrocery(request: Request, action: "add" | "toggle", 
   return null;
 }
 
-export async function reviewTransaction(request: Request, id: string, choice: "ours" | "mine") {
+export async function saveBudgetLimits(request: Request, changes: Array<{ id: string; limitCents: number }>) {
+  const { member } = await requireMember(request);
+  if (!changes.length || changes.length > 30) throw new HttpError(400, "Choose at least one fixed limit to update.");
+
+  const seen = new Set<string>();
+  for (const change of changes) {
+    if (!change.id || seen.has(change.id)) throw new HttpError(400, "Each category can only be updated once.");
+    if (!Number.isInteger(change.limitCents) || change.limitCents < 0 || change.limitCents > 100_000_000) {
+      throw new HttpError(400, "Enter a valid monthly limit.");
+    }
+    seen.add(change.id);
+  }
+
+  const db = database();
+  const results = await db.batch(changes.map((change) => db.prepare(`UPDATE categories
+    SET monthly_limit_cents = ?
+    WHERE id = ? AND household_id = ? AND archived_at IS NULL
+      AND (ownership_type = 'shared' OR owner_member_id = ?)`)
+    .bind(change.limitCents, change.id, member.household_id, member.id)));
+  if (results.some((result) => !result.meta.changes)) throw new HttpError(404, "One of those budget categories is no longer available.");
+}
+
+export async function createBudgetCategory(request: Request, input: { scope: "ours" | "mine"; name: string; limitCents: number }) {
+  const { member } = await requireMember(request);
+  const name = input.name.trim().replace(/\s+/g, " ").slice(0, 50);
+  if (!name) throw new HttpError(400, "Enter a category name.");
+  if (!Number.isInteger(input.limitCents) || input.limitCents < 0 || input.limitCents > 100_000_000) {
+    throw new HttpError(400, "Enter a valid monthly limit.");
+  }
+
+  const db = database();
+  const existing = input.scope === "ours"
+    ? await db.prepare("SELECT id FROM categories WHERE household_id = ? AND ownership_type = 'shared' AND archived_at IS NULL AND LOWER(name) = LOWER(?) LIMIT 1").bind(member.household_id, name).first<{ id: string }>()
+    : await db.prepare("SELECT id FROM categories WHERE household_id = ? AND ownership_type = 'personal' AND owner_member_id = ? AND archived_at IS NULL AND LOWER(name) = LOWER(?) LIMIT 1").bind(member.household_id, member.id, name).first<{ id: string }>();
+  if (existing) throw new HttpError(409, "That category already exists in this budget.");
+
+  const id = crypto.randomUUID();
+  await db.prepare("INSERT INTO categories (id, household_id, owner_member_id, ownership_type, name, monthly_limit_cents) VALUES (?, ?, ?, ?, ?, ?)")
+    .bind(id, member.household_id, input.scope === "mine" ? member.id : null, input.scope === "mine" ? "personal" : "shared", name, input.limitCents).run();
+  return { id, name, spent: 0, limit: input.limitCents / 100, tone: "sage" };
+}
+
+export async function reviewTransaction(request: Request, id: string, categoryId: string) {
   const { member } = await requireMember(request);
   const db = database();
-  const category = choice === "ours"
-    ? await db.prepare("SELECT id FROM categories WHERE household_id = ? AND ownership_type = 'shared' AND name = 'Household' LIMIT 1").bind(member.household_id).first<{ id: string }>()
-    : await db.prepare("SELECT id FROM categories WHERE household_id = ? AND owner_member_id = ? AND ownership_type = 'personal' ORDER BY name LIMIT 1").bind(member.household_id, member.id).first<{ id: string }>();
-  if (!category) throw new HttpError(409, "Create a matching budget category first.");
+  const category = await db.prepare("SELECT id, ownership_type, owner_member_id FROM categories WHERE id = ? AND household_id = ? AND archived_at IS NULL LIMIT 1")
+    .bind(categoryId, member.household_id).first<{ id: string; ownership_type: "shared" | "personal"; owner_member_id: string | null }>();
+  if (!category) throw new HttpError(404, "That budget category is no longer available.");
+  if (category.ownership_type === "personal" && category.owner_member_id !== member.id) {
+    throw new HttpError(403, "Choose one of your own personal categories.");
+  }
   const result = await db.prepare("UPDATE transactions SET spending_type = ?, personal_member_id = ?, category_id = ?, review_status = 'ready' WHERE id = ? AND household_id = ?")
-    .bind(choice === "ours" ? "shared" : "personal", choice === "ours" ? null : member.id, category.id, id, member.household_id).run();
+    .bind(category.ownership_type, category.ownership_type === "shared" ? null : member.id, category.id, id, member.household_id).run();
   if (!result.meta.changes) throw new HttpError(404, "Transaction not found.");
 }
 

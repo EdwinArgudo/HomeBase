@@ -2,9 +2,9 @@ import { HttpError, reviewTransaction } from "../../../../lib/household";
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json() as { id?: string; choice?: "ours" | "mine" };
-    if (!body.id || (body.choice !== "ours" && body.choice !== "mine")) throw new HttpError(400, "Choose how this transaction should count.");
-    await reviewTransaction(request, body.id, body.choice);
+    const body = await request.json() as { id?: string; categoryId?: string };
+    if (!body.id || !body.categoryId) throw new HttpError(400, "Choose a budget category for this transaction.");
+    await reviewTransaction(request, body.id, body.categoryId);
     return Response.json({ ok: true });
   } catch (error) {
     const status = error instanceof HttpError ? error.status : 500;
