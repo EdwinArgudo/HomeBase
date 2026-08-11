@@ -21,6 +21,10 @@ function normalizeEmail(value: string) {
   return value.trim().toLowerCase();
 }
 
+export function normalizeMerchantName(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().replace(/\s+/g, " ").slice(0, 120);
+}
+
 function identityFromRequest(request: Request): Identity {
   const externalId = request.headers.get("oai-authenticated-user-id");
   const email = request.headers.get("oai-authenticated-user-email");
@@ -157,6 +161,20 @@ async function ensureSchema() {
       amount_cents INTEGER NOT NULL
     )`),
     db.prepare(`CREATE INDEX IF NOT EXISTS idx_transaction_splits_transaction_id ON transaction_splits(transaction_id)`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS merchant_rules (
+      id TEXT PRIMARY KEY NOT NULL,
+      household_id TEXT NOT NULL REFERENCES households(id),
+      created_by_member_id TEXT NOT NULL REFERENCES members(id),
+      match_text TEXT NOT NULL,
+      merchant_name TEXT NOT NULL,
+      category_id TEXT NOT NULL REFERENCES categories(id),
+      spending_type TEXT NOT NULL,
+      personal_member_id TEXT REFERENCES members(id),
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`),
+    db.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_merchant_rules_member_match ON merchant_rules(household_id, created_by_member_id, match_text)`),
+    db.prepare(`CREATE INDEX IF NOT EXISTS idx_merchant_rules_household_match ON merchant_rules(household_id, match_text)`),
     db.prepare(`CREATE TABLE IF NOT EXISTS tasks (
       id TEXT PRIMARY KEY NOT NULL,
       household_id TEXT NOT NULL REFERENCES households(id),
@@ -309,7 +327,18 @@ export async function loadHousehold(request: Request) {
   const household = await db.prepare("SELECT * FROM households WHERE id = ?").bind(member.household_id).first<{ id: string; name: string; minimum_mode: number }>();
   const memberRows = (await db.prepare("SELECT id, display_name, email, role, personal_detail_visibility FROM members WHERE household_id = ? ORDER BY created_at").bind(member.household_id).all()).results as Array<{ id: string; display_name: string; email: string; role: string; personal_detail_visibility: string }>;
   const categoryRows = (await db.prepare("SELECT * FROM categories WHERE household_id = ? AND archived_at IS NULL ORDER BY ownership_type DESC, name").bind(member.household_id).all()).results as Array<{ id: string; owner_member_id: string | null; ownership_type: string; name: string; monthly_limit_cents: number }>;
-  const spendingRows = (await db.prepare("SELECT category_id, COALESCE(SUM(amount_cents), 0) AS spent FROM transactions WHERE household_id = ? AND review_status = 'ready' AND is_transfer = 0 GROUP BY category_id").bind(member.household_id).all()).results as Array<{ category_id: string; spent: number }>;
+  const spendingRows = (await db.prepare(`SELECT category_id, COALESCE(SUM(amount_cents), 0) AS spent
+    FROM (
+      SELECT category_id, amount_cents
+      FROM transactions
+      WHERE household_id = ? AND review_status = 'ready' AND is_transfer = 0 AND category_id IS NOT NULL
+      UNION ALL
+      SELECT ts.category_id, ts.amount_cents
+      FROM transaction_splits ts
+      JOIN transactions t ON t.id = ts.transaction_id
+      WHERE t.household_id = ? AND t.review_status = 'split' AND t.is_transfer = 0
+    ) categorized_spending
+    GROUP BY category_id`).bind(member.household_id, member.household_id).all()).results as Array<{ category_id: string; spent: number }>;
   const spending = new Map(spendingRows.map((row) => [row.category_id, Number(row.spent)]));
   const membersById = new Map(memberRows.map((row) => [row.id, row]));
   const toneByName: Record<string, string> = { "Dining out": "coral", Household: "gold", Transportation: "blue", Hobbies: "blue", Clothing: "sage", "Personal care": "gold" };
@@ -339,6 +368,25 @@ export async function loadHousehold(request: Request) {
     LEFT JOIN members m ON m.id = t.personal_member_id
     WHERE t.household_id = ?
     ORDER BY t.transaction_date DESC, t.created_at DESC LIMIT 20`).bind(member.household_id).all()).results as Array<Record<string, string | number | null>>;
+  const transactionIds = transactionRows.map((row) => String(row.id));
+  const splitRows = transactionIds.length ? (await db.prepare(`SELECT ts.transaction_id, ts.category_id, ts.amount_cents, ts.spending_type, ts.personal_member_id, c.name AS category_name
+    FROM transaction_splits ts
+    JOIN categories c ON c.id = ts.category_id
+    JOIN transactions t ON t.id = ts.transaction_id
+    WHERE t.household_id = ?
+    ORDER BY ts.transaction_id, ts.id`).bind(member.household_id).all()).results as Array<{ transaction_id: string; category_id: string; amount_cents: number; spending_type: string; personal_member_id: string | null; category_name: string }> : [];
+  const splitsByTransaction = new Map<string, typeof splitRows>();
+  for (const split of splitRows) {
+    if (!transactionIds.includes(split.transaction_id)) continue;
+    const existing = splitsByTransaction.get(split.transaction_id) ?? [];
+    existing.push(split);
+    splitsByTransaction.set(split.transaction_id, existing);
+  }
+  const ruleRows = (await db.prepare(`SELECT mr.id, mr.merchant_name, mr.match_text, mr.category_id, mr.spending_type, c.name AS category_name
+    FROM merchant_rules mr
+    JOIN categories c ON c.id = mr.category_id
+    WHERE mr.household_id = ? AND mr.created_by_member_id = ? AND c.archived_at IS NULL
+    ORDER BY mr.updated_at DESC, mr.merchant_name`).bind(member.household_id, member.id).all()).results as Array<{ id: string; merchant_name: string; match_text: string; category_id: string; spending_type: string; category_name: string }>;
   const pendingInvitation = await db.prepare("SELECT id, email, status FROM invitations WHERE household_id = ? AND status = 'pending' LIMIT 1").bind(member.household_id).first<{ id: string; email: string; status: string }>();
   const connectionRows = (await db.prepare(`SELECT bc.id, bc.owner_member_id, bc.ownership_type, bc.institution_name, bc.status, bc.last_synced_at,
       COUNT(a.id) AS account_count
@@ -368,20 +416,39 @@ export async function loadHousehold(request: Request) {
     budgets,
     tasks: taskRows.map((row) => ({ id: row.id, text: row.title, owner: row.owner_member_id ? (row.owner_member_id === member.id ? "You" : membersById.get(row.owner_member_id)?.display_name ?? "Partner") : "Together", done: row.status === "complete" })),
     groceries: groceryRows.map((row) => ({ id: row.id, text: row.name, checked: Boolean(row.checked) })),
+    merchantRules: ruleRows.map((row) => ({
+      id: row.id,
+      merchant: row.merchant_name,
+      matchText: row.match_text,
+      categoryId: row.category_id,
+      category: row.category_name,
+      scope: row.spending_type === "shared" ? "Ours" : "Mine",
+    })),
     transactions: transactionRows.map((row) => {
       const spendingType = row.spending_type as string | null;
       const personalId = row.personal_member_id as string | null;
-      const isOtherPrivate = spendingType === "personal" && personalId !== member.id && row.personal_detail_visibility !== "shared";
+      const belongsToOtherMember = (spendingType === "personal" && personalId !== member.id) || (row.account_owner_id && row.account_owner_id !== member.id);
+      const isOtherPrivate = Boolean(belongsToOtherMember && row.personal_detail_visibility !== "shared");
       const scope = spendingType ? relativeScope(spendingType, personalId, member.id) : null;
+      const splits = splitsByTransaction.get(String(row.id)) ?? [];
+      const splitScopes = new Set(splits.map((split) => relativeScope(split.spending_type, split.personal_member_id, member.id)));
+      const splitScope = splitScopes.size === 1 ? [...splitScopes][0] : "mixed";
       return {
         id: row.id,
         merchant: isOtherPrivate ? "Personal purchase" : row.merchant_name,
         detail: `${row.transaction_date} · ${row.account_name}`,
         amount: Number(row.amount_cents) / 100,
-        scope: scope ? scope[0].toUpperCase() + scope.slice(1) : "Unassigned",
-        category: isOtherPrivate ? "Private" : row.category_name ?? "Needs review",
+        scope: row.review_status === "split" ? splitScope[0].toUpperCase() + splitScope.slice(1) : scope ? scope[0].toUpperCase() + scope.slice(1) : "Unassigned",
+        category: isOtherPrivate ? "Private" : row.review_status === "split" ? `Split · ${splits.length} categories` : row.category_name ?? "Needs review",
         mark: isOtherPrivate ? "P" : String(row.merchant_name).split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase(),
         reviewStatus: row.review_status,
+        editable: !isOtherPrivate && (!row.account_owner_id || row.account_owner_id === member.id) && (!personalId || personalId === member.id),
+        splits: isOtherPrivate ? [] : splits.map((split) => ({
+          categoryId: split.category_id,
+          category: split.category_name,
+          scope: relativeScope(split.spending_type, split.personal_member_id, member.id),
+          amount: Number(split.amount_cents) / 100,
+        })),
       };
     }),
   };
@@ -468,18 +535,110 @@ export async function createBudgetCategory(request: Request, input: { scope: "ou
   return { id, name, spent: 0, limit: input.limitCents / 100, tone: "sage" };
 }
 
-export async function reviewTransaction(request: Request, id: string, categoryId: string) {
+async function editableTransaction(db: D1Database, householdId: string, memberId: string, id: string) {
+  const transaction = await db.prepare(`SELECT t.id, t.merchant_name, t.amount_cents, t.personal_member_id, a.owner_member_id AS account_owner_id, a.ownership_type AS account_ownership_type
+    FROM transactions t
+    JOIN accounts a ON a.id = t.account_id
+    WHERE t.id = ? AND t.household_id = ? LIMIT 1`).bind(id, householdId).first<{ id: string; merchant_name: string; amount_cents: number; personal_member_id: string | null; account_owner_id: string | null; account_ownership_type: string }>();
+  if (!transaction) throw new HttpError(404, "Transaction not found.");
+  if ((transaction.account_ownership_type === "personal" && transaction.account_owner_id !== memberId) || (transaction.personal_member_id && transaction.personal_member_id !== memberId)) {
+    throw new HttpError(403, "Only your partner can edit that private transaction.");
+  }
+  return transaction;
+}
+
+export async function reviewTransaction(request: Request, id: string, categoryId: string, createRule = false) {
   const { member } = await requireMember(request);
   const db = database();
+  const transaction = await editableTransaction(db, member.household_id, member.id, id);
   const category = await db.prepare("SELECT id, ownership_type, owner_member_id FROM categories WHERE id = ? AND household_id = ? AND archived_at IS NULL LIMIT 1")
     .bind(categoryId, member.household_id).first<{ id: string; ownership_type: "shared" | "personal"; owner_member_id: string | null }>();
   if (!category) throw new HttpError(404, "That budget category is no longer available.");
   if (category.ownership_type === "personal" && category.owner_member_id !== member.id) {
     throw new HttpError(403, "Choose one of your own personal categories.");
   }
-  const result = await db.prepare("UPDATE transactions SET spending_type = ?, personal_member_id = ?, category_id = ?, review_status = 'ready' WHERE id = ? AND household_id = ?")
-    .bind(category.ownership_type, category.ownership_type === "shared" ? null : member.id, category.id, id, member.household_id).run();
-  if (!result.meta.changes) throw new HttpError(404, "Transaction not found.");
+  const personalMemberId = category.ownership_type === "shared" ? null : member.id;
+  const statements: D1PreparedStatement[] = [
+    db.prepare("DELETE FROM transaction_splits WHERE transaction_id = ?").bind(id),
+    db.prepare("UPDATE transactions SET spending_type = ?, personal_member_id = ?, category_id = ?, review_status = 'ready' WHERE id = ? AND household_id = ?")
+      .bind(category.ownership_type, personalMemberId, category.id, id, member.household_id),
+  ];
+
+  if (createRule) {
+    const matchText = normalizeMerchantName(transaction.merchant_name);
+    if (!matchText) throw new HttpError(400, "That merchant name cannot be saved as a rule.");
+    statements.push(db.prepare(`INSERT INTO merchant_rules
+      (id, household_id, created_by_member_id, match_text, merchant_name, category_id, spending_type, personal_member_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(household_id, created_by_member_id, match_text) DO UPDATE SET
+        merchant_name = excluded.merchant_name,
+        category_id = excluded.category_id,
+        spending_type = excluded.spending_type,
+        personal_member_id = excluded.personal_member_id,
+        updated_at = CURRENT_TIMESTAMP`)
+      .bind(crypto.randomUUID(), member.household_id, member.id, matchText, transaction.merchant_name.slice(0, 120), category.id, category.ownership_type, personalMemberId));
+
+    const candidates = (await db.prepare(`SELECT t.id, t.merchant_name
+      FROM transactions t
+      JOIN accounts a ON a.id = t.account_id
+      WHERE t.household_id = ? AND t.review_status = 'needs_review'
+        AND (a.ownership_type = 'shared' OR a.owner_member_id = ?)
+        AND (t.personal_member_id IS NULL OR t.personal_member_id = ?)`)
+      .bind(member.household_id, member.id, member.id).all()).results as Array<{ id: string; merchant_name: string }>;
+    for (const candidate of candidates) {
+      if (candidate.id !== id && normalizeMerchantName(candidate.merchant_name) === matchText) {
+        statements.push(db.prepare("UPDATE transactions SET spending_type = ?, personal_member_id = ?, category_id = ?, review_status = 'ready' WHERE id = ? AND household_id = ?")
+          .bind(category.ownership_type, personalMemberId, category.id, candidate.id, member.household_id));
+      }
+    }
+  }
+
+  const results = await db.batch(statements);
+  if (!results[1]?.meta.changes) throw new HttpError(404, "Transaction not found.");
+}
+
+export async function splitTransaction(request: Request, id: string, splits: Array<{ categoryId: string; amountCents: number }>) {
+  const { member } = await requireMember(request);
+  if (splits.length < 2 || splits.length > 10) throw new HttpError(400, "Split the transaction into two to ten parts.");
+  const db = database();
+  const transaction = await editableTransaction(db, member.household_id, member.id, id);
+  const seen = new Set<string>();
+  let total = 0;
+  for (const split of splits) {
+    if (!split.categoryId || seen.has(split.categoryId)) throw new HttpError(400, "Choose each split category once.");
+    if (!Number.isInteger(split.amountCents) || split.amountCents <= 0) throw new HttpError(400, "Every split needs a positive amount.");
+    seen.add(split.categoryId);
+    total += split.amountCents;
+  }
+  if (total !== Number(transaction.amount_cents)) throw new HttpError(400, "Split amounts must add up to the transaction total.");
+
+  const categoryRows = (await db.prepare("SELECT id, ownership_type, owner_member_id FROM categories WHERE household_id = ? AND archived_at IS NULL")
+    .bind(member.household_id).all()).results as Array<{ id: string; ownership_type: "shared" | "personal"; owner_member_id: string | null }>;
+  const categories = new Map(categoryRows.map((category) => [category.id, category]));
+  const parts = splits.map((split) => {
+    const category = categories.get(split.categoryId);
+    if (!category) throw new HttpError(404, "One of those budget categories is no longer available.");
+    if (category.ownership_type === "personal" && category.owner_member_id !== member.id) throw new HttpError(403, "Choose only shared categories or your own personal categories.");
+    return { ...split, category, personalMemberId: category.ownership_type === "personal" ? member.id : null };
+  });
+  const spendingTypes = new Set(parts.map((part) => part.category.ownership_type));
+  const singleType = spendingTypes.size === 1 ? parts[0].category.ownership_type : null;
+  const statements: D1PreparedStatement[] = [db.prepare("DELETE FROM transaction_splits WHERE transaction_id = ?").bind(id)];
+  for (const part of parts) {
+    statements.push(db.prepare("INSERT INTO transaction_splits (id, transaction_id, category_id, spending_type, personal_member_id, amount_cents) VALUES (?, ?, ?, ?, ?, ?)")
+      .bind(crypto.randomUUID(), id, part.categoryId, part.category.ownership_type, part.personalMemberId, part.amountCents));
+  }
+  statements.push(db.prepare("UPDATE transactions SET spending_type = ?, personal_member_id = ?, category_id = NULL, review_status = 'split' WHERE id = ? AND household_id = ?")
+    .bind(singleType, singleType === "personal" ? member.id : null, id, member.household_id));
+  const results = await db.batch(statements);
+  if (!results.at(-1)?.meta.changes) throw new HttpError(404, "Transaction not found.");
+}
+
+export async function deleteMerchantRule(request: Request, id: string) {
+  const { member } = await requireMember(request);
+  const result = await database().prepare("DELETE FROM merchant_rules WHERE id = ? AND household_id = ? AND created_by_member_id = ?")
+    .bind(id, member.household_id, member.id).run();
+  if (!result.meta.changes) throw new HttpError(404, "Merchant rule not found.");
 }
 
 export async function setMinimumMode(request: Request, enabled: boolean) {

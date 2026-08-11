@@ -1,5 +1,5 @@
 import { env } from "cloudflare:workers";
-import { householdDatabase, HttpError, requireHouseholdMember } from "./household";
+import { householdDatabase, HttpError, normalizeMerchantName, requireHouseholdMember } from "./household";
 
 type Ownership = "ours" | "mine";
 type PlaidEnvironment = "sandbox" | "development" | "production";
@@ -183,6 +183,16 @@ async function syncConnectionWithToken(db: D1Database, connection: { id: string;
   const categoryIds = new Map(categoryRows
     .filter((row) => connection.ownership_type === "shared" ? row.ownership_type === "shared" : row.ownership_type === "personal" && row.owner_member_id === connection.owner_member_id)
     .map((row) => [row.name.toLowerCase(), row.id]));
+  const ruleRows = (await db.prepare(`SELECT mr.match_text, mr.category_id, mr.spending_type, mr.personal_member_id, mr.created_by_member_id
+    FROM merchant_rules mr
+    JOIN categories c ON c.id = mr.category_id AND c.archived_at IS NULL
+    WHERE mr.household_id = ?
+    ORDER BY mr.updated_at DESC`).bind(connection.household_id).all()).results as Array<{ match_text: string; category_id: string; spending_type: "personal" | "shared"; personal_member_id: string | null; created_by_member_id: string }>;
+  const merchantRules = new Map<string, typeof ruleRows[number]>();
+  for (const rule of ruleRows) {
+    const applies = connection.ownership_type === "shared" ? rule.spending_type === "shared" : rule.created_by_member_id === connection.owner_member_id;
+    if (applies && !merchantRules.has(rule.match_text)) merchantRules.set(rule.match_text, rule);
+  }
 
   const statements: D1PreparedStatement[] = [];
   for (const transaction of [...updates.added, ...updates.modified]) {
@@ -190,11 +200,13 @@ async function syncConnectionWithToken(db: D1Database, connection: { id: string;
     if (!accountId) continue;
     const primary = transaction.personal_finance_category?.primary ?? "";
     const isTransfer = primary.startsWith("TRANSFER_");
+    const merchantName = (transaction.merchant_name || transaction.name || "Imported transaction").slice(0, 120);
+    const merchantRule = merchantRules.get(normalizeMerchantName(merchantName));
     const categoryName = suggestedCategoryName(transaction);
-    const categoryId = categoryName ? categoryIds.get(categoryName.toLowerCase()) ?? null : null;
+    const categoryId = merchantRule?.category_id ?? (categoryName ? categoryIds.get(categoryName.toLowerCase()) ?? null : null);
     const reviewStatus = isTransfer || categoryId ? "ready" : "needs_review";
-    const spendingType = connection.ownership_type;
-    const personalMemberId = spendingType === "personal" ? connection.owner_member_id : null;
+    const spendingType = merchantRule?.spending_type ?? connection.ownership_type;
+    const personalMemberId = merchantRule ? merchantRule.personal_member_id : spendingType === "personal" ? connection.owner_member_id : null;
     statements.push(db.prepare(`INSERT INTO transactions
       (id, household_id, account_id, provider_transaction_id, merchant_name, amount_cents, transaction_date, spending_type, personal_member_id, category_id, review_status, is_transfer, note)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -209,9 +221,10 @@ async function syncConnectionWithToken(db: D1Database, connection: { id: string;
         review_status = CASE WHEN transactions.review_status = 'needs_review' AND excluded.category_id IS NOT NULL THEN 'ready' ELSE transactions.review_status END,
         is_transfer = excluded.is_transfer,
         note = excluded.note`)
-      .bind(crypto.randomUUID(), connection.household_id, accountId, transaction.transaction_id, (transaction.merchant_name || transaction.name || "Imported transaction").slice(0, 120), Math.round(transaction.amount * 100), transaction.date, spendingType, personalMemberId, categoryId, reviewStatus, isTransfer ? 1 : 0, transaction.personal_finance_category?.detailed ?? null));
+      .bind(crypto.randomUUID(), connection.household_id, accountId, transaction.transaction_id, merchantName, Math.round(transaction.amount * 100), transaction.date, spendingType, personalMemberId, categoryId, reviewStatus, isTransfer ? 1 : 0, transaction.personal_finance_category?.detailed ?? null));
   }
   for (const removed of updates.removed) {
+    statements.push(db.prepare("DELETE FROM transaction_splits WHERE transaction_id = (SELECT id FROM transactions WHERE household_id = ? AND provider_transaction_id = ?)").bind(connection.household_id, removed.transaction_id));
     statements.push(db.prepare("DELETE FROM transactions WHERE household_id = ? AND provider_transaction_id = ?").bind(connection.household_id, removed.transaction_id));
   }
   await runStatementBatches(db, statements);

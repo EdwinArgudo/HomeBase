@@ -14,7 +14,10 @@ const scopeLabels: Record<Scope, string> = {
 type Budget = { id: string; name: string; spent: number; limit: number; tone: string };
 type Task = { id: string; text: string; owner: string; done: boolean };
 type Grocery = { id: string; text: string; checked: boolean };
-type Transaction = { id: string; merchant: string; detail: string; amount: number; scope: string; category: string; mark: string; reviewStatus: string };
+type TransactionSplit = { categoryId: string; category: string; scope: "ours" | "mine" | "yours"; amount: number };
+type Transaction = { id: string; merchant: string; detail: string; amount: number; scope: string; category: string; mark: string; reviewStatus: string; editable: boolean; splits: TransactionSplit[] };
+type MerchantRule = { id: string; merchant: string; matchText: string; categoryId: string; category: string; scope: "Ours" | "Mine" };
+type SplitDraft = { categoryId: string; amount: string };
 type Member = { id: string; displayName: string; email: string; role: string };
 type BankConnection = { id: string; institutionName: string; scope: "ours" | "mine"; status: string; lastSyncedAt: string | null; accountCount: number };
 type HouseholdPayload = {
@@ -26,6 +29,7 @@ type HouseholdPayload = {
   budgets: Record<Scope, Budget[]>;
   tasks: Task[];
   groceries: Grocery[];
+  merchantRules: MerchantRule[];
   transactions: Transaction[];
 };
 
@@ -63,9 +67,9 @@ const fallbackBudgets: Record<Scope, Budget[]> = {
 };
 
 const fallbackTransactions: Transaction[] = [
-  { id: "demo-whole-foods", merchant: "Whole Foods", detail: "Today · Visa", amount: 84.27, scope: "Ours", category: "Groceries", mark: "WF", reviewStatus: "ready" },
-  { id: "demo-mta", merchant: "MTA", detail: "Yesterday · Joint Mastercard", amount: 29.00, scope: "Ours", category: "Transportation", mark: "M", reviewStatus: "ready" },
-  { id: "demo-costco", merchant: "Costco", detail: "Aug 8 · Visa", amount: 126.42, scope: "Ours", category: "Needs review", mark: "C", reviewStatus: "needs_review" },
+  { id: "demo-whole-foods", merchant: "Whole Foods", detail: "Today · Visa", amount: 84.27, scope: "Ours", category: "Groceries", mark: "WF", reviewStatus: "ready", editable: true, splits: [] },
+  { id: "demo-mta", merchant: "MTA", detail: "Yesterday · Joint Mastercard", amount: 29.00, scope: "Ours", category: "Transportation", mark: "M", reviewStatus: "ready", editable: true, splits: [] },
+  { id: "demo-costco", merchant: "Costco", detail: "Aug 8 · Visa", amount: 126.42, scope: "Ours", category: "Needs review", mark: "C", reviewStatus: "needs_review", editable: true, splits: [] },
 ];
 
 const initialTasks: Task[] = [
@@ -140,6 +144,7 @@ export default function Home() {
   const [scope, setScope] = useState<Scope>("ours");
   const [budgets, setBudgets] = useState(fallbackBudgets);
   const [transactions, setTransactions] = useState(fallbackTransactions);
+  const [merchantRules, setMerchantRules] = useState<MerchantRule[]>([]);
   const [tasks, setTasks] = useState(initialTasks);
   const [groceries, setGroceries] = useState(initialGroceries);
   const [groceryDraft, setGroceryDraft] = useState("");
@@ -159,6 +164,10 @@ export default function Home() {
   const [limitDrafts, setLimitDrafts] = useState<Record<string, string>>({});
   const [newCategoryName, setNewCategoryName] = useState("");
   const [newCategoryLimit, setNewCategoryLimit] = useState("");
+  const [rememberMerchant, setRememberMerchant] = useState(true);
+  const [splitTransactionItem, setSplitTransactionItem] = useState<Transaction | null>(null);
+  const [splitDrafts, setSplitDrafts] = useState<SplitDraft[]>([]);
+  const [splitSaving, setSplitSaving] = useState(false);
   const [syncStatus, setSyncStatus] = useState<"loading" | "saved" | "saving" | "error">("loading");
   const [syncMessage, setSyncMessage] = useState("Loading your household…");
 
@@ -169,6 +178,7 @@ export default function Home() {
     setInvitation(data.invitation);
     setPlaid(data.plaid);
     setBudgets(data.budgets);
+    setMerchantRules(data.merchantRules);
     setTransactions(data.transactions);
     setTasks(data.tasks);
     setGroceries(data.groceries);
@@ -257,8 +267,70 @@ export default function Home() {
     const categoryScope = budgets.ours.some((budget) => budget.id === categoryId) ? "Ours" : "Mine";
     const category = [...budgets.ours, ...budgets.mine].find((budget) => budget.id === categoryId);
     setTransactions((current) => current.map((transaction) => transaction.id === id ? { ...transaction, reviewStatus: "ready", scope: categoryScope, category: category?.name ?? "Uncategorized" } : transaction));
-    try { await post("/api/transactions/review", { id, categoryId }); await loadHouseholdData(); }
+    try { await post("/api/transactions/review", { id, categoryId, createRule: rememberMerchant }); await loadHouseholdData(); }
     catch { await loadHouseholdData().catch(() => undefined); }
+  }
+
+  function availableSplitCategories() {
+    return [
+      ...budgets.ours.map((budget) => ({ ...budget, scope: "ours" as const })),
+      ...budgets.mine.map((budget) => ({ ...budget, scope: "mine" as const })),
+    ];
+  }
+
+  function startSplitting(transaction: Transaction) {
+    const categories = availableSplitCategories();
+    if (categories.length < 2) {
+      setSyncStatus("error");
+      setSyncMessage("Add at least two budget categories before splitting a transaction.");
+      return;
+    }
+    const existing = transaction.splits.map((split) => ({ categoryId: split.categoryId, amount: split.amount.toFixed(2) }));
+    const totalCents = Math.round(transaction.amount * 100);
+    const firstCents = Math.floor(totalCents / 2);
+    setSplitDrafts(existing.length >= 2 ? existing : [
+      { categoryId: categories[0].id, amount: (firstCents / 100).toFixed(2) },
+      { categoryId: categories[1].id, amount: ((totalCents - firstCents) / 100).toFixed(2) },
+    ]);
+    setSplitTransactionItem(transaction);
+  }
+
+  function updateSplit(index: number, change: Partial<SplitDraft>) {
+    setSplitDrafts((current) => current.map((draft, draftIndex) => draftIndex === index ? { ...draft, ...change } : draft));
+  }
+
+  function addSplitPart() {
+    const categories = availableSplitCategories();
+    const used = new Set(splitDrafts.map((draft) => draft.categoryId));
+    const next = categories.find((category) => !used.has(category.id));
+    if (!next || splitDrafts.length >= 10) return;
+    setSplitDrafts((current) => [...current, { categoryId: next.id, amount: "0.00" }]);
+  }
+
+  async function saveSplit() {
+    if (!splitTransactionItem) return;
+    const splits = splitDrafts.map((draft) => ({ categoryId: draft.categoryId, amountCents: Math.round(Number(draft.amount) * 100) }));
+    const totalCents = Math.round(splitTransactionItem.amount * 100);
+    if (splits.length < 2 || splits.some((split) => !split.categoryId || !Number.isInteger(split.amountCents) || split.amountCents <= 0) || splits.reduce((sum, split) => sum + split.amountCents, 0) !== totalCents) {
+      setSyncStatus("error");
+      setSyncMessage("Use positive amounts that add up exactly to the transaction total.");
+      return;
+    }
+    setSplitSaving(true);
+    try {
+      await post("/api/transactions/split", { id: splitTransactionItem.id, splits });
+      await loadHouseholdData();
+      setSplitTransactionItem(null);
+      setSplitDrafts([]);
+    } catch { /* The shared sync message already explains the error. */ }
+    finally { setSplitSaving(false); }
+  }
+
+  async function removeMerchantRule(id: string) {
+    try {
+      await post("/api/merchant-rules", { action: "delete", id });
+      setMerchantRules((current) => current.filter((rule) => rule.id !== id));
+    } catch { /* The shared sync message already explains the error. */ }
   }
 
   function startLimitEditing() {
@@ -400,6 +472,9 @@ export default function Home() {
   const initials = user.displayName.split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase() || "H";
   const reviewItem = transactions.find((transaction) => transaction.reviewStatus === "needs_review");
   const reviewCount = transactions.filter((transaction) => transaction.reviewStatus === "needs_review").length;
+  const splitCategories = availableSplitCategories();
+  const splitAllocatedCents = splitDrafts.reduce((sum, draft) => sum + (Number.isFinite(Number(draft.amount)) ? Math.round(Number(draft.amount) * 100) : 0), 0);
+  const splitRemainingCents = splitTransactionItem ? Math.round(splitTransactionItem.amount * 100) - splitAllocatedCents : 0;
   const sharedGroceries = budgets.ours.find((budget) => budget.name === "Groceries");
   const sharedDining = budgets.ours.find((budget) => budget.name === "Dining out");
   const sharedLeft = budgets.ours.reduce((total, budget) => total + Math.max(0, budget.limit - budget.spent), 0);
@@ -537,12 +612,15 @@ export default function Home() {
                   <div className="review-merchant"><div className="merchant-mark">{reviewItem.mark}</div><div><strong>{reviewItem.merchant}</strong><span>{reviewItem.detail}</span></div><b>${reviewItem.amount.toFixed(2)}</b></div>
                   <p className="review-question">Choose its exact budget category.</p>
                   <div className="category-choices">{(["ours", "mine"] as const).map((choiceScope) => <div className="category-choice-group" key={choiceScope}><strong>{scopeLabels[choiceScope]}</strong><div>{budgets[choiceScope].map((budget) => <button key={budget.id} onClick={() => chooseTransaction(reviewItem.id, budget.id)}><span>{choiceScope === "ours" ? "⌂" : "○"}</span>{budget.name}</button>)}</div></div>)}</div>
+                  <div className="review-tools"><label htmlFor="remember-merchant"><input id="remember-merchant" type="checkbox" checked={rememberMerchant} onChange={(event) => setRememberMerchant(event.target.checked)} /><span>Remember this merchant<small>Future {reviewItem.merchant} purchases will file themselves.</small></span></label><button onClick={() => startSplitting(reviewItem)}>Split purchase</button></div>
                 </> : <div className="empty-review"><span>✓</span><p>Everything imported has a home.</p></div>}
+                <div className="rule-divider"><div><strong>Merchant rules</strong><span>{merchantRules.length ? `${merchantRules.length} saving you time` : "Rules appear here as you review"}</span></div></div>
+                {merchantRules.length > 0 && <div className="merchant-rule-list">{merchantRules.slice(0, 6).map((rule) => <div className="merchant-rule-row" key={rule.id}><span>↳</span><div><strong>{rule.merchant}</strong><small>{rule.scope} · {rule.category}</small></div><button aria-label={`Remove rule for ${rule.merchant}`} onClick={() => removeMerchantRule(rule.id)}>×</button></div>)}</div>}
               </section>
             </div>
             <section className="panel transactions-panel">
               <div className="panel-heading"><div><p className="card-label">Activity</p><h2>Recent transactions</h2></div><button className="quiet-button">View all</button></div>
-              {transactions.map((transaction) => <div className="transaction-row" key={transaction.id}><div className="merchant-mark small">{transaction.mark}</div><div className="transaction-name"><strong>{transaction.merchant}</strong><span>{transaction.detail}</span></div><span className="scope-tag">{transaction.scope}</span><span className="category-name">{transaction.category}</span><strong className="transaction-amount">−${transaction.amount.toFixed(2)}</strong></div>)}
+              {transactions.map((transaction) => <div className="transaction-row" key={transaction.id}><div className="merchant-mark small">{transaction.mark}</div><div className="transaction-name"><strong>{transaction.merchant}</strong><span>{transaction.detail}</span></div><span className="scope-tag">{transaction.scope}</span><span className="category-name">{transaction.category}</span><span className="transaction-actions">{transaction.editable && <button className="transaction-split-button" onClick={() => startSplitting(transaction)}>{transaction.reviewStatus === "split" ? "Edit split" : "Split"}</button>}</span><strong className="transaction-amount">−${transaction.amount.toFixed(2)}</strong></div>)}
             </section>
           </div>
         )}
@@ -604,6 +682,17 @@ export default function Home() {
           {!plaid.configured && <div className="plaid-setup-note"><strong>Plaid setup is the last step</strong><p>The connection flow is built. Add a sandbox client ID, secret, and encryption key to activate it.</p></div>}
           <button className="plaid-continue" onClick={launchPlaid} disabled={plaidBusy || !plaid.configured}>{plaidBusy ? "Connecting…" : plaid.configured ? "Continue securely with Plaid" : "Waiting for Plaid credentials"}</button>
           <footer><span className="privacy-dot saved" />Plaid access tokens are encrypted before they are stored.</footer>
+        </section>
+      </div>}
+      {splitTransactionItem && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !splitSaving) setSplitTransactionItem(null); }}>
+        <section className="household-modal split-modal" role="dialog" aria-modal="true" aria-labelledby="split-title">
+          <header><div><p className="card-label">Divide one purchase</p><h2 id="split-title">Split {splitTransactionItem.merchant}</h2></div><button aria-label="Close transaction split" disabled={splitSaving} onClick={() => setSplitTransactionItem(null)}>×</button></header>
+          <div className="split-total"><span>Transaction total</span><strong>${splitTransactionItem.amount.toFixed(2)}</strong></div>
+          <div className="split-parts">{splitDrafts.map((draft, index) => <div className="split-part" key={`${index}-${draft.categoryId}`}><span>{index + 1}</span><label><small>Budget category</small><select aria-label={`Split ${index + 1} category`} value={draft.categoryId} onChange={(event) => updateSplit(index, { categoryId: event.target.value })}>{splitCategories.map((category) => <option key={category.id} value={category.id}>{scopeLabels[category.scope]} · {category.name}</option>)}</select></label><label><small>Amount</small><span className="split-money">$<input aria-label={`Split ${index + 1} amount`} type="number" min="0.01" step="0.01" inputMode="decimal" value={draft.amount} onChange={(event) => updateSplit(index, { amount: event.target.value })} /></span></label>{splitDrafts.length > 2 && <button aria-label={`Remove split ${index + 1}`} onClick={() => setSplitDrafts((current) => current.filter((_, draftIndex) => draftIndex !== index))}>×</button>}</div>)}</div>
+          <button className="add-split-button" onClick={addSplitPart} disabled={splitDrafts.length >= Math.min(10, splitCategories.length)}>+ Add another part</button>
+          <div className={`split-balance ${splitRemainingCents === 0 ? "balanced" : ""}`}><span>{splitRemainingCents === 0 ? "Ready to save" : splitRemainingCents > 0 ? "Left to assign" : "Over by"}</span><strong>${Math.abs(splitRemainingCents / 100).toFixed(2)}</strong></div>
+          <button className="plaid-continue" onClick={saveSplit} disabled={splitSaving || splitRemainingCents !== 0}>{splitSaving ? "Saving split…" : "Save split"}</button>
+          <footer><span className="privacy-dot saved" />Each part counts toward its own fixed budget.</footer>
         </section>
       </div>}
     </main>

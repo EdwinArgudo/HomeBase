@@ -67,3 +67,20 @@ test("keeps Plaid credentials server-side and encrypts saved access tokens", asy
   assert.match(migration, /CREATE TABLE `bank_connections`/);
   assert.doesNotMatch(migration, /`access_token` text/);
 });
+
+test("persists merchant rules and exact transaction splits", async () => {
+  const householdSource = await readFile(new URL("../lib/household.ts", import.meta.url), "utf8");
+  const plaidSource = await readFile(new URL("../lib/plaid.ts", import.meta.url), "utf8");
+  const pageSource = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
+  const migration = await readFile(new URL("../drizzle/0003_moaning_puppet_master.sql", import.meta.url), "utf8");
+
+  assert.match(migration, /CREATE TABLE `merchant_rules`/);
+  assert.match(migration, /CREATE UNIQUE INDEX `idx_merchant_rules_member_match`/);
+  assert.match(householdSource, /FROM transaction_splits ts[\s\S]*review_status = 'split'/);
+  assert.match(householdSource, /Split amounts must add up to the transaction total/);
+  assert.match(householdSource, /created_by_member_id = \?/);
+  assert.match(plaidSource, /merchantRules\.get\(normalizeMerchantName\(merchantName\)\)/);
+  assert.match(pageSource, /Remember this merchant/);
+  assert.match(pageSource, /Save split/);
+  assert.doesNotMatch(pageSource, /localStorage|sessionStorage/);
+});

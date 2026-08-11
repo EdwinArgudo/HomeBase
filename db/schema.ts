@@ -117,6 +117,22 @@ export const transactionSplits = sqliteTable("transaction_splits", {
   amountCents: integer("amount_cents").notNull(),
 }, (table) => [index("idx_transaction_splits_transaction_id").on(table.transactionId)]);
 
+export const merchantRules = sqliteTable("merchant_rules", {
+  id: text("id").primaryKey(),
+  householdId: text("household_id").notNull().references(() => households.id),
+  createdByMemberId: text("created_by_member_id").notNull().references(() => members.id),
+  matchText: text("match_text").notNull(),
+  merchantName: text("merchant_name").notNull(),
+  categoryId: text("category_id").notNull().references(() => categories.id),
+  spendingType: text("spending_type", { enum: ["personal", "shared"] }).notNull(),
+  personalMemberId: text("personal_member_id").references(() => members.id),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("idx_merchant_rules_member_match").on(table.householdId, table.createdByMemberId, table.matchText),
+  index("idx_merchant_rules_household_match").on(table.householdId, table.matchText),
+]);
+
 export const tasks = sqliteTable("tasks", {
   id: text("id").primaryKey(),
   householdId: text("household_id").notNull().references(() => households.id),
