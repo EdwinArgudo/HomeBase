@@ -581,6 +581,8 @@ export default function Home() {
   const openTasks = tasks.filter((task) => !task.done);
   const nextTask = openTasks[0];
   const openGroceries = groceries.filter((item) => !item.checked);
+  const taskCompletion = tasks.length ? Math.round(((tasks.length - openTasks.length) / tasks.length) * 100) : 100;
+  const groceryCompletion = groceries.length ? Math.round(((groceries.length - openGroceries.length) / groceries.length) * 100) : 100;
 
   if (displayMode) {
     return (
@@ -653,7 +655,7 @@ export default function Home() {
             <header className="today-hero">
               <div className="today-hero-top"><p className="eyebrow">Monday, August 10</p><span className="calm-status"><i /> On track</span></div>
               <h1>Good morning, {firstName}.</h1>
-              <div className="today-hero-bottom"><p>Two priorities, one grocery run, and room in the budget.</p><button onClick={() => setTab("money")}>See your money <span>→</span></button></div>
+              <div className="today-hero-bottom"><div className="household-glance" aria-label={`${openTasks.length} tasks, ${openGroceries.length} groceries, ${formatMoney(safeToSpend)} safe to spend`}><div className="glance-metric"><span className="glance-pictogram tasks"><i /><b /></span><strong>{openTasks.length}</strong><small>tasks</small></div><div className="glance-metric"><span className="glance-pictogram groceries"><i /><b /></span><strong>{openGroceries.length}</strong><small>groceries</small></div><div className="glance-metric money"><span className="glance-pictogram spend">$</span><strong>{formatMoney(safeToSpend)}</strong><small>this week</small></div></div><button onClick={() => setTab("money")}>Money <span>→</span></button></div>
             </header>
             <div className="two-column">
               <section className="panel priority-panel">
@@ -679,7 +681,7 @@ export default function Home() {
             </div>
             <section className="weekly-reset">
               <div className="reset-number">10<span>min</span></div>
-              <div><p className="card-label">Sunday ritual</p><h2>Your weekly reset is ready</h2><p>Review four transactions, plan dinners, and choose this week’s priorities together.</p></div>
+              <div><p className="card-label">Sunday ritual</p><h2>Weekly reset</h2><div className="reset-steps" aria-label="Review transactions, plan dinners, choose priorities"><span><i>4</i><small>Transactions</small></span><b>→</b><span><i>3</i><small>Dinners</small></span><b>→</b><span><i>2</i><small>Priorities</small></span></div></div>
               <button>Start weekly reset</button>
             </section>
           </div>
@@ -710,7 +712,7 @@ export default function Home() {
             <div className="money-glance-grid">
               <button className={`review-callout ${reviewItem ? "needs-review" : "complete"}`} onClick={() => setShowReview(true)}>
                 <span className="review-callout-icon">{reviewItem ? reviewCount : "✓"}</span>
-                <span><small>Transaction review</small><strong>{reviewItem ? `${reviewCount} ${reviewCount === 1 ? "purchase" : "purchases"} need a home` : "You’re all caught up"}</strong><em>{reviewItem ? "Clear your inbox one at a time" : "Everything imported is organized"}</em></span>
+                <span><small>Transaction review</small><strong>{reviewItem ? `${reviewCount} to file` : "Inbox clear"}</strong><span className="review-dot-row" aria-hidden="true">{[0,1,2,3,4].map((dot) => <i className={dot < reviewCount ? "filled" : ""} key={dot} />)}</span></span>
                 <b>→</b>
               </button>
               <section className="category-overview">
@@ -734,7 +736,7 @@ export default function Home() {
 
         {tab === "home" && (
           <div className="page home-page">
-            <header className="page-heading focused-heading"><div><p className="eyebrow">Our place</p><h1>Home</h1><p>One thing at a time. Everything else can wait.</p></div></header>
+            <header className="page-heading focused-heading"><div><p className="eyebrow">Our place</p><h1>Home</h1></div></header>
             <div className="focus-switcher home-focus-switcher" role="tablist" aria-label="Household lists">
               <button role="tab" aria-selected={homeFocus === "tasks"} className={homeFocus === "tasks" ? "active" : ""} onClick={() => setHomeFocus("tasks")}><span>✓</span><strong>Tasks</strong><small>{openTasks.length} left</small></button>
               <button role="tab" aria-selected={homeFocus === "groceries"} className={homeFocus === "groceries" ? "active" : ""} onClick={() => setHomeFocus("groceries")}><span>＋</span><strong>Groceries</strong><small>{openGroceries.length} left</small></button>
@@ -743,7 +745,7 @@ export default function Home() {
               <section className={`home-action-hero ${nextTask ? "" : "complete"}`}>
                 <div><p className="card-label">{nextTask ? "Next up" : "This week"}</p><span className="owner-tag">{nextTask?.owner ?? "Together"}</span></div>
                 <h2>{nextTask?.text ?? "Everything is handled."}</h2>
-                <p>{nextTask ? `${openTasks.length} ${openTasks.length === 1 ? "task" : "tasks"} left this week.` : "Enjoy the breathing room. New tasks can wait until they matter."}</p>
+                <div className="home-progress-graphic" aria-label={`${taskCompletion}% of weekly tasks complete`}><div><i style={{ width: `${taskCompletion}%` }} /></div><span><strong>{taskCompletion}%</strong><small>week complete</small></span></div>
                 {nextTask && <button onClick={() => toggleTask(nextTask.id)}><span>✓</span> Mark complete</button>}
               </section>
               <section className="focus-list">
@@ -754,7 +756,7 @@ export default function Home() {
               <section className="home-action-hero grocery-hero">
                 <div><p className="card-label">Next grocery run</p><span className="owner-tag">Sunday</span></div>
                 <h2>{openGroceries.length ? `${openGroceries.length} ${openGroceries.length === 1 ? "item" : "items"} left` : "The list is clear."}</h2>
-                <p>Add it when you think of it. Check it off at the store.</p>
+                <div className="home-progress-graphic" aria-label={`${groceryCompletion}% of grocery list complete`}><div><i style={{ width: `${groceryCompletion}%` }} /></div><span><strong>{groceryCompletion}%</strong><small>picked up</small></span></div>
                 <form className="hero-quick-add" onSubmit={addGrocery}><input aria-label="Add grocery item" value={groceryDraft} onChange={(event) => setGroceryDraft(event.target.value)} placeholder="What do you need?" /><button>Add item</button></form>
               </section>
               <section className="focus-list grocery-focus-list">
@@ -768,23 +770,23 @@ export default function Home() {
 
         {tab === "goals" && (
           <div className="page goals-page">
-            <header className="page-heading focused-heading"><div><p className="eyebrow">Progress without pressure</p><h1>Goals</h1><p>Choose one focus. Missing a day doesn’t erase your progress.</p></div><button className={`minimum-toggle ${minimumMode ? "active" : ""}`} onClick={toggleMinimumMode}><span>{minimumMode ? "✓" : ""}</span> Minimum mode</button></header>
-            {minimumMode && <section className="minimum-banner"><span>○</span><div><strong>Minimum mode is on</strong><p>This week: one workout and one five-minute Spanish session. Everything else is a bonus.</p></div></section>}
+            <header className="page-heading focused-heading"><div><p className="eyebrow">Progress without pressure</p><h1>Goals</h1></div><button className={`minimum-toggle ${minimumMode ? "active" : ""}`} onClick={toggleMinimumMode}><span>{minimumMode ? "✓" : ""}</span> Minimum mode</button></header>
+            {minimumMode && <section className="minimum-banner"><span>○</span><strong>Minimum mode</strong><div className="minimum-metrics"><span><b>1</b> workout</span><span><b>5</b> min Spanish</span></div></section>}
             <div className="focus-switcher goal-focus-switcher" role="tablist" aria-label="Goal focus">
               <button role="tab" aria-selected={goalFocus === "movement"} className={goalFocus === "movement" ? "active" : ""} onClick={() => setGoalFocus("movement")}><span>↗</span><strong>Movement</strong><small>3 this week</small></button>
               <button role="tab" aria-selected={goalFocus === "spanish"} className={goalFocus === "spanish" ? "active" : ""} onClick={() => setGoalFocus("spanish")}><span>A</span><strong>Spanish</strong><small>4 sessions</small></button>
               <button role="tab" aria-selected={goalFocus === "getaway"} className={goalFocus === "getaway" ? "active" : ""} onClick={() => setGoalFocus("getaway")}><span>$</span><strong>Getaway</strong><small>73% saved</small></button>
             </div>
             {goalFocus === "movement" && <article className="goal-spotlight movement-spotlight">
-              <div className="goal-spotlight-copy"><span className="goal-focus-icon">↗</span><p className="card-label">Shared focus</p><h2>This week is already a win.</h2><p>Three workouts in the last seven days. Anything else is a bonus, not a debt.</p><div className="goal-status-line"><strong>3 / 3</strong><span>weekly target met</span></div></div>
-              <div className="goal-visual"><div className="week-dots"><span className="done">M<i>✓</i></span><span>T<i /></span><span className="done">W<i>✓</i></span><span>T<i /></span><span className="done">F<i>✓</i></span><span>S<i /></span><span>S<i /></span></div><div className="gentle-note"><span>✓</span><p><strong>Strong week</strong>No streak to protect tomorrow.</p></div></div>
+              <div className="goal-spotlight-copy"><span className="goal-focus-icon">↗</span><p className="card-label">Shared focus</p><h2>Movement</h2><div className="goal-big-metric"><strong>3 / 3</strong><span>weekly target</span></div></div>
+              <div className="goal-visual"><div className="week-dots"><span className="done">M<i>✓</i></span><span>T<i /></span><span className="done">W<i>✓</i></span><span>T<i /></span><span className="done">F<i>✓</i></span><span>S<i /></span><span>S<i /></span></div><div className="gentle-note"><span>✓</span><p><strong>Strong week</strong>No streak</p></div></div>
             </article>}
             {goalFocus === "spanish" && <article className="goal-spotlight spanish-spotlight">
-              <div className="goal-spotlight-copy"><span className="goal-focus-icon">A</span><p className="card-label">Today’s focus</p><h2>How much energy do you have?</h2><p>Every option counts. Pick the version that feels possible right now.</p><div className="goal-status-line"><strong>4 sessions</strong><span>in the last 14 days</span></div></div>
-              <div className="goal-visual"><p className="action-prompt">Choose today’s session</p><div className="session-options focused"><button><strong>5</strong><span>min reset</span></button><button><strong>15</strong><span>min normal</span></button><button><strong>30</strong><span>min focus</span></button></div><div className="gentle-note"><span>↗</span><p><strong>Welcome back</strong>There is no streak to repair.</p></div></div>
+              <div className="goal-spotlight-copy"><span className="goal-focus-icon">A</span><p className="card-label">Today’s focus</p><h2>Spanish</h2><div className="goal-big-metric"><strong>4</strong><span>sessions · 14 days</span></div><div className="session-spark" aria-label="Four recent Spanish sessions"><i /><i /><i /><i /><i className="empty" /><i className="empty" /></div></div>
+              <div className="goal-visual"><p className="action-prompt">Energy today</p><div className="session-options focused"><button><strong>5</strong><span>min · low</span></button><button><strong>15</strong><span>min · medium</span></button><button><strong>30</strong><span>min · high</span></button></div><div className="gentle-note"><span>↗</span><p><strong>Welcome back</strong>No repair needed</p></div></div>
             </article>}
             {goalFocus === "getaway" && <article className="goal-spotlight getaway-spotlight">
-              <div className="goal-spotlight-copy"><span className="goal-focus-icon">$</span><p className="card-label">Shared focus</p><h2>Your weekend is 73% funded.</h2><p>$1,460 saved toward the $2,000 goal. You’re on pace for October.</p><div className="goal-status-line"><strong>$540</strong><span>left to go</span></div></div>
+              <div className="goal-spotlight-copy"><span className="goal-focus-icon">$</span><p className="card-label">Shared focus</p><h2>Weekend getaway</h2><div className="savings-metrics"><span><strong>$1,460</strong><small>saved</small></span><span><strong>$540</strong><small>to go</small></span><span><strong>Oct</strong><small>on pace</small></span></div></div>
               <div className="goal-visual savings-visual"><div className="savings-ring"><span>73%</span></div><button onClick={() => setTab("money")}>Open shared money <span>→</span></button></div>
             </article>}
           </div>
