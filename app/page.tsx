@@ -166,6 +166,8 @@ export default function Home() {
   const [plaid, setPlaid] = useState<HouseholdPayload["plaid"]>({ configured: false, environment: "sandbox", connections: [] });
   const [showHousehold, setShowHousehold] = useState(false);
   const [showConnect, setShowConnect] = useState(false);
+  const [showMoneySettings, setShowMoneySettings] = useState(false);
+  const [showReview, setShowReview] = useState(false);
   const [connectionScope, setConnectionScope] = useState<"ours" | "mine">("mine");
   const [plaidBusy, setPlaidBusy] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
@@ -622,14 +624,11 @@ export default function Home() {
 
         {tab === "today" && (
           <div className="page today-page">
-            <header className="page-heading">
-              <div><p className="eyebrow">Monday, August 10</p><h1>Good morning, {firstName}.</h1><p>Here’s what matters today—nothing more.</p></div>
-              <button className="avatar-button" onClick={() => setShowHousehold(true)}>{initials}</button>
+            <header className="today-hero">
+              <div className="today-hero-top"><p className="eyebrow">Monday, August 10</p><span className="calm-status"><i /> On track</span></div>
+              <h1>Good morning, {firstName}.</h1>
+              <div className="today-hero-bottom"><p>Two priorities, one grocery run, and room in the budget.</p><button onClick={() => setTab("money")}>See your money <span>→</span></button></div>
             </header>
-            <section className="status-banner">
-              <div><span className="status-dot" /><div><strong>Your household is on track</strong><p>Two priorities, one grocery run, and a little room in the budget.</p></div></div>
-              <button onClick={() => setTab("money")}>See the numbers <span>→</span></button>
-            </section>
             <div className="two-column">
               <section className="panel priority-panel">
                 <div className="panel-heading"><div><p className="card-label">Today</p><h2>Shared priorities</h2></div><button className="quiet-button">+ Add</button></div>
@@ -662,45 +661,47 @@ export default function Home() {
 
         {tab === "money" && (
           <div className="page money-page">
-            <header className="page-heading money-heading"><div className="month-heading"><button aria-label="Previous budget month" onClick={() => changeBudgetMonth(budgetMonth.previous)}>‹</button><div><p className="eyebrow">{budgetMonth.label}</p><h1>Money</h1><p>Detailed when you need it. Quiet when you don’t.</p></div><button aria-label="Next budget month" disabled={!budgetMonth.next} onClick={() => changeBudgetMonth(budgetMonth.next)}>›</button></div><div className="money-heading-actions">{!budgetMonth.isCurrent && <span>History · read-only limits</span>}<button className="primary-button" onClick={() => setShowConnect(true)}>+ Connect with Plaid</button></div></header>
+            <header className="money-topbar">
+              <div className="month-heading">
+                <button aria-label="Previous budget month" onClick={() => changeBudgetMonth(budgetMonth.previous)}>‹</button>
+                <div><p className="eyebrow">{budgetMonth.label}</p><h1>Money</h1></div>
+                <button aria-label="Next budget month" disabled={!budgetMonth.next} onClick={() => changeBudgetMonth(budgetMonth.next)}>›</button>
+              </div>
+              <button className="icon-button" aria-label="Open money settings" onClick={() => setShowMoneySettings(true)}>•••</button>
+            </header>
             <div className="scope-switcher" role="tablist" aria-label="Budget scope">
               {(Object.keys(scopeLabels) as Scope[]).map((item) => <button role="tab" aria-selected={scope === item} key={item} className={scope === item ? "active" : ""} onClick={() => { setScope(item); stopLimitEditing(); }}>{scopeLabels[item]}</button>)}
             </div>
-            <section className="money-summary">
-              <div><p className="card-label">{scopeLabels[scope]} spent</p><h2>{formatMoney(budgetTotals.spent)}</h2><p>of {formatMoney(budgetTotals.limit)} across active categories</p></div>
+            <section className="money-hero">
+              <div className="money-hero-value"><p className="card-label">Left this month</p><h2>{formatMoney(budgetTotals.limit - budgetTotals.spent)}</h2><p>{budgetMonth.isCurrent ? `${budgetMonth.daysRemaining} days remaining` : `${scopeLabels[scope]} final balance`}</p></div>
               <ProgressRing value={budgetTotals.limit ? Math.round((budgetTotals.spent / budgetTotals.limit) * 100) : 0} label="used" />
-              <div className="summary-stat"><span>Left this month</span><strong>{formatMoney(budgetTotals.limit - budgetTotals.spent)}</strong><small>{budgetMonth.isCurrent ? `${budgetMonth.daysRemaining} days remaining` : "Month complete"}</small></div>
-              <div className="summary-stat"><span>{budgetMonth.isCurrent ? "Projected" : "Final spending"}</span><strong>{formatMoney(projectedSpending)}</strong><small className={projectedSpending <= budgetTotals.limit ? "positive" : "warning"}>{projectedSpending <= budgetTotals.limit ? "Within your limits" : `${formatMoney(projectedSpending - budgetTotals.limit)} over limits`}</small></div>
+              <div className="money-hero-stats">
+                <div><span>Spent</span><strong>{formatMoney(budgetTotals.spent)}</strong></div>
+                <div><span>{budgetMonth.isCurrent ? "Projected" : "Final"}</span><strong>{formatMoney(projectedSpending)}</strong></div>
+              </div>
             </section>
             {unhealthyConnections.length > 0 && <section className={`connection-alert ${unhealthyConnections.some((connection) => connection.health === "attention") ? "attention" : "warning"}`} role="status"><span>!</span><div><strong>{unhealthyConnections.length === 1 ? `${unhealthyConnections[0].institutionName} needs attention` : `${unhealthyConnections.length} bank connections need attention`}</strong><p>{unhealthyConnections[0].healthMessage}</p></div><button onClick={() => unhealthyConnections[0].health === "attention" ? launchPlaid(unhealthyConnections[0].id) : syncBank(unhealthyConnections[0].id)} disabled={plaidBusy}>{unhealthyConnections[0].health === "attention" ? "Repair connection" : "Try refresh"}</button></section>}
-            {plaid.connections.length > 0 && <section className="panel bank-connections"><div className="panel-heading"><div><p className="card-label">Automatic imports</p><h2>Connected institutions</h2></div><div className="connection-heading-badges"><span className="auto-sync-badge"><i /> Auto refresh on</span><span className="plaid-environment">{plaid.environment}</span></div></div><div className="connection-list">{plaid.connections.map((connection) => <div className="connection-row" key={connection.id}><span className="bank-mark">$</span><div><strong>{connection.institutionName}</strong><p>{connection.accountCount} {connection.accountCount === 1 ? "account" : "accounts"} · {scopeLabels[connection.scope]}</p><small>{formatLastSync(connection.providerLastSuccessfulUpdate || connection.lastSyncedAt)}</small></div><span className={`connection-status ${connection.health}`}>{connection.healthLabel}</span><button onClick={() => connection.health === "attention" ? launchPlaid(connection.id) : syncBank(connection.id)} disabled={plaidBusy}>{connection.health === "attention" ? "Repair" : "Sync now"}</button></div>)}</div><p className="automatic-sync-note">Homebase checks securely when you open or resume the app, and hourly while apartment display mode is active.</p></section>}
-            <div className="money-layout">
-              <section className="panel categories-panel">
-                <div className="panel-heading"><div><p className="card-label">Fixed limits · {budgetMonth.label}</p><h2>{scopeLabels[scope]} categories</h2></div>{scope !== "yours" && budgetMonth.isCurrent ? (editingLimits ? <div className="edit-actions"><button className="quiet-button" onClick={stopLimitEditing}>Cancel</button><button className="save-button" onClick={saveLimits}>Save limits</button></div> : <button className="quiet-button" onClick={startLimitEditing}>Edit limits</button>) : !budgetMonth.isCurrent ? <span className="period-lock">Closed month</span> : null}</div>
+            <div className="money-glance-grid">
+              <button className={`review-callout ${reviewItem ? "needs-review" : "complete"}`} onClick={() => setShowReview(true)}>
+                <span className="review-callout-icon">{reviewItem ? reviewCount : "✓"}</span>
+                <span><small>Transaction review</small><strong>{reviewItem ? `${reviewCount} ${reviewCount === 1 ? "purchase" : "purchases"} need a home` : "You’re all caught up"}</strong><em>{reviewItem ? "Clear your inbox one at a time" : "Everything imported is organized"}</em></span>
+                <b>→</b>
+              </button>
+              <section className="category-overview">
+                <div className="section-heading"><div><p className="card-label">Fixed limits</p><h2>{scopeLabels[scope]} categories</h2></div><button onClick={() => setShowMoneySettings(true)}>Manage</button></div>
                 {budgets[scope].length === 0 && <div className="empty-categories"><strong>No {scopeLabels[scope].toLowerCase()} categories yet</strong><p>{scope === "yours" ? "Invite your partner and their personal limits will appear here." : "Add a fixed limit to start tracking this area."}</p></div>}
                 {budgets[scope].map((budget) => {
                   const percent = budget.limit ? Math.round((budget.spent / budget.limit) * 100) : 0;
-                  return <div className={`budget-row ${editingLimits ? "editing" : ""}`} key={budget.id}><div><strong>{budget.name}</strong>{editingLimits ? <label className="limit-input"><span>$</span><input aria-label={`${budget.name} monthly limit`} type="number" min="0" step="1" inputMode="decimal" value={limitDrafts[budget.id] ?? ""} onChange={(event) => setLimitDrafts((current) => ({ ...current, [budget.id]: event.target.value }))} /></label> : <span>{percent}%</span>}</div><div className={`progress ${budget.tone}`}><i style={{ width: `${Math.min(100, percent)}%` }} /></div><p><span>{formatMoney(budget.spent)} spent</span><strong>{formatMoney(budget.limit - budget.spent)} left</strong></p>{!editingLimits && Boolean(budget.rollover) && <small className="rollover-note">Includes {formatMoney(budget.rollover ?? 0)} carried forward</small>}{editingLimits && <label className="rollover-toggle"><input type="checkbox" checked={Boolean(rolloverDrafts[budget.id])} onChange={(event) => setRolloverDrafts((current) => ({ ...current, [budget.id]: event.target.checked }))} /> Roll over unused funds next month</label>}</div>;
+                  return <div className="budget-row" key={budget.id}><div><strong>{budget.name}</strong><span>{formatMoney(budget.limit - budget.spent)} left</span></div><div className={`progress ${budget.tone}`}><i style={{ width: `${Math.min(100, percent)}%` }} /></div><p><span>{formatMoney(budget.spent)} of {formatMoney(budget.limit)}</span><strong>{percent}%</strong></p></div>;
                 })}
-                {editingLimits && <form className="add-category" onSubmit={addBudgetCategory}><div><label htmlFor="new-category-name">New category</label><input id="new-category-name" value={newCategoryName} onChange={(event) => setNewCategoryName(event.target.value)} placeholder="e.g. Pets" /></div><div><label htmlFor="new-category-limit">Monthly limit</label><span className="money-field">$<input id="new-category-limit" type="number" min="0" step="1" inputMode="decimal" value={newCategoryLimit} onChange={(event) => setNewCategoryLimit(event.target.value)} placeholder="100" /></span></div><button>Add</button></form>}
                 {scope === "yours" && budgets.yours.length > 0 && <p className="privacy-note">Your partner controls their own fixed limits. You see totals here without access to private purchases.</p>}
               </section>
-              <section className="panel review-panel">
-                <div className="panel-heading"><div><p className="card-label">Review inbox</p><h2>{reviewItem ? `${reviewCount} ${reviewCount === 1 ? "needs" : "need"} attention` : "You’re all caught up"}</h2></div>{reviewItem && <span className="count-badge">{reviewCount}</span>}</div>
-                {reviewItem ? <>
-                  <div className="review-merchant"><div className="merchant-mark">{reviewItem.mark}</div><div><strong>{reviewItem.merchant}</strong><span>{reviewItem.detail}</span></div><b>${reviewItem.amount.toFixed(2)}</b></div>
-                  <p className="review-question">Choose its exact budget category.</p>
-                  <div className="category-choices">{(["ours", "mine"] as const).map((choiceScope) => <div className="category-choice-group" key={choiceScope}><strong>{scopeLabels[choiceScope]}</strong><div>{budgets[choiceScope].map((budget) => <button key={budget.id} onClick={() => chooseTransaction(reviewItem.id, budget.id)}><span>{choiceScope === "ours" ? "⌂" : "○"}</span>{budget.name}</button>)}</div></div>)}</div>
-                  <div className="review-tools"><label htmlFor="remember-merchant"><input id="remember-merchant" type="checkbox" checked={rememberMerchant} onChange={(event) => setRememberMerchant(event.target.checked)} /><span>Remember this merchant<small>Future {reviewItem.merchant} purchases will file themselves.</small></span></label><button onClick={() => startSplitting(reviewItem)}>Split purchase</button></div>
-                </> : <div className="empty-review"><span>✓</span><p>Everything imported has a home.</p></div>}
-                <div className="rule-divider"><div><strong>Merchant rules</strong><span>{merchantRules.length ? `${merchantRules.length} saving you time` : "Rules appear here as you review"}</span></div></div>
-                {merchantRules.length > 0 && <div className="merchant-rule-list">{merchantRules.slice(0, 6).map((rule) => <div className="merchant-rule-row" key={rule.id}><span>↳</span><div><strong>{rule.merchant}</strong><small>{rule.scope} · {rule.category}</small></div><button aria-label={`Remove rule for ${rule.merchant}`} onClick={() => removeMerchantRule(rule.id)}>×</button></div>)}</div>}
-              </section>
             </div>
-            <section className="panel transactions-panel">
-              <div className="panel-heading"><div><p className="card-label">Activity</p><h2>Recent transactions</h2></div><button className="quiet-button">View all</button></div>
+            <section className="activity-stream">
+              <div className="section-heading"><div><p className="card-label">Activity</p><h2>Recent transactions</h2></div><span>{transactions.length} this month</span></div>
               {transactions.length === 0 && <div className="empty-transactions"><strong>No transactions in {budgetMonth.label}</strong><p>Imported activity for this month will appear here.</p></div>}
-              {transactions.map((transaction) => <div className="transaction-row" key={transaction.id}><div className="merchant-mark small">{transaction.mark}</div><div className="transaction-name"><strong>{transaction.merchant}</strong><span>{transaction.detail}</span></div><span className="scope-tag">{transaction.scope}</span><span className="category-name">{transaction.category}</span><span className="transaction-actions">{transaction.editable && <button className="transaction-split-button" onClick={() => startSplitting(transaction)}>{transaction.reviewStatus === "split" ? "Edit split" : "Split"}</button>}</span><strong className="transaction-amount">−${transaction.amount.toFixed(2)}</strong></div>)}
+              {transactions.slice(0, 8).map((transaction) => <div className="transaction-row" key={transaction.id}><div className="merchant-mark small">{transaction.mark}</div><div className="transaction-name"><strong>{transaction.merchant}</strong><span>{transaction.category === "Needs review" ? "Needs a category" : `${transaction.scope} · ${transaction.category}`}</span></div><span className={`transaction-state ${transaction.reviewStatus === "needs_review" ? "attention" : ""}`}>{transaction.detail.split(" · ")[0]}</span><span className="transaction-actions">{transaction.editable && <button aria-label={`Split ${transaction.merchant} transaction`} className="transaction-more" onClick={() => startSplitting(transaction)}>•••</button>}</span><strong className="transaction-amount">−${transaction.amount.toFixed(2)}</strong></div>)}
+              {transactions.length > 8 && <button className="show-more-transactions">View all {transactions.length} transactions</button>}
             </section>
           </div>
         )}
@@ -752,6 +753,39 @@ export default function Home() {
             <div><input id="partner-email" type="email" required value={inviteEmail} onChange={(event) => setInviteEmail(event.target.value)} placeholder="partner@example.com" /><button>Save invitation</button></div>
           </form> : null}
           <footer><span className={`privacy-dot ${syncStatus}`} />{syncStatus === "error" ? syncMessage : "Only household members can access this data."}</footer>
+        </section>
+      </div>}
+      {showReview && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setShowReview(false); }}>
+        <section className="household-modal review-flow-modal" role="dialog" aria-modal="true" aria-labelledby="review-flow-title">
+          <header><div><p className="card-label">Transaction review</p><h2 id="review-flow-title">{reviewItem ? "Give this purchase a home" : "Inbox clear"}</h2></div><button aria-label="Close transaction review" onClick={() => setShowReview(false)}>×</button></header>
+          {reviewItem ? <>
+            <div className="review-progress"><span>1 of {reviewCount}</span><i><b style={{ width: `${100 / reviewCount}%` }} /></i></div>
+            <div className="review-merchant focused"><div className="merchant-mark">{reviewItem.mark}</div><div><strong>{reviewItem.merchant}</strong><span>{reviewItem.detail}</span></div><b>${reviewItem.amount.toFixed(2)}</b></div>
+            <p className="review-question">Where should it count?</p>
+            <div className="category-choices focused">{(["ours", "mine"] as const).map((choiceScope) => <div className="category-choice-group" key={choiceScope}><strong>{scopeLabels[choiceScope]}</strong><div>{budgets[choiceScope].map((budget) => <button key={budget.id} onClick={() => chooseTransaction(reviewItem.id, budget.id)}><span>{choiceScope === "ours" ? "⌂" : "○"}</span>{budget.name}<i>→</i></button>)}</div></div>)}</div>
+            <div className="review-tools focused"><label htmlFor="remember-merchant-modal"><input id="remember-merchant-modal" type="checkbox" checked={rememberMerchant} onChange={(event) => setRememberMerchant(event.target.checked)} /><span>Remember this merchant<small>Future {reviewItem.merchant} purchases will file themselves.</small></span></label><button onClick={() => { setShowReview(false); startSplitting(reviewItem); }}>Split instead</button></div>
+          </> : <div className="review-complete"><span>✓</span><h3>Everything has a home.</h3><p>You cleared the review queue without turning it into a project.</p><button onClick={() => setShowReview(false)}>Done</button></div>}
+        </section>
+      </div>}
+      {showMoneySettings && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setShowMoneySettings(false); }}>
+        <section className="household-modal money-settings-modal" role="dialog" aria-modal="true" aria-labelledby="money-settings-title">
+          <header><div><p className="card-label">Money</p><h2 id="money-settings-title">Settings</h2></div><button aria-label="Close money settings" onClick={() => setShowMoneySettings(false)}>×</button></header>
+          <section className="settings-section bank-settings">
+            <div className="settings-heading"><div><h3>Bank connections</h3><p>Transactions refresh automatically.</p></div><button onClick={() => { setShowMoneySettings(false); setShowConnect(true); }}>+ Connect</button></div>
+            {plaid.connections.length === 0 ? <p className="settings-empty">No bank connected yet.</p> : <div className="connection-list">{plaid.connections.map((connection) => <div className="connection-row" key={connection.id}><span className="bank-mark">$</span><div><strong>{connection.institutionName}</strong><p>{connection.accountCount} {connection.accountCount === 1 ? "account" : "accounts"} · {scopeLabels[connection.scope]}</p><small>{formatLastSync(connection.providerLastSuccessfulUpdate || connection.lastSyncedAt)}</small></div><span className={`connection-status ${connection.health}`}>{connection.healthLabel}</span><button onClick={() => connection.health === "attention" ? launchPlaid(connection.id) : syncBank(connection.id)} disabled={plaidBusy}>{connection.health === "attention" ? "Repair" : "Refresh"}</button></div>)}</div>}
+          </section>
+          <section className="settings-section category-settings">
+            <div className="settings-heading"><div><h3>{scopeLabels[scope]} limits</h3><p>{budgetMonth.label} · fixed monthly categories</p></div>{scope !== "yours" && budgetMonth.isCurrent ? (editingLimits ? <div className="edit-actions"><button className="quiet-button" onClick={stopLimitEditing}>Cancel</button><button className="save-button" onClick={saveLimits}>Save</button></div> : <button onClick={startLimitEditing}>Edit</button>) : null}</div>
+            {budgets[scope].map((budget) => {
+              const percent = budget.limit ? Math.round((budget.spent / budget.limit) * 100) : 0;
+              return <div className={`budget-row ${editingLimits ? "editing" : ""}`} key={budget.id}><div><strong>{budget.name}</strong>{editingLimits ? <label className="limit-input"><span>$</span><input aria-label={`${budget.name} monthly limit`} type="number" min="0" step="1" inputMode="decimal" value={limitDrafts[budget.id] ?? ""} onChange={(event) => setLimitDrafts((current) => ({ ...current, [budget.id]: event.target.value }))} /></label> : <span>{formatMoney(budget.limit - budget.spent)} left</span>}</div><div className={`progress ${budget.tone}`}><i style={{ width: `${Math.min(100, percent)}%` }} /></div><p><span>{formatMoney(budget.spent)} of {formatMoney(budget.limit)}</span><strong>{percent}%</strong></p>{!editingLimits && Boolean(budget.rollover) && <small className="rollover-note">Includes {formatMoney(budget.rollover ?? 0)} carried forward</small>}{editingLimits && <label className="rollover-toggle"><input type="checkbox" checked={Boolean(rolloverDrafts[budget.id])} onChange={(event) => setRolloverDrafts((current) => ({ ...current, [budget.id]: event.target.checked }))} /> Roll over unused funds next month</label>}</div>;
+            })}
+            {editingLimits && <form className="add-category" onSubmit={addBudgetCategory}><div><label htmlFor="new-category-name">New category</label><input id="new-category-name" value={newCategoryName} onChange={(event) => setNewCategoryName(event.target.value)} placeholder="e.g. Pets" /></div><div><label htmlFor="new-category-limit">Monthly limit</label><span className="money-field">$<input id="new-category-limit" type="number" min="0" step="1" inputMode="decimal" value={newCategoryLimit} onChange={(event) => setNewCategoryLimit(event.target.value)} placeholder="100" /></span></div><button>Add</button></form>}
+          </section>
+          <section className="settings-section rule-settings">
+            <div className="settings-heading"><div><h3>Merchant rules</h3><p>{merchantRules.length ? `${merchantRules.length} filing purchases automatically` : "Rules appear as you review purchases."}</p></div></div>
+            {merchantRules.length > 0 && <div className="merchant-rule-list">{merchantRules.map((rule) => <div className="merchant-rule-row" key={rule.id}><span>↳</span><div><strong>{rule.merchant}</strong><small>{rule.scope} · {rule.category}</small></div><button aria-label={`Remove rule for ${rule.merchant}`} onClick={() => removeMerchantRule(rule.id)}>×</button></div>)}</div>}
+          </section>
         </section>
       </div>}
       {showConnect && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !plaidBusy) setShowConnect(false); }}>

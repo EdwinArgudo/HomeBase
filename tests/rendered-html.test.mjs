@@ -22,7 +22,7 @@ test("server-renders the Homebase product shell", async () => {
   const html = await response.text();
   assert.match(html, /<title>Homebase — Your shared household rhythm<\/title>/i);
   assert.match(html, /Good morning,[\s\S]{0,40}Edwin/);
-  assert.match(html, /Your household is on track/);
+  assert.match(html, /On track/);
   assert.match(html, /Open apartment display/);
   assert.match(html, /Money snapshot/);
   assert.doesNotMatch(html, /codex-preview|react-loading-skeleton|Your site is taking shape/i);
@@ -114,6 +114,6 @@ test("automatically refreshes Plaid connections and surfaces repairable health",
   assert.match(plaidSource, /body\.access_token = await decryptAccessToken/);
   assert.match(autoSyncRoute, /autoSyncPlaidConnections/);
   assert.match(householdSource, /healthLabel/);
-  assert.match(pageSource, /Auto refresh on/);
+  assert.match(pageSource, /refresh automatically/);
   assert.match(pageSource, /Repair connection/);
 });
