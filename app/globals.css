@@ -737,3 +737,114 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
 @media (prefers-reduced-motion: reduce) {
   *, *:before, *:after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
+
+/* Focused Home and Goals */
+.home-page, .goals-page { max-width: 940px; }
+.focused-heading { margin-bottom: 22px; }
+.focus-switcher { display: grid; gap: 8px; padding: 5px; margin-bottom: 18px; border-radius: 18px; background: #e9ebe6; }
+.home-focus-switcher { grid-template-columns: repeat(2, 1fr); }
+.goal-focus-switcher { grid-template-columns: repeat(3, 1fr); }
+.focus-switcher button { min-height: 60px; padding: 9px 14px; border: 0; border-radius: 14px; background: transparent; display: grid; grid-template-columns: 32px 1fr; grid-template-rows: auto auto; column-gap: 10px; align-items: center; text-align: left; color: var(--muted); cursor: pointer; transition: color .16s ease, background .16s ease, box-shadow .16s ease; }
+.focus-switcher button > span { grid-row: 1 / span 2; width: 32px; height: 32px; display: grid; place-items: center; border-radius: 10px; background: rgba(255,255,255,.58); color: var(--forest); font-size: 15px; font-weight: 750; }
+.focus-switcher button strong { align-self: end; font-size: 14px; }
+.focus-switcher button small { align-self: start; font-size: 12px; }
+.focus-switcher button.active { background: white; color: var(--ink); box-shadow: 0 2px 10px rgba(29,47,37,.08); }
+.focus-switcher button.active > span { background: var(--sage-light); }
+
+.home-action-hero { min-height: 285px; padding: 34px; border-radius: 28px; background: var(--forest-dark); color: white; position: relative; overflow: hidden; }
+.home-action-hero:after { content: ""; position: absolute; width: 260px; height: 260px; right: -90px; bottom: -130px; border-radius: 50%; background: rgba(255,255,255,.05); pointer-events: none; }
+.home-action-hero.complete { background: #dfece2; color: var(--ink); }
+.home-action-hero.grocery-hero { background: #dfeae1; color: var(--ink); }
+.home-action-hero > div:first-child { display: flex; justify-content: space-between; align-items: center; gap: 18px; }
+.home-action-hero .card-label { color: #aac3b6; }
+.home-action-hero.complete .card-label, .grocery-hero .card-label { color: #62816e; }
+.owner-tag { padding: 7px 11px; border-radius: 99px; background: rgba(255,255,255,.12); color: #d9e5de; font-size: 12px; font-weight: 750; }
+.home-action-hero.complete .owner-tag, .grocery-hero .owner-tag { background: rgba(255,255,255,.65); color: var(--forest); }
+.home-action-hero h2 { max-width: 650px; margin: 48px 0 10px; font: 650 38px/1.1 -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif; letter-spacing: -1.4px; }
+.home-action-hero > p { margin: 0; color: #b9cdc2; font-size: 14px; }
+.home-action-hero.complete > p, .grocery-hero > p { color: #60766a; }
+.home-action-hero > button { min-height: 48px; margin-top: 26px; padding: 0 18px; border: 0; border-radius: 14px; background: white; color: var(--forest-dark); font-size: 14px; font-weight: 750; cursor: pointer; transition: transform .16s ease, box-shadow .16s ease; }
+.home-action-hero > button:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,.12); }
+.home-action-hero > button span { display: inline-grid; place-items: center; width: 22px; height: 22px; margin-right: 8px; border-radius: 50%; background: var(--sage-light); }
+
+.hero-quick-add { display: flex; gap: 10px; max-width: 610px; margin-top: 28px; position: relative; z-index: 1; }
+.hero-quick-add input { min-width: 0; flex: 1; height: 50px; padding: 0 16px; border: 1px solid rgba(47,82,62,.14); border-radius: 14px; background: rgba(255,255,255,.82); color: var(--ink); font-size: 16px; outline: 0; }
+.hero-quick-add button { min-height: 50px; padding: 0 18px; border: 0; border-radius: 14px; background: var(--forest); color: white; font-size: 14px; font-weight: 750; cursor: pointer; }
+.focus-list { margin-top: 18px; padding: 26px 28px; border-radius: 24px; background: white; box-shadow: 0 10px 30px rgba(27,45,36,.035); }
+.focus-list .section-heading { margin-bottom: 4px; }
+.focus-list .task-row, .focus-list .grocery-list button { min-height: 60px; }
+.grocery-focus-list .voice-tip { margin-top: 18px; }
+
+.goals-page .minimum-banner { border: 0; border-radius: 18px; }
+.goal-spotlight { min-height: 400px; display: grid; grid-template-columns: 1.03fr .97fr; gap: 22px; padding: 36px; border-radius: 28px; background: white; box-shadow: 0 12px 38px rgba(27,45,36,.05); overflow: hidden; position: relative; }
+.goal-spotlight:after { content: ""; position: absolute; width: 300px; height: 300px; left: -160px; bottom: -200px; border-radius: 50%; background: var(--sage-light); opacity: .8; pointer-events: none; }
+.spanish-spotlight:after { background: var(--coral-light); }
+.getaway-spotlight:after { background: #f3e6c9; }
+.goal-spotlight-copy, .goal-visual { position: relative; z-index: 1; }
+.goal-focus-icon { width: 48px; height: 48px; display: grid; place-items: center; margin-bottom: 42px; border-radius: 15px; background: var(--forest); color: white; font-size: 18px; font-weight: 750; }
+.spanish-spotlight .goal-focus-icon { background: var(--coral); }
+.getaway-spotlight .goal-focus-icon { background: var(--gold); }
+.goal-spotlight-copy h2 { max-width: 470px; margin: 0 0 12px; font: 650 34px/1.08 -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif; letter-spacing: -1.1px; }
+.goal-spotlight-copy > p:not(.card-label) { max-width: 470px; margin: 0; color: var(--muted); font-size: 15px; line-height: 1.55; }
+.goal-status-line { display: flex; align-items: baseline; gap: 10px; margin-top: 32px; }
+.goal-status-line strong { font-size: 18px; }
+.goal-status-line span { color: var(--muted); font-size: 13px; }
+.goal-visual { align-self: stretch; padding: 28px; border-radius: 22px; background: #f4f6f1; display: flex; flex-direction: column; justify-content: center; }
+.movement-spotlight .week-dots { gap: 8px; }
+.movement-spotlight .week-dots i { width: 32px; height: 32px; }
+.action-prompt { margin: 0 0 14px; color: var(--muted); font-size: 12px; font-weight: 750; text-transform: uppercase; letter-spacing: .8px; }
+.session-options.focused { gap: 10px; }
+.session-options.focused button { min-height: 84px; border: 0; border-radius: 16px; background: white; box-shadow: 0 2px 10px rgba(28,45,36,.05); transition: transform .16s ease, box-shadow .16s ease; }
+.session-options.focused button:hover { transform: translateY(-2px); box-shadow: 0 8px 18px rgba(28,45,36,.09); }
+.session-options.focused strong { font: 600 26px/1 -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif; }
+.session-options.focused span { margin-top: 5px; font-size: 12px; }
+.gentle-note { display: flex; gap: 11px; align-items: center; margin-top: 24px; padding-top: 20px; border-top: 1px solid #dfe4dc; }
+.gentle-note > span { width: 32px; height: 32px; flex: none; display: grid; place-items: center; border-radius: 50%; background: white; color: var(--forest); font-size: 13px; }
+.gentle-note p { margin: 0; display: grid; gap: 3px; color: var(--muted); font-size: 12px; }
+.gentle-note strong { color: var(--ink); font-size: 13px; }
+.savings-visual { align-items: center; }
+.savings-ring { position: relative; width: 178px; height: 178px; padding: 13px; border-radius: 50%; background: conic-gradient(var(--gold) 73%, #e9e5da 0); }
+.savings-ring:before { content: ""; display: block; width: 100%; height: 100%; border-radius: 50%; background: #f4f6f1; }
+.savings-ring span { position: absolute; inset: 0; display: grid; place-items: center; font-size: 32px; font-weight: 650; letter-spacing: -1px; }
+.savings-visual button { min-height: 48px; margin-top: 26px; padding: 0 18px; border: 0; border-radius: 14px; background: var(--forest); color: white; font-size: 14px; font-weight: 750; cursor: pointer; }
+
+@media (max-width: 820px) {
+  .goal-spotlight { grid-template-columns: 1fr; }
+  .goal-focus-icon { margin-bottom: 26px; }
+}
+
+@media (max-width: 720px) {
+  .home-page, .goals-page { padding-top: 22px; }
+  .focused-heading { margin-bottom: 18px; }
+  .focused-heading h1 { font-size: 36px; }
+  .focused-heading p:last-child { font-size: 14px; line-height: 1.45; }
+  .focus-switcher { gap: 4px; padding: 4px; border-radius: 15px; }
+  .focus-switcher button { min-height: 52px; padding: 7px 9px; grid-template-columns: 28px 1fr; column-gap: 8px; border-radius: 12px; }
+  .focus-switcher button > span { width: 28px; height: 28px; border-radius: 9px; font-size: 13px; }
+  .focus-switcher button strong { font-size: 13px; }
+  .focus-switcher button small { font-size: 10px; }
+  .home-action-hero { min-height: 250px; padding: 24px; border-radius: 22px; }
+  .home-action-hero h2 { margin-top: 40px; font-size: 30px; letter-spacing: -1px; }
+  .home-action-hero > p { font-size: 13px; line-height: 1.45; }
+  .home-action-hero > button { width: 100%; }
+  .hero-quick-add { display: grid; grid-template-columns: 1fr auto; }
+  .hero-quick-add input { width: 100%; }
+  .hero-quick-add button { padding-inline: 14px; }
+  .focus-list { margin-top: 14px; padding: 22px; border-radius: 20px; }
+  .goal-focus-switcher button { display: flex; min-width: 0; justify-content: center; padding: 8px 5px; }
+  .goal-focus-switcher button > span { flex: none; }
+  .goal-focus-switcher button strong { font-size: 12px; }
+  .goal-focus-switcher button small { display: none; }
+  .goals-page .page-heading { align-items: flex-start; }
+  .minimum-toggle { flex: none; }
+  .goal-spotlight { min-height: 0; gap: 24px; padding: 24px; border-radius: 22px; }
+  .goal-focus-icon { width: 42px; height: 42px; margin-bottom: 28px; }
+  .goal-spotlight-copy h2 { font-size: 29px; }
+  .goal-spotlight-copy > p:not(.card-label) { font-size: 14px; }
+  .goal-status-line { margin-top: 24px; }
+  .goal-visual { padding: 20px; border-radius: 18px; }
+  .movement-spotlight .week-dots { gap: 4px; }
+  .movement-spotlight .week-dots i { width: 28px; height: 28px; }
+  .session-options.focused button { min-height: 74px; }
+  .savings-ring { width: 154px; height: 154px; }
+}

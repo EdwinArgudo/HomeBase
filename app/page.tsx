@@ -152,6 +152,8 @@ export default function Home() {
   const [groceryDraft, setGroceryDraft] = useState("");
   const [displayMode, setDisplayMode] = useState(false);
   const [minimumMode, setMinimumMode] = useState(false);
+  const [homeFocus, setHomeFocus] = useState<"tasks" | "groceries">("tasks");
+  const [goalFocus, setGoalFocus] = useState<"movement" | "spanish" | "getaway">("spanish");
   const [user, setUser] = useState({ id: "", displayName: "Edwin", email: "", role: "owner" });
   const [household, setHousehold] = useState({ id: "", name: "Our household" });
   const [budgetMonth, setBudgetMonth] = useState<BudgetMonth>(() => {
@@ -559,6 +561,9 @@ export default function Home() {
   const sharedDining = budgets.ours.find((budget) => budget.name === "Dining out");
   const sharedLeft = budgets.ours.reduce((total, budget) => total + Math.max(0, budget.limit - budget.spent), 0);
   const safeToSpend = Math.round(sharedLeft / 4);
+  const openTasks = tasks.filter((task) => !task.done);
+  const nextTask = openTasks[0];
+  const openGroceries = groceries.filter((item) => !item.checked);
 
   if (displayMode) {
     return (
@@ -708,31 +713,59 @@ export default function Home() {
 
         {tab === "home" && (
           <div className="page home-page">
-            <header className="page-heading"><div><p className="eyebrow">Our place</p><h1>Home</h1><p>One shared list, with a clear owner for everything.</p></div></header>
-            <div className="two-column home-columns">
-              <section className="panel">
-                <div className="panel-heading"><div><p className="card-label">Next grocery run</p><h2>{groceries.filter((item) => !item.checked).length} items left</h2></div><span className="pill">Sunday</span></div>
-                <form className="quick-add" onSubmit={addGrocery}><input aria-label="Add grocery item" value={groceryDraft} onChange={(event) => setGroceryDraft(event.target.value)} placeholder="Add an item…" /><button>Add</button></form>
-                <div className="grocery-list">{groceries.map((item) => <button key={item.id} className={item.checked ? "checked" : ""} onClick={() => toggleGrocery(item.id)}><span>{item.checked ? "✓" : ""}</span>{item.text}</button>)}</div>
-                <div className="voice-tip"><span>⌁</span><p><strong>Try it by voice</strong>“Siri, Homebase grocery”</p></div>
-              </section>
-              <section className="panel">
-                <div className="panel-heading"><div><p className="card-label">Household</p><h2>This week’s tasks</h2></div><button className="quiet-button">+ Add task</button></div>
-                <div className="task-list roomy">{tasks.map((task) => <button key={task.id} className={`task-row ${task.done ? "done" : ""}`} onClick={() => toggleTask(task.id)}><span className="checkmark">{task.done ? "✓" : ""}</span><span><strong>{task.text}</strong><small>{task.owner}</small></span></button>)}</div>
-              </section>
+            <header className="page-heading focused-heading"><div><p className="eyebrow">Our place</p><h1>Home</h1><p>One thing at a time. Everything else can wait.</p></div></header>
+            <div className="focus-switcher home-focus-switcher" role="tablist" aria-label="Household lists">
+              <button role="tab" aria-selected={homeFocus === "tasks"} className={homeFocus === "tasks" ? "active" : ""} onClick={() => setHomeFocus("tasks")}><span>✓</span><strong>Tasks</strong><small>{openTasks.length} left</small></button>
+              <button role="tab" aria-selected={homeFocus === "groceries"} className={homeFocus === "groceries" ? "active" : ""} onClick={() => setHomeFocus("groceries")}><span>＋</span><strong>Groceries</strong><small>{openGroceries.length} left</small></button>
             </div>
+            {homeFocus === "tasks" ? <>
+              <section className={`home-action-hero ${nextTask ? "" : "complete"}`}>
+                <div><p className="card-label">{nextTask ? "Next up" : "This week"}</p><span className="owner-tag">{nextTask?.owner ?? "Together"}</span></div>
+                <h2>{nextTask?.text ?? "Everything is handled."}</h2>
+                <p>{nextTask ? `${openTasks.length} ${openTasks.length === 1 ? "task" : "tasks"} left this week.` : "Enjoy the breathing room. New tasks can wait until they matter."}</p>
+                {nextTask && <button onClick={() => toggleTask(nextTask.id)}><span>✓</span> Mark complete</button>}
+              </section>
+              <section className="focus-list">
+                <div className="section-heading"><div><p className="card-label">The rest</p><h2>This week’s tasks</h2></div><span>{tasks.filter((task) => task.done).length} done</span></div>
+                <div className="task-list roomy">{tasks.filter((task) => task.id !== nextTask?.id).map((task) => <button key={task.id} className={`task-row ${task.done ? "done" : ""}`} onClick={() => toggleTask(task.id)}><span className="checkmark">{task.done ? "✓" : ""}</span><span><strong>{task.text}</strong><small>{task.owner}</small></span></button>)}</div>
+              </section>
+            </> : <>
+              <section className="home-action-hero grocery-hero">
+                <div><p className="card-label">Next grocery run</p><span className="owner-tag">Sunday</span></div>
+                <h2>{openGroceries.length ? `${openGroceries.length} ${openGroceries.length === 1 ? "item" : "items"} left` : "The list is clear."}</h2>
+                <p>Add it when you think of it. Check it off at the store.</p>
+                <form className="hero-quick-add" onSubmit={addGrocery}><input aria-label="Add grocery item" value={groceryDraft} onChange={(event) => setGroceryDraft(event.target.value)} placeholder="What do you need?" /><button>Add item</button></form>
+              </section>
+              <section className="focus-list grocery-focus-list">
+                <div className="section-heading"><div><p className="card-label">Shopping list</p><h2>Groceries</h2></div><span>{groceries.filter((item) => item.checked).length} picked up</span></div>
+                <div className="grocery-list">{groceries.map((item) => <button key={item.id} className={item.checked ? "checked" : ""} onClick={() => toggleGrocery(item.id)}><span>{item.checked ? "✓" : ""}</span>{item.text}</button>)}</div>
+                <div className="voice-tip"><span>⌁</span><p><strong>Add hands-free</strong>“Siri, Homebase grocery”</p></div>
+              </section>
+            </>}
           </div>
         )}
 
         {tab === "goals" && (
           <div className="page goals-page">
-            <header className="page-heading"><div><p className="eyebrow">Progress without pressure</p><h1>Goals</h1><p>Momentum counts. Missing a day doesn’t erase it.</p></div><button className={`minimum-toggle ${minimumMode ? "active" : ""}`} onClick={toggleMinimumMode}><span>{minimumMode ? "✓" : ""}</span> Minimum mode</button></header>
+            <header className="page-heading focused-heading"><div><p className="eyebrow">Progress without pressure</p><h1>Goals</h1><p>Choose one focus. Missing a day doesn’t erase your progress.</p></div><button className={`minimum-toggle ${minimumMode ? "active" : ""}`} onClick={toggleMinimumMode}><span>{minimumMode ? "✓" : ""}</span> Minimum mode</button></header>
             {minimumMode && <section className="minimum-banner"><span>○</span><div><strong>Minimum mode is on</strong><p>This week: one workout and one five-minute Spanish session. Everything else is a bonus.</p></div></section>}
-            <div className="goal-grid">
-              <article className="goal-card workout"><div className="goal-icon">↗</div><p className="card-label">Shared goal</p><h2>Move together</h2><p>Three workouts in the last seven days.</p><div className="week-dots"><span className="done">M<i>✓</i></span><span>T<i /></span><span className="done">W<i>✓</i></span><span>T<i /></span><span className="done">F<i>✓</i></span><span>S<i /></span><span>S<i /></span></div><footer><strong>3 / 3</strong><span>weekly target met</span></footer></article>
-              <article className="goal-card language"><div className="goal-icon">A</div><p className="card-label">Personal goal</p><h2>Spanish momentum</h2><p>Four sessions in the last 14 days.</p><div className="session-options"><button><strong>5</strong><span>min reset</span></button><button><strong>15</strong><span>min normal</span></button><button><strong>30</strong><span>min focus</span></button></div><footer><strong>Welcome back</strong><span>No streak to repair.</span></footer></article>
-              <article className="goal-card savings"><div className="goal-icon">$</div><p className="card-label">Shared goal</p><h2>Weekend getaway</h2><p>$1,460 saved toward your $2,000 goal.</p><div className="savings-progress"><div><i style={{ width: "73%" }} /></div><span>73%</span></div><footer><strong>$540 to go</strong><span>On pace for October</span></footer></article>
+            <div className="focus-switcher goal-focus-switcher" role="tablist" aria-label="Goal focus">
+              <button role="tab" aria-selected={goalFocus === "movement"} className={goalFocus === "movement" ? "active" : ""} onClick={() => setGoalFocus("movement")}><span>↗</span><strong>Movement</strong><small>3 this week</small></button>
+              <button role="tab" aria-selected={goalFocus === "spanish"} className={goalFocus === "spanish" ? "active" : ""} onClick={() => setGoalFocus("spanish")}><span>A</span><strong>Spanish</strong><small>4 sessions</small></button>
+              <button role="tab" aria-selected={goalFocus === "getaway"} className={goalFocus === "getaway" ? "active" : ""} onClick={() => setGoalFocus("getaway")}><span>$</span><strong>Getaway</strong><small>73% saved</small></button>
             </div>
+            {goalFocus === "movement" && <article className="goal-spotlight movement-spotlight">
+              <div className="goal-spotlight-copy"><span className="goal-focus-icon">↗</span><p className="card-label">Shared focus</p><h2>This week is already a win.</h2><p>Three workouts in the last seven days. Anything else is a bonus, not a debt.</p><div className="goal-status-line"><strong>3 / 3</strong><span>weekly target met</span></div></div>
+              <div className="goal-visual"><div className="week-dots"><span className="done">M<i>✓</i></span><span>T<i /></span><span className="done">W<i>✓</i></span><span>T<i /></span><span className="done">F<i>✓</i></span><span>S<i /></span><span>S<i /></span></div><div className="gentle-note"><span>✓</span><p><strong>Strong week</strong>No streak to protect tomorrow.</p></div></div>
+            </article>}
+            {goalFocus === "spanish" && <article className="goal-spotlight spanish-spotlight">
+              <div className="goal-spotlight-copy"><span className="goal-focus-icon">A</span><p className="card-label">Today’s focus</p><h2>How much energy do you have?</h2><p>Every option counts. Pick the version that feels possible right now.</p><div className="goal-status-line"><strong>4 sessions</strong><span>in the last 14 days</span></div></div>
+              <div className="goal-visual"><p className="action-prompt">Choose today’s session</p><div className="session-options focused"><button><strong>5</strong><span>min reset</span></button><button><strong>15</strong><span>min normal</span></button><button><strong>30</strong><span>min focus</span></button></div><div className="gentle-note"><span>↗</span><p><strong>Welcome back</strong>There is no streak to repair.</p></div></div>
+            </article>}
+            {goalFocus === "getaway" && <article className="goal-spotlight getaway-spotlight">
+              <div className="goal-spotlight-copy"><span className="goal-focus-icon">$</span><p className="card-label">Shared focus</p><h2>Your weekend is 73% funded.</h2><p>$1,460 saved toward the $2,000 goal. You’re on pace for October.</p><div className="goal-status-line"><strong>$540</strong><span>left to go</span></div></div>
+              <div className="goal-visual savings-visual"><div className="savings-ring"><span>73%</span></div><button onClick={() => setTab("money")}>Open shared money <span>→</span></button></div>
+            </article>}
           </div>
         )}
       </section>
