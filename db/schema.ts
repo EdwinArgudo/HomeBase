@@ -66,7 +66,12 @@ export const bankConnections = sqliteTable("bank_connections", {
   cursor: text("cursor"),
   institutionName: text("institution_name").notNull(),
   status: text("status", { enum: ["healthy", "attention"] }).notNull().default("healthy"),
+  lastSyncAttemptAt: text("last_sync_attempt_at"),
   lastSyncedAt: text("last_synced_at"),
+  providerLastSuccessfulUpdate: text("provider_last_successful_update"),
+  providerLastFailedUpdate: text("provider_last_failed_update"),
+  lastErrorCode: text("last_error_code"),
+  lastErrorMessage: text("last_error_message"),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
   updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 }, (table) => [

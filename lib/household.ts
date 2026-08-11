@@ -116,7 +116,12 @@ async function ensureSchema() {
       cursor TEXT,
       institution_name TEXT NOT NULL,
       status TEXT DEFAULT 'healthy' NOT NULL,
+      last_sync_attempt_at TEXT,
       last_synced_at TEXT,
+      provider_last_successful_update TEXT,
+      provider_last_failed_update TEXT,
+      last_error_code TEXT,
+      last_error_message TEXT,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
       updated_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
     )`),
@@ -491,13 +496,15 @@ export async function loadHousehold(request: Request) {
     WHERE mr.household_id = ? AND mr.created_by_member_id = ? AND c.archived_at IS NULL
     ORDER BY mr.updated_at DESC, mr.merchant_name`).bind(member.household_id, member.id).all()).results as Array<{ id: string; merchant_name: string; match_text: string; category_id: string; spending_type: string; category_name: string }>;
   const pendingInvitation = await db.prepare("SELECT id, email, status FROM invitations WHERE household_id = ? AND status = 'pending' LIMIT 1").bind(member.household_id).first<{ id: string; email: string; status: string }>();
-  const connectionRows = (await db.prepare(`SELECT bc.id, bc.owner_member_id, bc.ownership_type, bc.institution_name, bc.status, bc.last_synced_at,
+  const connectionRows = (await db.prepare(`SELECT bc.id, bc.owner_member_id, bc.ownership_type, bc.institution_name, bc.status, bc.last_sync_attempt_at, bc.last_synced_at,
+      bc.provider_last_successful_update, bc.provider_last_failed_update, bc.last_error_code, bc.last_error_message,
       COUNT(a.id) AS account_count
     FROM bank_connections bc
     LEFT JOIN accounts a ON a.provider_item_id = bc.item_id AND a.household_id = bc.household_id
     WHERE bc.household_id = ?
-    GROUP BY bc.id, bc.owner_member_id, bc.ownership_type, bc.institution_name, bc.status, bc.last_synced_at
-    ORDER BY bc.created_at`).bind(member.household_id).all()).results as Array<{ id: string; owner_member_id: string | null; ownership_type: string; institution_name: string; status: string; last_synced_at: string | null; account_count: number }>;
+    GROUP BY bc.id, bc.owner_member_id, bc.ownership_type, bc.institution_name, bc.status, bc.last_sync_attempt_at, bc.last_synced_at,
+      bc.provider_last_successful_update, bc.provider_last_failed_update, bc.last_error_code, bc.last_error_message
+    ORDER BY bc.created_at`).bind(member.household_id).all()).results as Array<{ id: string; owner_member_id: string | null; ownership_type: string; institution_name: string; status: string; last_sync_attempt_at: string | null; last_synced_at: string | null; provider_last_successful_update: string | null; provider_last_failed_update: string | null; last_error_code: string | null; last_error_message: string | null; account_count: number }>;
 
   return {
     user: { id: member.id, displayName: identity.displayName, email: identity.email, role: member.role },
@@ -508,14 +515,25 @@ export async function loadHousehold(request: Request) {
     plaid: {
       configured: Boolean(env.PLAID_CLIENT_ID && env.PLAID_SECRET && env.BANK_TOKEN_ENCRYPTION_KEY),
       environment: env.PLAID_ENV === "production" ? "production" : env.PLAID_ENV === "development" ? "development" : "sandbox",
-      connections: connectionRows.filter((row) => row.ownership_type === "shared" || row.owner_member_id === member.id).map((row) => ({
-        id: row.id,
-        institutionName: row.institution_name,
-        scope: relativeScope(row.ownership_type, row.owner_member_id, member.id),
-        status: row.status,
-        lastSyncedAt: row.last_synced_at,
-        accountCount: Number(row.account_count),
-      })),
+      connections: connectionRows.filter((row) => row.ownership_type === "shared" || row.owner_member_id === member.id).map((row) => {
+        const lastSync = row.last_synced_at ? new Date(`${row.last_synced_at.replace(" ", "T")}Z`).getTime() : 0;
+        const ageHours = lastSync ? (Date.now() - lastSync) / 3_600_000 : Number.POSITIVE_INFINITY;
+        const health = row.status === "attention" ? "attention" : row.last_error_code ? "warning" : ageHours > 24 ? "stale" : "healthy";
+        return {
+          id: row.id,
+          institutionName: row.institution_name,
+          scope: relativeScope(row.ownership_type, row.owner_member_id, member.id),
+          status: row.status,
+          health,
+          healthLabel: health === "attention" ? "Repair needed" : health === "warning" ? "Refresh issue" : health === "stale" ? "Update overdue" : "Up to date",
+          healthMessage: row.last_error_message || (health === "stale" ? "Homebase has not refreshed this connection in over 24 hours." : "Automatic refresh is working."),
+          lastSyncAttemptAt: row.last_sync_attempt_at,
+          lastSyncedAt: row.last_synced_at,
+          providerLastSuccessfulUpdate: row.provider_last_successful_update,
+          providerLastFailedUpdate: row.provider_last_failed_update,
+          accountCount: Number(row.account_count),
+        };
+      }),
     },
     budgets,
     tasks: taskRows.map((row) => ({ id: row.id, text: row.title, owner: row.owner_member_id ? (row.owner_member_id === member.id ? "You" : membersById.get(row.owner_member_id)?.display_name ?? "Partner") : "Together", done: row.status === "complete" })),

@@ -204,6 +204,17 @@ button { color: inherit; }
 .transaction-split-button:hover { border-color: var(--sage); background: #f0f5f0; }
 .transaction-amount { font: 500 12px Georgia, serif; }
 .bank-connections { margin-bottom: 20px; }
+.connection-alert { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; margin-bottom: 14px; padding: 14px 16px; border: 1px solid #eadfc6; border-radius: 14px; background: #f7f0df; }
+.connection-alert > span { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 50%; background: white; color: #9a7137; font-weight: 900; }
+.connection-alert > div { display: grid; gap: 3px; }
+.connection-alert strong { font-size: 11px; }
+.connection-alert p { margin: 0; color: #746a53; font-size: 9px; }
+.connection-alert > button { border: 0; border-radius: 9px; padding: 8px 10px; background: var(--forest); color: white; font-size: 8px; font-weight: 800; cursor: pointer; }
+.connection-alert.attention { border-color: #edd1c9; background: #fae9e4; }
+.connection-alert.attention > span { color: #a75643; }
+.connection-heading-badges { display: flex; align-items: center; gap: 7px; }
+.auto-sync-badge { display: flex; align-items: center; gap: 5px; padding: 5px 8px; border-radius: 99px; background: #e4eee6; color: #4b7859; font-size: 8px; font-weight: 800; }
+.auto-sync-badge i { width: 6px; height: 6px; border-radius: 50%; background: #5b936f; }
 .plaid-environment { padding: 5px 8px; border-radius: 99px; background: #eef1eb; color: var(--muted); font-size: 8px; font-weight: 800; text-transform: uppercase; letter-spacing: .7px; }
 .connection-list { display: grid; }
 .connection-row { display: grid; grid-template-columns: auto 1fr auto auto; gap: 12px; align-items: center; padding: 14px 0; border-bottom: 1px solid #ecefe9; }
@@ -214,8 +225,10 @@ button { color: inherit; }
 .connection-row p, .connection-row small { margin: 0; color: var(--muted); font-size: 8px; }
 .connection-status { padding: 5px 8px; border-radius: 99px; background: #e4eee6; color: #4b7859; font-size: 8px; font-weight: 800; }
 .connection-status.attention { background: var(--coral-light); color: #9c594b; }
+.connection-status.warning, .connection-status.stale { background: #f4ead3; color: #8d6c34; }
 .connection-row > button { border: 1px solid var(--line); border-radius: 8px; padding: 7px 9px; background: white; color: var(--forest); font-size: 8px; font-weight: 800; cursor: pointer; }
 .connection-row > button:disabled { opacity: .55; cursor: wait; }
+.automatic-sync-note { margin: 11px 0 0; padding-top: 11px; border-top: 1px solid #ecefe9; color: var(--muted); font-size: 8px; line-height: 1.45; }
 
 .home-columns { grid-template-columns: 1fr 1fr; }
 .quick-add { display: flex; gap: 8px; margin: 18px 0 10px; }
@@ -412,6 +425,9 @@ button { color: inherit; }
   .connection-row { grid-template-columns: auto 1fr auto; }
   .connection-status { display: none; }
   .connection-row > button { grid-column: 2 / -1; width: fit-content; }
+  .connection-alert { grid-template-columns: auto 1fr; }
+  .connection-alert > button { grid-column: 2; width: fit-content; }
+  .auto-sync-badge { display: none; }
   .add-category { grid-template-columns: 1fr 1fr; }
   .add-category button { grid-column: span 2; }
   .transaction-row { grid-template-columns: auto 1fr auto auto; gap: 9px; }

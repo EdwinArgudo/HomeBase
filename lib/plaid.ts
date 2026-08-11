@@ -20,6 +20,12 @@ type PlaidTransaction = {
   date: string;
   personal_finance_category?: { primary?: string | null; detailed?: string | null } | null;
 };
+type PlaidItemError = { error_code?: string | null; display_message?: string | null; error_message?: string | null };
+type PlaidItemHealth = {
+  item: { error?: PlaidItemError | null };
+  status?: { transactions?: { last_successful_update?: string | null; last_failed_update?: string | null } | null };
+};
+type ConnectionRow = { id: string; household_id: string; owner_member_id: string | null; ownership_type: "personal" | "shared"; access_token_ciphertext: string; cursor: string | null };
 
 class PlaidApiError extends HttpError {
   constructor(public code: string, message: string) {
@@ -58,7 +64,7 @@ async function plaidPost<T>(path: string, body: Record<string, unknown>): Promis
   const data = await response.json() as T & { error_code?: string; display_message?: string | null; error_message?: string };
   if (!response.ok) {
     const code = data.error_code ?? "PLAID_REQUEST_FAILED";
-    const message = data.display_message || (code === "INVALID_API_KEYS" ? "Plaid rejected the configured credentials." : "Plaid could not complete that request. Try again in a moment.");
+    const message = data.display_message || (code === "INVALID_API_KEYS" ? "Plaid rejected the configured credentials." : code === "ITEM_LOGIN_REQUIRED" ? "Your bank needs you to sign in again." : "Plaid could not complete that request. Try again in a moment.");
     throw new PlaidApiError(code, message);
   }
   return data;
@@ -102,20 +108,28 @@ async function decryptAccessToken(ciphertext: string) {
   }
 }
 
-export async function createPlaidLinkToken(request: Request) {
+export async function createPlaidLinkToken(request: Request, connectionId?: string) {
   const { member } = await requireHouseholdMember(request);
   const body: Record<string, unknown> = {
     client_name: "Homebase",
     language: "en",
     country_codes: ["US"],
     user: { client_user_id: member.id },
-    products: ["transactions"],
-    transactions: { days_requested: 90 },
-    account_filters: {
+  };
+  if (connectionId) {
+    const connection = await householdDatabase().prepare("SELECT owner_member_id, ownership_type, access_token_ciphertext FROM bank_connections WHERE id = ? AND household_id = ? LIMIT 1")
+      .bind(connectionId, member.household_id).first<{ owner_member_id: string | null; ownership_type: string; access_token_ciphertext: string }>();
+    if (!connection) throw new HttpError(404, "That bank connection was not found.");
+    if (connection.ownership_type === "personal" && connection.owner_member_id !== member.id) throw new HttpError(403, "Only your partner can repair that private connection.");
+    body.access_token = await decryptAccessToken(connection.access_token_ciphertext);
+  } else {
+    body.products = ["transactions"];
+    body.transactions = { days_requested: 90 };
+    body.account_filters = {
       depository: { account_subtypes: ["all"] },
       credit: { account_subtypes: ["all"] },
-    },
-  };
+    };
+  }
   if (env.PLAID_REDIRECT_URI?.trim()) body.redirect_uri = env.PLAID_REDIRECT_URI.trim();
   const result = await plaidPost<{ link_token: string; expiration: string }>("/link/token/create", body);
   return { linkToken: result.link_token, expiration: result.expiration, environment: plaidEnvironment() };
@@ -173,7 +187,7 @@ async function fetchTransactionUpdates(accessToken: string, originalCursor: stri
   throw new PlaidApiError("SYNC_FAILED", "Plaid could not finish syncing this bank.");
 }
 
-async function syncConnectionWithToken(db: D1Database, connection: { id: string; household_id: string; owner_member_id: string | null; ownership_type: "personal" | "shared"; cursor: string | null }, accessToken: string) {
+async function performConnectionSync(db: D1Database, connection: { id: string; household_id: string; owner_member_id: string | null; ownership_type: "personal" | "shared"; cursor: string | null }, accessToken: string) {
   const updates = await fetchTransactionUpdates(accessToken, connection.cursor);
   const accountRows = (await db.prepare("SELECT id, provider_account_id FROM accounts WHERE household_id = ? AND provider_item_id = (SELECT item_id FROM bank_connections WHERE id = ?)")
     .bind(connection.household_id, connection.id).all()).results as Array<{ id: string; provider_account_id: string }>;
@@ -228,9 +242,35 @@ async function syncConnectionWithToken(db: D1Database, connection: { id: string;
     statements.push(db.prepare("DELETE FROM transactions WHERE household_id = ? AND provider_transaction_id = ?").bind(connection.household_id, removed.transaction_id));
   }
   await runStatementBatches(db, statements);
-  await db.prepare("UPDATE bank_connections SET cursor = ?, status = 'healthy', last_synced_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND household_id = ?")
-    .bind(updates.cursor, connection.id, connection.household_id).run();
+  const itemHealth = await plaidPost<PlaidItemHealth>("/item/get", { access_token: accessToken });
+  const itemError = itemHealth.item.error ?? null;
+  const errorCode = itemError?.error_code ?? null;
+  const errorMessage = itemError?.display_message || itemError?.error_message || null;
+  await db.prepare(`UPDATE bank_connections SET cursor = ?, status = ?, last_synced_at = CURRENT_TIMESTAMP,
+      provider_last_successful_update = ?, provider_last_failed_update = ?, last_error_code = ?, last_error_message = ?, updated_at = CURRENT_TIMESTAMP
+    WHERE id = ? AND household_id = ?`)
+    .bind(updates.cursor, itemError ? "attention" : "healthy", itemHealth.status?.transactions?.last_successful_update ?? null, itemHealth.status?.transactions?.last_failed_update ?? null, errorCode, errorMessage, connection.id, connection.household_id).run();
   return { added: updates.added.length, modified: updates.modified.length, removed: updates.removed.length };
+}
+
+function requiresRepair(code: string) {
+  return ["ITEM_LOGIN_REQUIRED", "PENDING_DISCONNECT", "INVALID_ACCESS_TOKEN", "USER_PERMISSION_REVOKED"].includes(code);
+}
+
+async function syncConnectionWithToken(db: D1Database, connection: { id: string; household_id: string; owner_member_id: string | null; ownership_type: "personal" | "shared"; cursor: string | null }, accessToken: string) {
+  await db.prepare("UPDATE bank_connections SET last_sync_attempt_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND household_id = ?")
+    .bind(connection.id, connection.household_id).run();
+  try {
+    return await performConnectionSync(db, connection, accessToken);
+  } catch (error) {
+    const code = error instanceof PlaidApiError ? error.code : "SYNC_FAILED";
+    const message = error instanceof Error ? error.message : "Plaid could not refresh this connection.";
+    await db.prepare(`UPDATE bank_connections SET status = CASE WHEN ? = 1 THEN 'attention' ELSE status END,
+        last_error_code = ?, last_error_message = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ? AND household_id = ?`)
+      .bind(requiresRepair(code) ? 1 : 0, code, message.slice(0, 240), connection.id, connection.household_id).run();
+    throw error;
+  }
 }
 
 export async function exchangePlaidPublicToken(request: Request, input: { publicToken: string; ownership: Ownership; institutionName?: string }) {
@@ -287,14 +327,33 @@ export async function syncPlaidConnection(request: Request, connectionId: string
   const { member } = await requireHouseholdMember(request);
   const db = householdDatabase();
   const connection = await db.prepare("SELECT id, household_id, owner_member_id, ownership_type, access_token_ciphertext, cursor FROM bank_connections WHERE id = ? AND household_id = ? LIMIT 1")
-    .bind(connectionId, member.household_id).first<{ id: string; household_id: string; owner_member_id: string | null; ownership_type: "personal" | "shared"; access_token_ciphertext: string; cursor: string | null }>();
+    .bind(connectionId, member.household_id).first<ConnectionRow>();
   if (!connection) throw new HttpError(404, "That bank connection was not found.");
-  try {
-    return await syncConnectionWithToken(db, connection, await decryptAccessToken(connection.access_token_ciphertext));
-  } catch (error) {
-    if (error instanceof PlaidApiError && (error.code === "ITEM_LOGIN_REQUIRED" || error.code === "PENDING_DISCONNECT")) {
-      await db.prepare("UPDATE bank_connections SET status = 'attention', updated_at = CURRENT_TIMESTAMP WHERE id = ? AND household_id = ?").bind(connection.id, member.household_id).run();
+  if (connection.ownership_type === "personal" && connection.owner_member_id !== member.id) throw new HttpError(403, "Only your partner can refresh that private connection.");
+  return syncConnectionWithToken(db, connection, await decryptAccessToken(connection.access_token_ciphertext));
+}
+
+export async function autoSyncPlaidConnections(request: Request) {
+  const { member } = await requireHouseholdMember(request);
+  const db = householdDatabase();
+  const connections = (await db.prepare(`SELECT id, household_id, owner_member_id, ownership_type, access_token_ciphertext, cursor
+    FROM bank_connections
+    WHERE household_id = ? AND (ownership_type = 'shared' OR owner_member_id = ?)
+      AND (last_sync_attempt_at IS NULL OR last_sync_attempt_at < datetime('now', '-4 hours'))
+    ORDER BY updated_at`).bind(member.household_id, member.id).all()).results as ConnectionRow[];
+  let refreshed = 0;
+  let needsAttention = 0;
+  for (const connection of connections) {
+    const claim = await db.prepare(`UPDATE bank_connections SET last_sync_attempt_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ? AND household_id = ? AND (last_sync_attempt_at IS NULL OR last_sync_attempt_at < datetime('now', '-4 hours'))`)
+      .bind(connection.id, member.household_id).run();
+    if (!claim.meta.changes) continue;
+    try {
+      await syncConnectionWithToken(db, connection, await decryptAccessToken(connection.access_token_ciphertext));
+      refreshed += 1;
+    } catch {
+      needsAttention += 1;
     }
-    throw error;
   }
+  return { refreshed, needsAttention, checked: connections.length };
 }

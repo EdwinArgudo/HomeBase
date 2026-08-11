@@ -99,3 +99,21 @@ test("scopes budgets to durable calendar months with optional rollover", async (
   assert.match(pageSource, /Roll over unused funds next month/);
   assert.match(pageSource, /daysRemaining/);
 });
+
+test("automatically refreshes Plaid connections and surfaces repairable health", async () => {
+  const householdSource = await readFile(new URL("../lib/household.ts", import.meta.url), "utf8");
+  const plaidSource = await readFile(new URL("../lib/plaid.ts", import.meta.url), "utf8");
+  const pageSource = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
+  const autoSyncRoute = await readFile(new URL("../app/api/plaid/auto-sync/route.ts", import.meta.url), "utf8");
+  const migration = await readFile(new URL("../drizzle/0005_lonely_shiva.sql", import.meta.url), "utf8");
+
+  assert.match(migration, /ADD `last_sync_attempt_at`/);
+  assert.match(migration, /ADD `last_error_code`/);
+  assert.match(plaidSource, /last_sync_attempt_at < datetime\('now', '-4 hours'\)/);
+  assert.match(plaidSource, /provider_last_successful_update/);
+  assert.match(plaidSource, /body\.access_token = await decryptAccessToken/);
+  assert.match(autoSyncRoute, /autoSyncPlaidConnections/);
+  assert.match(householdSource, /healthLabel/);
+  assert.match(pageSource, /Auto refresh on/);
+  assert.match(pageSource, /Repair connection/);
+});
