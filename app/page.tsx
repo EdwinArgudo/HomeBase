@@ -130,6 +130,10 @@ function BrandMark() {
   );
 }
 
+function NavGlyph({ item }: { item: Tab }) {
+  return <span className={`nav-glyph ${item}`} aria-hidden="true" />;
+}
+
 function ProgressRing({ value, label }: { value: number; label: string }) {
   return (
     <div className="progress-ring" style={{ "--progress": `${value * 3.6}deg` } as React.CSSProperties}>
@@ -152,6 +156,7 @@ export default function Home() {
   const [groceryDraft, setGroceryDraft] = useState("");
   const [displayMode, setDisplayMode] = useState(false);
   const [minimumMode, setMinimumMode] = useState(false);
+  const [navCondensed, setNavCondensed] = useState(false);
   const [homeFocus, setHomeFocus] = useState<"tasks" | "groceries">("tasks");
   const [goalFocus, setGoalFocus] = useState<"movement" | "spanish" | "getaway">("spanish");
   const [user, setUser] = useState({ id: "", displayName: "Edwin", email: "", role: "owner" });
@@ -230,6 +235,13 @@ export default function Home() {
         setSyncMessage(error instanceof Error ? error.message : "Homebase could not load.");
       });
     return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
+    const updateNavigation = () => setNavCondensed(window.scrollY > 72);
+    updateNavigation();
+    window.addEventListener("scroll", updateNavigation, { passive: true });
+    return () => window.removeEventListener("scroll", updateNavigation);
   }, []);
 
   useEffect(() => {
@@ -549,6 +561,11 @@ export default function Home() {
     finally { setPlaidBusy(false); }
   }
 
+  function selectTab(nextTab: Tab) {
+    setTab(nextTab);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
   const firstName = user.displayName.split(/\s+/)[0] || "there";
   const initials = user.displayName.split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase() || "H";
   const reviewItem = transactions.find((transaction) => transaction.reviewStatus === "needs_review");
@@ -607,23 +624,27 @@ export default function Home() {
   return (
     <main className="app-shell">
       <aside className="side-rail">
-        <div className="brand"><BrandMark /><span>Homebase</span></div>
+        <div className="brand rail-brand" aria-label="Homebase"><BrandMark /></div>
         <nav aria-label="Primary navigation">
           {(["today", "money", "home", "goals"] as Tab[]).map((item) => (
-            <button key={item} className={tab === item ? "active" : ""} onClick={() => setTab(item)}>
-              <span className="nav-symbol">{item === "today" ? "⌂" : item === "money" ? "$" : item === "home" ? "✓" : "↗"}</span>
-              {item[0].toUpperCase() + item.slice(1)}
+            <button key={item} aria-label={item[0].toUpperCase() + item.slice(1)} className={tab === item ? "active" : ""} onClick={() => selectTab(item)}>
+              <NavGlyph item={item} />
+              <span className="rail-tooltip">{item[0].toUpperCase() + item.slice(1)}</span>
             </button>
           ))}
         </nav>
-        <button className="display-button" onClick={() => setDisplayMode(true)}><span>▣</span> Open apartment display</button>
-        <button className="profile profile-button" onClick={() => setShowHousehold(true)}><div className="avatars">{members.length ? members.map((member, index) => <span key={member.id} className={index ? "partner-avatar" : ""}>{member.displayName[0]?.toUpperCase()}</span>) : <span>{initials}</span>}</div><div><strong>{household.name}</strong><small>{members.length || 1} of 2 members</small></div></button>
+        <button className="rail-profile" aria-label="Manage household or Open apartment display" onClick={() => setShowHousehold(true)}><div className="avatars">{members.length ? members.map((member, index) => <span key={member.id} className={index ? "partner-avatar" : ""}>{member.displayName[0]?.toUpperCase()}</span>) : <span>{initials}</span>}</div><span className="rail-tooltip">{household.name}</span></button>
       </aside>
 
       <section className="content-shell">
-        <header className="mobile-header">
-          <div className="brand"><BrandMark /><span>Homebase</span></div>
-          <div><button aria-label="Manage household" onClick={() => setShowHousehold(true)}>{initials}</button><button aria-label="Open apartment display" onClick={() => setDisplayMode(true)}>▣</button></div>
+        <header className={`mobile-topbar ${navCondensed ? "condensed" : ""}`}>
+          <span className="mobile-context-title" aria-hidden="true">{tab[0].toUpperCase() + tab.slice(1)}</span>
+          <div className="mobile-context-actions">
+            {tab === "money" && <button className="context-icon-button" aria-label="Open money settings" onClick={() => setShowMoneySettings(true)}>•••</button>}
+            {tab === "home" && <button className="context-icon-button add" aria-label="Open grocery quick add" onClick={() => setHomeFocus("groceries")}>+</button>}
+            {tab === "goals" && <button className={`context-minimum-button ${minimumMode ? "active" : ""}`} onClick={toggleMinimumMode}>Minimum</button>}
+            <button className="topbar-avatar" aria-label="Manage household or Open apartment display" onClick={() => setShowHousehold(true)}>{initials}</button>
+          </div>
         </header>
         <div className={`sync-indicator ${syncStatus}`} role="status"><span />{syncMessage}</div>
 
@@ -770,8 +791,8 @@ export default function Home() {
         )}
       </section>
 
-      <nav className="bottom-nav" aria-label="Mobile navigation">
-        {(["today", "money", "home", "goals"] as Tab[]).map((item) => <button key={item} className={tab === item ? "active" : ""} onClick={() => setTab(item)}><span>{item === "today" ? "⌂" : item === "money" ? "$" : item === "home" ? "✓" : "↗"}</span>{item[0].toUpperCase() + item.slice(1)}</button>)}
+      <nav className={`bottom-nav ${showHousehold || showReview || showMoneySettings || showConnect || Boolean(splitTransactionItem) ? "nav-hidden" : ""}`} aria-label="Mobile navigation">
+        {(["today", "money", "home", "goals"] as Tab[]).map((item) => <button key={item} aria-label={item[0].toUpperCase() + item.slice(1)} className={tab === item ? "active" : ""} onClick={() => selectTab(item)}><NavGlyph item={item} /><span className="nav-label">{item[0].toUpperCase() + item.slice(1)}</span></button>)}
       </nav>
 
       {showHousehold && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setShowHousehold(false); }}>
@@ -780,6 +801,7 @@ export default function Home() {
           <div className="member-list">
             {members.length ? members.map((member) => <div className="member-row" key={member.id}><span>{member.displayName[0]?.toUpperCase()}</span><div><strong>{member.displayName}</strong><small>{member.email || (member.id === user.id ? user.email : "Signed-in member")}</small></div><em>{member.role === "owner" ? "Owner" : "Partner"}</em></div>) : <div className="member-row"><span>{initials}</span><div><strong>{user.displayName}</strong><small>{user.email || "Loading account…"}</small></div><em>Owner</em></div>}
           </div>
+          <button className="household-display-action" onClick={() => { setShowHousehold(false); setDisplayMode(true); }}><span className="display-glyph" aria-hidden="true" /><span><strong>Apartment display</strong><small>Open the across-the-room dashboard</small></span><b>→</b></button>
           {invitation ? <div className="pending-invite"><span>✉</span><div><strong>Invitation saved</strong><p>{invitation.email}</p><small>Pending their first sign-in</small></div></div> : user.role === "owner" && members.length < 2 ? <form className="invite-form" onSubmit={invitePartner}>
             <label htmlFor="partner-email">Invite your partner</label>
             <p>Use the email they’ll use to sign in. Their personal purchases stay private by default.</p>
