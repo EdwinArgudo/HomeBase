@@ -101,6 +101,12 @@ button { color: inherit; }
 .weekly-reset button, .primary-button { border: 0; background: #f6f3e9; color: var(--forest-dark); border-radius: 10px; padding: 11px 14px; font-size: 11px; font-weight: 800; cursor: pointer; }
 
 .primary-button { background: var(--forest); color: white; }
+.money-heading { align-items: center; }
+.month-heading { display: flex; align-items: center; gap: 13px; }
+.month-heading > button { width: 34px; height: 34px; flex: none; border: 1px solid var(--line); border-radius: 10px; background: white; color: var(--forest); font: 500 20px Georgia, serif; cursor: pointer; }
+.month-heading > button:disabled { opacity: .35; cursor: not-allowed; }
+.money-heading-actions { display: flex; align-items: center; gap: 12px; }
+.money-heading-actions > span, .period-lock { padding: 6px 9px; border-radius: 99px; background: #eee9dd; color: #7c725c; font-size: 8px; font-weight: 800; text-transform: uppercase; letter-spacing: .55px; }
 .scope-switcher { width: fit-content; display: flex; gap: 3px; padding: 3px; margin-bottom: 18px; background: #e9ebe4; border-radius: 11px; }
 .scope-switcher button { min-width: 86px; border: 0; background: transparent; padding: 8px 18px; border-radius: 8px; color: #718078; font-size: 11px; font-weight: 800; cursor: pointer; }
 .scope-switcher button.active { background: white; color: var(--forest-dark); box-shadow: 0 1px 4px rgba(30,48,40,.1); }
@@ -117,6 +123,7 @@ button { color: inherit; }
 .summary-stat strong { font: 500 21px/1.2 Georgia, serif; }
 .summary-stat small { color: #bcd0c4; font-size: 9px; }
 .summary-stat small.positive { color: #c8dfcb; }
+.summary-stat small.warning { color: #f4c8b8; }
 .money-layout { display: grid; grid-template-columns: 1.4fr .9fr; gap: 20px; }
 .budget-row { padding: 17px 0; border-bottom: 1px solid #ecefe9; }
 .budget-row:last-child { padding-bottom: 0; border: 0; }
@@ -126,6 +133,9 @@ button { color: inherit; }
 .budget-row > div:first-child span { color: var(--muted); font-size: 10px; }
 .budget-row p { margin: 6px 0 0; font-size: 9px; color: var(--muted); }
 .budget-row p strong { color: var(--ink); }
+.rollover-note { display: block; margin-top: 7px; color: #678070; font-size: 8px; }
+.rollover-toggle { width: fit-content; display: flex; align-items: center; gap: 7px; margin-top: 10px; color: var(--muted); font-size: 8px; font-weight: 700; cursor: pointer; }
+.rollover-toggle input { accent-color: var(--forest); }
 .edit-actions { display: flex; align-items: center; gap: 9px; }
 .save-button { border: 0; border-radius: 8px; padding: 8px 10px; background: var(--forest); color: white; font-size: 9px; font-weight: 800; cursor: pointer; }
 .budget-row.editing { padding-block: 13px; }
@@ -179,6 +189,9 @@ button { color: inherit; }
 .empty-review { min-height: 160px; display: grid; place-content: center; justify-items: center; color: var(--muted); font-size: 11px; }
 .empty-review span { width: 38px; height: 38px; display: grid; place-items: center; background: #e0ece3; color: var(--forest); border-radius: 50%; }
 .transactions-panel { margin-top: 20px; }
+.empty-transactions { padding: 28px 0 18px; text-align: center; color: var(--muted); }
+.empty-transactions strong { color: var(--ink); font: 500 15px Georgia, serif; }
+.empty-transactions p { margin: 6px 0 0; font-size: 9px; }
 .transaction-row { display: grid; grid-template-columns: auto 1.4fr auto 1fr auto auto; align-items: center; gap: 12px; padding: 13px 0; border-bottom: 1px solid #ecefe9; }
 .transaction-row:last-child { border: 0; padding-bottom: 0; }
 .merchant-mark.small { width: 30px; height: 30px; border-radius: 9px; font-size: 10px; }
@@ -386,6 +399,9 @@ button { color: inherit; }
   .weekly-reset button { grid-column: span 2; }
   .money-page .page-heading { align-items: center; }
   .money-page .page-heading p:last-child { display: none; }
+  .month-heading { gap: 8px; }
+  .month-heading > button { width: 30px; height: 30px; }
+  .money-heading-actions > span { display: none; }
   .primary-button { padding: 10px; font-size: 9px; }
   .scope-switcher { width: 100%; }
   .scope-switcher button { flex: 1; min-width: 0; padding-inline: 8px; }

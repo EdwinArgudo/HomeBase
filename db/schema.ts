@@ -87,6 +87,20 @@ export const categories = sqliteTable("categories", {
   index("idx_categories_household_ownership").on(table.householdId, table.ownershipType, table.ownerMemberId),
 ]);
 
+export const monthlyCategoryBudgets = sqliteTable("monthly_category_budgets", {
+  id: text("id").primaryKey(),
+  householdId: text("household_id").notNull().references(() => households.id),
+  categoryId: text("category_id").notNull().references(() => categories.id),
+  budgetMonth: text("budget_month").notNull(),
+  limitCents: integer("limit_cents").notNull(),
+  rolloverCents: integer("rollover_cents").notNull().default(0),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("idx_monthly_category_budgets_category_month").on(table.categoryId, table.budgetMonth),
+  index("idx_monthly_category_budgets_household_month").on(table.householdId, table.budgetMonth),
+]);
+
 export const transactions = sqliteTable("transactions", {
   id: text("id").primaryKey(),
   householdId: text("household_id").notNull().references(() => households.id),

@@ -11,18 +11,20 @@ const scopeLabels: Record<Scope, string> = {
   yours: "Yours",
 };
 
-type Budget = { id: string; name: string; spent: number; limit: number; tone: string };
+type Budget = { id: string; name: string; spent: number; limit: number; baseLimit?: number; rollover?: number; rolloverEnabled?: boolean; tone: string };
 type Task = { id: string; text: string; owner: string; done: boolean };
 type Grocery = { id: string; text: string; checked: boolean };
 type TransactionSplit = { categoryId: string; category: string; scope: "ours" | "mine" | "yours"; amount: number };
 type Transaction = { id: string; merchant: string; detail: string; amount: number; scope: string; category: string; mark: string; reviewStatus: string; editable: boolean; splits: TransactionSplit[] };
 type MerchantRule = { id: string; merchant: string; matchText: string; categoryId: string; category: string; scope: "Ours" | "Mine" };
 type SplitDraft = { categoryId: string; amount: string };
+type BudgetMonth = { value: string; label: string; previous: string; next: string | null; isCurrent: boolean; daysInMonth: number; elapsedDays: number; daysRemaining: number };
 type Member = { id: string; displayName: string; email: string; role: string };
 type BankConnection = { id: string; institutionName: string; scope: "ours" | "mine"; status: string; lastSyncedAt: string | null; accountCount: number };
 type HouseholdPayload = {
   user: { id: string; displayName: string; email: string; role: string };
   household: { id: string; name: string; minimumMode: boolean };
+  budgetMonth: BudgetMonth;
   members: Member[];
   invitation: { id: string; email: string; status: string } | null;
   plaid: { configured: boolean; environment: "sandbox" | "development" | "production"; connections: BankConnection[] };
@@ -152,6 +154,13 @@ export default function Home() {
   const [minimumMode, setMinimumMode] = useState(false);
   const [user, setUser] = useState({ id: "", displayName: "Edwin", email: "", role: "owner" });
   const [household, setHousehold] = useState({ id: "", name: "Our household" });
+  const [budgetMonth, setBudgetMonth] = useState<BudgetMonth>(() => {
+    const now = new Date();
+    const value = now.toISOString().slice(0, 7);
+    const label = new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric" }).format(now);
+    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    return { value, label, previous: new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1)).toISOString().slice(0, 7), next: null, isCurrent: true, daysInMonth, elapsedDays: now.getUTCDate(), daysRemaining: Math.max(0, daysInMonth - now.getUTCDate()) };
+  });
   const [members, setMembers] = useState<Member[]>([]);
   const [invitation, setInvitation] = useState<HouseholdPayload["invitation"]>(null);
   const [plaid, setPlaid] = useState<HouseholdPayload["plaid"]>({ configured: false, environment: "sandbox", connections: [] });
@@ -162,6 +171,7 @@ export default function Home() {
   const [inviteEmail, setInviteEmail] = useState("");
   const [editingLimits, setEditingLimits] = useState(false);
   const [limitDrafts, setLimitDrafts] = useState<Record<string, string>>({});
+  const [rolloverDrafts, setRolloverDrafts] = useState<Record<string, boolean>>({});
   const [newCategoryName, setNewCategoryName] = useState("");
   const [newCategoryLimit, setNewCategoryLimit] = useState("");
   const [rememberMerchant, setRememberMerchant] = useState(true);
@@ -174,6 +184,7 @@ export default function Home() {
   function applyHouseholdData(data: HouseholdPayload) {
     setUser(data.user);
     setHousehold(data.household);
+    setBudgetMonth(data.budgetMonth);
     setMembers(data.members);
     setInvitation(data.invitation);
     setPlaid(data.plaid);
@@ -185,8 +196,8 @@ export default function Home() {
     setMinimumMode(data.household.minimumMode);
   }
 
-  async function loadHouseholdData() {
-    const response = await fetch("/api/household", { headers: { accept: "application/json" } });
+  async function loadHouseholdData(month = budgetMonth.value) {
+    const response = await fetch(`/api/household?month=${encodeURIComponent(month)}`, { headers: { accept: "application/json" } });
     const data = await response.json() as HouseholdPayload & { error?: string };
     if (!response.ok) throw new Error(data.error ?? "Unable to load your household.");
     applyHouseholdData(data);
@@ -236,6 +247,24 @@ export default function Home() {
       { spent: 0, limit: 0 },
     );
   }, [scope, budgets]);
+  const projectedSpending = budgetMonth.isCurrent && budgetMonth.elapsedDays > 0
+    ? Math.round((budgetTotals.spent / budgetMonth.elapsedDays) * budgetMonth.daysInMonth)
+    : budgetTotals.spent;
+
+  async function changeBudgetMonth(month: string | null) {
+    if (!month) return;
+    stopLimitEditing();
+    setSyncStatus("loading");
+    setSyncMessage("Loading budget month…");
+    try {
+      await loadHouseholdData(month);
+      setSyncStatus("saved");
+      setSyncMessage("Saved to your household");
+    } catch (error) {
+      setSyncStatus("error");
+      setSyncMessage(error instanceof Error ? error.message : "That budget month could not load.");
+    }
+  }
 
   async function toggleTask(id: string) {
     setTasks((current) => current.map((task) => (task.id === id ? { ...task, done: !task.done } : task)));
@@ -334,7 +363,8 @@ export default function Home() {
   }
 
   function startLimitEditing() {
-    setLimitDrafts(Object.fromEntries(budgets[scope].map((budget) => [budget.id, String(budget.limit)])));
+    setLimitDrafts(Object.fromEntries(budgets[scope].map((budget) => [budget.id, String(budget.baseLimit ?? budget.limit)])));
+    setRolloverDrafts(Object.fromEntries(budgets[scope].map((budget) => [budget.id, Boolean(budget.rolloverEnabled)])));
     setNewCategoryName("");
     setNewCategoryLimit("");
     setEditingLimits(true);
@@ -343,6 +373,7 @@ export default function Home() {
   function stopLimitEditing() {
     setEditingLimits(false);
     setLimitDrafts({});
+    setRolloverDrafts({});
     setNewCategoryName("");
     setNewCategoryLimit("");
   }
@@ -351,6 +382,7 @@ export default function Home() {
     const changes = budgets[scope].map((budget) => ({
       id: budget.id,
       limitCents: Math.round(Number(limitDrafts[budget.id]) * 100),
+      rolloverEnabled: Boolean(rolloverDrafts[budget.id]),
     }));
     if (changes.some((change) => !Number.isInteger(change.limitCents) || change.limitCents < 0)) {
       setSyncStatus("error");
@@ -358,7 +390,7 @@ export default function Home() {
       return;
     }
     try {
-      await post("/api/budgets/categories", { action: "update-limits", changes });
+      await post("/api/budgets/categories", { action: "update-limits", month: budgetMonth.value, changes });
       await loadHouseholdData();
       stopLimitEditing();
     } catch { /* The shared sync message already explains the error. */ }
@@ -373,7 +405,7 @@ export default function Home() {
       return;
     }
     try {
-      await post("/api/budgets/categories", { action: "create", scope, name: newCategoryName, limitCents });
+      await post("/api/budgets/categories", { action: "create", scope, name: newCategoryName, limitCents, month: budgetMonth.value });
       await loadHouseholdData();
       stopLimitEditing();
     } catch { /* The shared sync message already explains the error. */ }
@@ -584,24 +616,24 @@ export default function Home() {
 
         {tab === "money" && (
           <div className="page money-page">
-            <header className="page-heading"><div><p className="eyebrow">August 2026</p><h1>Money</h1><p>Detailed when you need it. Quiet when you don’t.</p></div><button className="primary-button" onClick={() => setShowConnect(true)}>+ Connect with Plaid</button></header>
+            <header className="page-heading money-heading"><div className="month-heading"><button aria-label="Previous budget month" onClick={() => changeBudgetMonth(budgetMonth.previous)}>‹</button><div><p className="eyebrow">{budgetMonth.label}</p><h1>Money</h1><p>Detailed when you need it. Quiet when you don’t.</p></div><button aria-label="Next budget month" disabled={!budgetMonth.next} onClick={() => changeBudgetMonth(budgetMonth.next)}>›</button></div><div className="money-heading-actions">{!budgetMonth.isCurrent && <span>History · read-only limits</span>}<button className="primary-button" onClick={() => setShowConnect(true)}>+ Connect with Plaid</button></div></header>
             <div className="scope-switcher" role="tablist" aria-label="Budget scope">
               {(Object.keys(scopeLabels) as Scope[]).map((item) => <button role="tab" aria-selected={scope === item} key={item} className={scope === item ? "active" : ""} onClick={() => { setScope(item); stopLimitEditing(); }}>{scopeLabels[item]}</button>)}
             </div>
             <section className="money-summary">
               <div><p className="card-label">{scopeLabels[scope]} spent</p><h2>{formatMoney(budgetTotals.spent)}</h2><p>of {formatMoney(budgetTotals.limit)} across active categories</p></div>
               <ProgressRing value={budgetTotals.limit ? Math.round((budgetTotals.spent / budgetTotals.limit) * 100) : 0} label="used" />
-              <div className="summary-stat"><span>Left this month</span><strong>{formatMoney(budgetTotals.limit - budgetTotals.spent)}</strong><small>21 days remaining</small></div>
-              <div className="summary-stat"><span>Projected</span><strong>{formatMoney(Math.round(budgetTotals.spent * 1.75))}</strong><small className="positive">Within your limits</small></div>
+              <div className="summary-stat"><span>Left this month</span><strong>{formatMoney(budgetTotals.limit - budgetTotals.spent)}</strong><small>{budgetMonth.isCurrent ? `${budgetMonth.daysRemaining} days remaining` : "Month complete"}</small></div>
+              <div className="summary-stat"><span>{budgetMonth.isCurrent ? "Projected" : "Final spending"}</span><strong>{formatMoney(projectedSpending)}</strong><small className={projectedSpending <= budgetTotals.limit ? "positive" : "warning"}>{projectedSpending <= budgetTotals.limit ? "Within your limits" : `${formatMoney(projectedSpending - budgetTotals.limit)} over limits`}</small></div>
             </section>
             {plaid.connections.length > 0 && <section className="panel bank-connections"><div className="panel-heading"><div><p className="card-label">Automatic imports</p><h2>Connected institutions</h2></div><span className="plaid-environment">{plaid.environment}</span></div><div className="connection-list">{plaid.connections.map((connection) => <div className="connection-row" key={connection.id}><span className="bank-mark">$</span><div><strong>{connection.institutionName}</strong><p>{connection.accountCount} {connection.accountCount === 1 ? "account" : "accounts"} · {scopeLabels[connection.scope]}</p><small>{formatLastSync(connection.lastSyncedAt)}</small></div><span className={`connection-status ${connection.status}`}>{connection.status === "healthy" ? "Connected" : "Needs attention"}</span><button onClick={() => syncBank(connection.id)} disabled={plaidBusy}>Sync now</button></div>)}</div></section>}
             <div className="money-layout">
               <section className="panel categories-panel">
-                <div className="panel-heading"><div><p className="card-label">Fixed limits</p><h2>{scopeLabels[scope]} categories</h2></div>{scope !== "yours" && (editingLimits ? <div className="edit-actions"><button className="quiet-button" onClick={stopLimitEditing}>Cancel</button><button className="save-button" onClick={saveLimits}>Save limits</button></div> : <button className="quiet-button" onClick={startLimitEditing}>Edit limits</button>)}</div>
+                <div className="panel-heading"><div><p className="card-label">Fixed limits · {budgetMonth.label}</p><h2>{scopeLabels[scope]} categories</h2></div>{scope !== "yours" && budgetMonth.isCurrent ? (editingLimits ? <div className="edit-actions"><button className="quiet-button" onClick={stopLimitEditing}>Cancel</button><button className="save-button" onClick={saveLimits}>Save limits</button></div> : <button className="quiet-button" onClick={startLimitEditing}>Edit limits</button>) : !budgetMonth.isCurrent ? <span className="period-lock">Closed month</span> : null}</div>
                 {budgets[scope].length === 0 && <div className="empty-categories"><strong>No {scopeLabels[scope].toLowerCase()} categories yet</strong><p>{scope === "yours" ? "Invite your partner and their personal limits will appear here." : "Add a fixed limit to start tracking this area."}</p></div>}
                 {budgets[scope].map((budget) => {
                   const percent = budget.limit ? Math.round((budget.spent / budget.limit) * 100) : 0;
-                  return <div className={`budget-row ${editingLimits ? "editing" : ""}`} key={budget.id}><div><strong>{budget.name}</strong>{editingLimits ? <label className="limit-input"><span>$</span><input aria-label={`${budget.name} monthly limit`} type="number" min="0" step="1" inputMode="decimal" value={limitDrafts[budget.id] ?? ""} onChange={(event) => setLimitDrafts((current) => ({ ...current, [budget.id]: event.target.value }))} /></label> : <span>{percent}%</span>}</div><div className={`progress ${budget.tone}`}><i style={{ width: `${Math.min(100, percent)}%` }} /></div><p><span>{formatMoney(budget.spent)} spent</span><strong>{formatMoney(budget.limit - budget.spent)} left</strong></p></div>;
+                  return <div className={`budget-row ${editingLimits ? "editing" : ""}`} key={budget.id}><div><strong>{budget.name}</strong>{editingLimits ? <label className="limit-input"><span>$</span><input aria-label={`${budget.name} monthly limit`} type="number" min="0" step="1" inputMode="decimal" value={limitDrafts[budget.id] ?? ""} onChange={(event) => setLimitDrafts((current) => ({ ...current, [budget.id]: event.target.value }))} /></label> : <span>{percent}%</span>}</div><div className={`progress ${budget.tone}`}><i style={{ width: `${Math.min(100, percent)}%` }} /></div><p><span>{formatMoney(budget.spent)} spent</span><strong>{formatMoney(budget.limit - budget.spent)} left</strong></p>{!editingLimits && Boolean(budget.rollover) && <small className="rollover-note">Includes {formatMoney(budget.rollover ?? 0)} carried forward</small>}{editingLimits && <label className="rollover-toggle"><input type="checkbox" checked={Boolean(rolloverDrafts[budget.id])} onChange={(event) => setRolloverDrafts((current) => ({ ...current, [budget.id]: event.target.checked }))} /> Roll over unused funds next month</label>}</div>;
                 })}
                 {editingLimits && <form className="add-category" onSubmit={addBudgetCategory}><div><label htmlFor="new-category-name">New category</label><input id="new-category-name" value={newCategoryName} onChange={(event) => setNewCategoryName(event.target.value)} placeholder="e.g. Pets" /></div><div><label htmlFor="new-category-limit">Monthly limit</label><span className="money-field">$<input id="new-category-limit" type="number" min="0" step="1" inputMode="decimal" value={newCategoryLimit} onChange={(event) => setNewCategoryLimit(event.target.value)} placeholder="100" /></span></div><button>Add</button></form>}
                 {scope === "yours" && budgets.yours.length > 0 && <p className="privacy-note">Your partner controls their own fixed limits. You see totals here without access to private purchases.</p>}
@@ -620,6 +652,7 @@ export default function Home() {
             </div>
             <section className="panel transactions-panel">
               <div className="panel-heading"><div><p className="card-label">Activity</p><h2>Recent transactions</h2></div><button className="quiet-button">View all</button></div>
+              {transactions.length === 0 && <div className="empty-transactions"><strong>No transactions in {budgetMonth.label}</strong><p>Imported activity for this month will appear here.</p></div>}
               {transactions.map((transaction) => <div className="transaction-row" key={transaction.id}><div className="merchant-mark small">{transaction.mark}</div><div className="transaction-name"><strong>{transaction.merchant}</strong><span>{transaction.detail}</span></div><span className="scope-tag">{transaction.scope}</span><span className="category-name">{transaction.category}</span><span className="transaction-actions">{transaction.editable && <button className="transaction-split-button" onClick={() => startSplitting(transaction)}>{transaction.reviewStatus === "split" ? "Edit split" : "Split"}</button>}</span><strong className="transaction-amount">−${transaction.amount.toFixed(2)}</strong></div>)}
             </section>
           </div>

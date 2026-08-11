@@ -133,6 +133,18 @@ async function ensureSchema() {
       archived_at TEXT
     )`),
     db.prepare(`CREATE INDEX IF NOT EXISTS idx_categories_household_ownership ON categories(household_id, ownership_type, owner_member_id)`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS monthly_category_budgets (
+      id TEXT PRIMARY KEY NOT NULL,
+      household_id TEXT NOT NULL REFERENCES households(id),
+      category_id TEXT NOT NULL REFERENCES categories(id),
+      budget_month TEXT NOT NULL,
+      limit_cents INTEGER NOT NULL,
+      rollover_cents INTEGER DEFAULT 0 NOT NULL,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`),
+    db.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_monthly_category_budgets_category_month ON monthly_category_budgets(category_id, budget_month)`),
+    db.prepare(`CREATE INDEX IF NOT EXISTS idx_monthly_category_budgets_household_month ON monthly_category_budgets(household_id, budget_month)`),
     db.prepare(`CREATE TABLE IF NOT EXISTS transactions (
       id TEXT PRIMARY KEY NOT NULL,
       household_id TEXT NOT NULL REFERENCES households(id),
@@ -321,38 +333,129 @@ function relativeScope(type: string | null, ownerMemberId: string | null, curren
   return ownerMemberId === currentMemberId ? "mine" as const : "yours" as const;
 }
 
+type CategoryBudgetRow = {
+  id: string;
+  owner_member_id: string | null;
+  ownership_type: string;
+  name: string;
+  monthly_limit_cents: number;
+  rollover_enabled: number;
+};
+
+type MonthlyBudgetRow = { category_id: string; limit_cents: number; rollover_cents: number };
+
+function currentBudgetMonth() {
+  return new Date().toISOString().slice(0, 7);
+}
+
+function shiftBudgetMonth(month: string, offset: number) {
+  const [year, monthNumber] = month.split("-").map(Number);
+  const shifted = new Date(Date.UTC(year, monthNumber - 1 + offset, 1));
+  return shifted.toISOString().slice(0, 7);
+}
+
+function budgetMonthFromRequest(request: Request) {
+  const requested = new URL(request.url).searchParams.get("month");
+  if (!requested) return currentBudgetMonth();
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(requested)) throw new HttpError(400, "Choose a valid budget month.");
+  if (requested > currentBudgetMonth()) throw new HttpError(400, "Future budget months are not available yet.");
+  return requested;
+}
+
+function monthBounds(month: string) {
+  return { start: `${month}-01`, end: `${shiftBudgetMonth(month, 1)}-01` };
+}
+
+async function spendingByCategory(db: D1Database, householdId: string, month: string) {
+  const { start, end } = monthBounds(month);
+  const rows = (await db.prepare(`SELECT category_id, COALESCE(SUM(amount_cents), 0) AS spent
+    FROM (
+      SELECT category_id, amount_cents
+      FROM transactions
+      WHERE household_id = ? AND transaction_date >= ? AND transaction_date < ?
+        AND review_status = 'ready' AND is_transfer = 0 AND category_id IS NOT NULL
+      UNION ALL
+      SELECT ts.category_id, ts.amount_cents
+      FROM transaction_splits ts
+      JOIN transactions t ON t.id = ts.transaction_id
+      WHERE t.household_id = ? AND t.transaction_date >= ? AND t.transaction_date < ?
+        AND t.review_status = 'split' AND t.is_transfer = 0
+    ) categorized_spending
+    GROUP BY category_id`).bind(householdId, start, end, householdId, start, end).all()).results as Array<{ category_id: string; spent: number }>;
+  return new Map(rows.map((row) => [row.category_id, Number(row.spent)]));
+}
+
+async function ensureMonthlyBudgets(db: D1Database, householdId: string, month: string, categories: CategoryBudgetRow[]) {
+  const existingRows = (await db.prepare("SELECT category_id, limit_cents, rollover_cents FROM monthly_category_budgets WHERE household_id = ? AND budget_month = ?")
+    .bind(householdId, month).all()).results as MonthlyBudgetRow[];
+  const existing = new Map(existingRows.map((row) => [row.category_id, row]));
+  const missing = categories.filter((category) => !existing.has(category.id));
+  if (missing.length) {
+    const previousMonth = shiftBudgetMonth(month, -1);
+    const previousRows = (await db.prepare("SELECT category_id, limit_cents, rollover_cents FROM monthly_category_budgets WHERE household_id = ? AND budget_month = ?")
+      .bind(householdId, previousMonth).all()).results as MonthlyBudgetRow[];
+    const previousBudgets = new Map(previousRows.map((row) => [row.category_id, row]));
+    const previousSpending = await spendingByCategory(db, householdId, previousMonth);
+    await db.batch(missing.map((category) => {
+      const previous = previousBudgets.get(category.id);
+      const previousAvailable = Number(previous?.limit_cents ?? category.monthly_limit_cents) + Number(previous?.rollover_cents ?? 0);
+      const rolloverCents = category.rollover_enabled ? Math.max(0, previousAvailable - (previousSpending.get(category.id) ?? 0)) : 0;
+      return db.prepare("INSERT OR IGNORE INTO monthly_category_budgets (id, household_id, category_id, budget_month, limit_cents, rollover_cents) VALUES (?, ?, ?, ?, ?, ?)")
+        .bind(crypto.randomUUID(), householdId, category.id, month, category.monthly_limit_cents, rolloverCents);
+    }));
+  }
+  const rows = (await db.prepare("SELECT category_id, limit_cents, rollover_cents FROM monthly_category_budgets WHERE household_id = ? AND budget_month = ?")
+    .bind(householdId, month).all()).results as MonthlyBudgetRow[];
+  return new Map(rows.map((row) => [row.category_id, row]));
+}
+
+function budgetMonthMetadata(month: string) {
+  const [year, monthNumber] = month.split("-").map(Number);
+  const current = currentBudgetMonth();
+  const daysInMonth = new Date(Date.UTC(year, monthNumber, 0)).getUTCDate();
+  const today = new Date();
+  const elapsedDays = month === current ? today.getUTCDate() : daysInMonth;
+  return {
+    value: month,
+    label: new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(Date.UTC(year, monthNumber - 1, 1))),
+    previous: shiftBudgetMonth(month, -1),
+    next: month < current ? shiftBudgetMonth(month, 1) : null,
+    isCurrent: month === current,
+    daysInMonth,
+    elapsedDays,
+    daysRemaining: Math.max(0, daysInMonth - elapsedDays),
+  };
+}
+
 export async function loadHousehold(request: Request) {
   const { identity, member } = await ensureMember(request, true);
   const db = database();
   const household = await db.prepare("SELECT * FROM households WHERE id = ?").bind(member.household_id).first<{ id: string; name: string; minimum_mode: number }>();
   const memberRows = (await db.prepare("SELECT id, display_name, email, role, personal_detail_visibility FROM members WHERE household_id = ? ORDER BY created_at").bind(member.household_id).all()).results as Array<{ id: string; display_name: string; email: string; role: string; personal_detail_visibility: string }>;
-  const categoryRows = (await db.prepare("SELECT * FROM categories WHERE household_id = ? AND archived_at IS NULL ORDER BY ownership_type DESC, name").bind(member.household_id).all()).results as Array<{ id: string; owner_member_id: string | null; ownership_type: string; name: string; monthly_limit_cents: number }>;
-  const spendingRows = (await db.prepare(`SELECT category_id, COALESCE(SUM(amount_cents), 0) AS spent
-    FROM (
-      SELECT category_id, amount_cents
-      FROM transactions
-      WHERE household_id = ? AND review_status = 'ready' AND is_transfer = 0 AND category_id IS NOT NULL
-      UNION ALL
-      SELECT ts.category_id, ts.amount_cents
-      FROM transaction_splits ts
-      JOIN transactions t ON t.id = ts.transaction_id
-      WHERE t.household_id = ? AND t.review_status = 'split' AND t.is_transfer = 0
-    ) categorized_spending
-    GROUP BY category_id`).bind(member.household_id, member.household_id).all()).results as Array<{ category_id: string; spent: number }>;
-  const spending = new Map(spendingRows.map((row) => [row.category_id, Number(row.spent)]));
+  const month = budgetMonthFromRequest(request);
+  const { start: monthStart, end: monthEnd } = monthBounds(month);
+  const categoryRows = (await db.prepare("SELECT * FROM categories WHERE household_id = ? AND archived_at IS NULL ORDER BY ownership_type DESC, name").bind(member.household_id).all()).results as CategoryBudgetRow[];
+  const monthlyBudgets = await ensureMonthlyBudgets(db, member.household_id, month, categoryRows);
+  const spending = await spendingByCategory(db, member.household_id, month);
   const membersById = new Map(memberRows.map((row) => [row.id, row]));
   const toneByName: Record<string, string> = { "Dining out": "coral", Household: "gold", Transportation: "blue", Hobbies: "blue", Clothing: "sage", "Personal care": "gold" };
-  const budgets = { ours: [], mine: [], yours: [] } as Record<"ours" | "mine" | "yours", Array<{ id: string; name: string; spent: number; limit: number; tone: string }>>;
-  const privatePartnerBudget = { spent: 0, limit: 0 };
+  const budgets = { ours: [], mine: [], yours: [] } as Record<"ours" | "mine" | "yours", Array<{ id: string; name: string; spent: number; limit: number; baseLimit: number; rollover: number; rolloverEnabled: boolean; tone: string }>>;
+  const privatePartnerBudget = { spent: 0, limit: 0, baseLimit: 0, rollover: 0, rolloverEnabled: false };
   for (const row of categoryRows) {
+    const monthlyBudget = monthlyBudgets.get(row.id);
+    const baseLimit = Number(monthlyBudget?.limit_cents ?? row.monthly_limit_cents) / 100;
+    const rollover = Number(monthlyBudget?.rollover_cents ?? 0) / 100;
     const scope = relativeScope(row.ownership_type, row.owner_member_id, member.id);
     const owner = row.owner_member_id ? membersById.get(row.owner_member_id) : null;
     if (scope === "yours" && owner?.personal_detail_visibility !== "shared") {
       privatePartnerBudget.spent += (spending.get(row.id) ?? 0) / 100;
-      privatePartnerBudget.limit += row.monthly_limit_cents / 100;
+      privatePartnerBudget.baseLimit += baseLimit;
+      privatePartnerBudget.rollover += rollover;
+      privatePartnerBudget.limit += baseLimit + rollover;
+      privatePartnerBudget.rolloverEnabled ||= Boolean(row.rollover_enabled);
       continue;
     }
-    budgets[scope].push({ id: row.id, name: row.name, spent: (spending.get(row.id) ?? 0) / 100, limit: row.monthly_limit_cents / 100, tone: toneByName[row.name] ?? "sage" });
+    budgets[scope].push({ id: row.id, name: row.name, spent: (spending.get(row.id) ?? 0) / 100, limit: baseLimit + rollover, baseLimit, rollover, rolloverEnabled: Boolean(row.rollover_enabled), tone: toneByName[row.name] ?? "sage" });
   }
   if (privatePartnerBudget.limit || privatePartnerBudget.spent) {
     budgets.yours.push({ id: "private-partner-budget", name: "Personal spending", ...privatePartnerBudget, tone: "sage" });
@@ -366,8 +469,8 @@ export async function loadHousehold(request: Request) {
     JOIN accounts a ON a.id = t.account_id
     LEFT JOIN categories c ON c.id = t.category_id
     LEFT JOIN members m ON m.id = t.personal_member_id
-    WHERE t.household_id = ?
-    ORDER BY t.transaction_date DESC, t.created_at DESC LIMIT 20`).bind(member.household_id).all()).results as Array<Record<string, string | number | null>>;
+    WHERE t.household_id = ? AND t.transaction_date >= ? AND t.transaction_date < ?
+    ORDER BY t.transaction_date DESC, t.created_at DESC LIMIT 50`).bind(member.household_id, monthStart, monthEnd).all()).results as Array<Record<string, string | number | null>>;
   const transactionIds = transactionRows.map((row) => String(row.id));
   const splitRows = transactionIds.length ? (await db.prepare(`SELECT ts.transaction_id, ts.category_id, ts.amount_cents, ts.spending_type, ts.personal_member_id, c.name AS category_name
     FROM transaction_splits ts
@@ -399,6 +502,7 @@ export async function loadHousehold(request: Request) {
   return {
     user: { id: member.id, displayName: identity.displayName, email: identity.email, role: member.role },
     household: { id: household!.id, name: household!.name, minimumMode: Boolean(household!.minimum_mode) },
+    budgetMonth: budgetMonthMetadata(month),
     members: memberRows.map((row) => ({ id: row.id, displayName: row.display_name, email: row.email, role: row.role })),
     invitation: pendingInvitation ?? null,
     plaid: {
@@ -493,8 +597,9 @@ export async function updateGrocery(request: Request, action: "add" | "toggle", 
   return null;
 }
 
-export async function saveBudgetLimits(request: Request, changes: Array<{ id: string; limitCents: number }>) {
+export async function saveBudgetLimits(request: Request, month: string, changes: Array<{ id: string; limitCents: number; rolloverEnabled: boolean }>) {
   const { member } = await requireMember(request);
+  if (month !== currentBudgetMonth()) throw new HttpError(400, "Past budget months are read-only.");
   if (!changes.length || changes.length > 30) throw new HttpError(400, "Choose at least one fixed limit to update.");
 
   const seen = new Set<string>();
@@ -507,16 +612,38 @@ export async function saveBudgetLimits(request: Request, changes: Array<{ id: st
   }
 
   const db = database();
-  const results = await db.batch(changes.map((change) => db.prepare(`UPDATE categories
-    SET monthly_limit_cents = ?
-    WHERE id = ? AND household_id = ? AND archived_at IS NULL
-      AND (ownership_type = 'shared' OR owner_member_id = ?)`)
-    .bind(change.limitCents, change.id, member.household_id, member.id)));
-  if (results.some((result) => !result.meta.changes)) throw new HttpError(404, "One of those budget categories is no longer available.");
+  const categoryRows = (await db.prepare(`SELECT id, monthly_limit_cents FROM categories
+    WHERE household_id = ? AND archived_at IS NULL AND (ownership_type = 'shared' OR owner_member_id = ?)`)
+    .bind(member.household_id, member.id).all()).results as Array<{ id: string; monthly_limit_cents: number }>;
+  const categories = new Map(categoryRows.map((category) => [category.id, category]));
+  if (changes.some((change) => !categories.has(change.id))) throw new HttpError(404, "One of those budget categories is no longer available.");
+
+  const previousMonth = shiftBudgetMonth(month, -1);
+  const previousRows = (await db.prepare("SELECT category_id, limit_cents, rollover_cents FROM monthly_category_budgets WHERE household_id = ? AND budget_month = ?")
+    .bind(member.household_id, previousMonth).all()).results as MonthlyBudgetRow[];
+  const previousBudgets = new Map(previousRows.map((row) => [row.category_id, row]));
+  const previousSpending = await spendingByCategory(db, member.household_id, previousMonth);
+  const statements: D1PreparedStatement[] = [];
+  for (const change of changes) {
+    const category = categories.get(change.id)!;
+    const previous = previousBudgets.get(change.id);
+    const previousAvailable = Number(previous?.limit_cents ?? category.monthly_limit_cents) + Number(previous?.rollover_cents ?? 0);
+    const rolloverCents = change.rolloverEnabled ? Math.max(0, previousAvailable - (previousSpending.get(change.id) ?? 0)) : 0;
+    statements.push(db.prepare(`UPDATE categories SET monthly_limit_cents = ?, rollover_enabled = ?
+      WHERE id = ? AND household_id = ? AND archived_at IS NULL AND (ownership_type = 'shared' OR owner_member_id = ?)`)
+      .bind(change.limitCents, change.rolloverEnabled ? 1 : 0, change.id, member.household_id, member.id));
+    statements.push(db.prepare(`INSERT INTO monthly_category_budgets (id, household_id, category_id, budget_month, limit_cents, rollover_cents)
+      VALUES (?, ?, ?, ?, ?, ?)
+      ON CONFLICT(category_id, budget_month) DO UPDATE SET limit_cents = excluded.limit_cents, rollover_cents = excluded.rollover_cents, updated_at = CURRENT_TIMESTAMP`)
+      .bind(crypto.randomUUID(), member.household_id, change.id, month, change.limitCents, rolloverCents));
+  }
+  const results = await db.batch(statements);
+  if (results.filter((_, index) => index % 2 === 0).some((result) => !result.meta.changes)) throw new HttpError(404, "One of those budget categories is no longer available.");
 }
 
-export async function createBudgetCategory(request: Request, input: { scope: "ours" | "mine"; name: string; limitCents: number }) {
+export async function createBudgetCategory(request: Request, input: { scope: "ours" | "mine"; name: string; limitCents: number; month: string }) {
   const { member } = await requireMember(request);
+  if (input.month !== currentBudgetMonth()) throw new HttpError(400, "Add categories from the current budget month.");
   const name = input.name.trim().replace(/\s+/g, " ").slice(0, 50);
   if (!name) throw new HttpError(400, "Enter a category name.");
   if (!Number.isInteger(input.limitCents) || input.limitCents < 0 || input.limitCents > 100_000_000) {
@@ -530,9 +657,13 @@ export async function createBudgetCategory(request: Request, input: { scope: "ou
   if (existing) throw new HttpError(409, "That category already exists in this budget.");
 
   const id = crypto.randomUUID();
-  await db.prepare("INSERT INTO categories (id, household_id, owner_member_id, ownership_type, name, monthly_limit_cents) VALUES (?, ?, ?, ?, ?, ?)")
-    .bind(id, member.household_id, input.scope === "mine" ? member.id : null, input.scope === "mine" ? "personal" : "shared", name, input.limitCents).run();
-  return { id, name, spent: 0, limit: input.limitCents / 100, tone: "sage" };
+  await db.batch([
+    db.prepare("INSERT INTO categories (id, household_id, owner_member_id, ownership_type, name, monthly_limit_cents) VALUES (?, ?, ?, ?, ?, ?)")
+      .bind(id, member.household_id, input.scope === "mine" ? member.id : null, input.scope === "mine" ? "personal" : "shared", name, input.limitCents),
+    db.prepare("INSERT INTO monthly_category_budgets (id, household_id, category_id, budget_month, limit_cents, rollover_cents) VALUES (?, ?, ?, ?, ?, 0)")
+      .bind(crypto.randomUUID(), member.household_id, id, input.month, input.limitCents),
+  ]);
+  return { id, name, spent: 0, limit: input.limitCents / 100, baseLimit: input.limitCents / 100, rollover: 0, rolloverEnabled: false, tone: "sage" };
 }
 
 async function editableTransaction(db: D1Database, householdId: string, memberId: string, id: string) {

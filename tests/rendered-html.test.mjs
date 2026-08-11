@@ -84,3 +84,18 @@ test("persists merchant rules and exact transaction splits", async () => {
   assert.match(pageSource, /Save split/);
   assert.doesNotMatch(pageSource, /localStorage|sessionStorage/);
 });
+
+test("scopes budgets to durable calendar months with optional rollover", async () => {
+  const householdSource = await readFile(new URL("../lib/household.ts", import.meta.url), "utf8");
+  const pageSource = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
+  const migration = await readFile(new URL("../drizzle/0004_flimsy_wither.sql", import.meta.url), "utf8");
+
+  assert.match(migration, /CREATE TABLE `monthly_category_budgets`/);
+  assert.match(migration, /CREATE UNIQUE INDEX `idx_monthly_category_budgets_category_month`/);
+  assert.match(householdSource, /transaction_date >= \? AND transaction_date < \?/);
+  assert.match(householdSource, /rolloverCents = category\.rollover_enabled \? Math\.max/);
+  assert.match(householdSource, /Past budget months are read-only/);
+  assert.match(pageSource, /Previous budget month/);
+  assert.match(pageSource, /Roll over unused funds next month/);
+  assert.match(pageSource, /daysRemaining/);
+});
