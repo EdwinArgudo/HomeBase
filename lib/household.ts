@@ -1,4 +1,5 @@
-import { env } from "cloudflare:workers";
+import { getD1Database } from "../db";
+import { assertDatabaseSchemaReady } from "../db/readiness";
 
 type Identity = { externalId: string; email: string; displayName: string };
 type MemberRow = {
@@ -52,187 +53,20 @@ function identityFromRequest(request: Request): Identity {
 }
 
 function database() {
-  if (!env.DB) throw new HttpError(503, "Homebase storage is unavailable.");
-  return env.DB;
+  try {
+    return getD1Database();
+  } catch {
+    throw new HttpError(503, "Homebase storage is unavailable.");
+  }
 }
 
-async function ensureSchema() {
+async function ensureStorageReady() {
   const db = database();
-  await db.batch([
-    db.prepare(`CREATE TABLE IF NOT EXISTS households (
-      id TEXT PRIMARY KEY NOT NULL,
-      name TEXT NOT NULL,
-      timezone TEXT DEFAULT 'America/New_York' NOT NULL,
-      minimum_mode INTEGER DEFAULT 0 NOT NULL,
-      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
-    )`),
-    db.prepare(`CREATE TABLE IF NOT EXISTS members (
-      id TEXT PRIMARY KEY NOT NULL,
-      household_id TEXT NOT NULL REFERENCES households(id),
-      external_user_id TEXT NOT NULL,
-      email TEXT DEFAULT '' NOT NULL,
-      display_name TEXT NOT NULL,
-      role TEXT DEFAULT 'member' NOT NULL,
-      personal_detail_visibility TEXT DEFAULT 'private' NOT NULL,
-      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
-    )`),
-    db.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_members_household_external_user ON members(household_id, external_user_id)`),
-    db.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_members_household_email ON members(household_id, email)`),
-    db.prepare(`CREATE TABLE IF NOT EXISTS invitations (
-      id TEXT PRIMARY KEY NOT NULL,
-      household_id TEXT NOT NULL REFERENCES households(id),
-      email TEXT NOT NULL,
-      invited_by_member_id TEXT NOT NULL REFERENCES members(id),
-      status TEXT DEFAULT 'pending' NOT NULL,
-      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
-      accepted_at TEXT
-    )`),
-    db.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_invitations_household_email ON invitations(household_id, email)`),
-    db.prepare(`CREATE INDEX IF NOT EXISTS idx_invitations_email_status ON invitations(email, status)`),
-    db.prepare(`CREATE TABLE IF NOT EXISTS accounts (
-      id TEXT PRIMARY KEY NOT NULL,
-      household_id TEXT NOT NULL REFERENCES households(id),
-      owner_member_id TEXT REFERENCES members(id),
-      ownership_type TEXT NOT NULL,
-      provider_item_id TEXT,
-      provider_account_id TEXT,
-      institution_name TEXT,
-      name TEXT NOT NULL,
-      type TEXT NOT NULL,
-      mask TEXT,
-      connection_status TEXT DEFAULT 'manual' NOT NULL,
-      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
-    )`),
-    db.prepare(`CREATE INDEX IF NOT EXISTS idx_accounts_household_ownership ON accounts(household_id, ownership_type)`),
-    db.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_accounts_provider_account_id ON accounts(provider_account_id)`),
-    db.prepare(`CREATE TABLE IF NOT EXISTS bank_connections (
-      id TEXT PRIMARY KEY NOT NULL,
-      household_id TEXT NOT NULL REFERENCES households(id),
-      owner_member_id TEXT REFERENCES members(id),
-      ownership_type TEXT NOT NULL,
-      provider TEXT DEFAULT 'plaid' NOT NULL,
-      item_id TEXT NOT NULL,
-      access_token_ciphertext TEXT NOT NULL,
-      cursor TEXT,
-      institution_name TEXT NOT NULL,
-      status TEXT DEFAULT 'healthy' NOT NULL,
-      last_sync_attempt_at TEXT,
-      last_synced_at TEXT,
-      provider_last_successful_update TEXT,
-      provider_last_failed_update TEXT,
-      last_error_code TEXT,
-      last_error_message TEXT,
-      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
-      updated_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
-    )`),
-    db.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_bank_connections_item_id ON bank_connections(item_id)`),
-    db.prepare(`CREATE INDEX IF NOT EXISTS idx_bank_connections_household ON bank_connections(household_id, status)`),
-    db.prepare(`CREATE TABLE IF NOT EXISTS categories (
-      id TEXT PRIMARY KEY NOT NULL,
-      household_id TEXT NOT NULL REFERENCES households(id),
-      owner_member_id TEXT REFERENCES members(id),
-      ownership_type TEXT NOT NULL,
-      name TEXT NOT NULL,
-      monthly_limit_cents INTEGER NOT NULL,
-      rollover_enabled INTEGER DEFAULT 0 NOT NULL,
-      archived_at TEXT
-    )`),
-    db.prepare(`CREATE INDEX IF NOT EXISTS idx_categories_household_ownership ON categories(household_id, ownership_type, owner_member_id)`),
-    db.prepare(`CREATE TABLE IF NOT EXISTS monthly_category_budgets (
-      id TEXT PRIMARY KEY NOT NULL,
-      household_id TEXT NOT NULL REFERENCES households(id),
-      category_id TEXT NOT NULL REFERENCES categories(id),
-      budget_month TEXT NOT NULL,
-      limit_cents INTEGER NOT NULL,
-      rollover_cents INTEGER DEFAULT 0 NOT NULL,
-      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
-      updated_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
-    )`),
-    db.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_monthly_category_budgets_category_month ON monthly_category_budgets(category_id, budget_month)`),
-    db.prepare(`CREATE INDEX IF NOT EXISTS idx_monthly_category_budgets_household_month ON monthly_category_budgets(household_id, budget_month)`),
-    db.prepare(`CREATE TABLE IF NOT EXISTS transactions (
-      id TEXT PRIMARY KEY NOT NULL,
-      household_id TEXT NOT NULL REFERENCES households(id),
-      account_id TEXT NOT NULL REFERENCES accounts(id),
-      provider_transaction_id TEXT,
-      merchant_name TEXT NOT NULL,
-      amount_cents INTEGER NOT NULL,
-      transaction_date TEXT NOT NULL,
-      spending_type TEXT,
-      personal_member_id TEXT REFERENCES members(id),
-      category_id TEXT REFERENCES categories(id),
-      review_status TEXT DEFAULT 'needs_review' NOT NULL,
-      is_transfer INTEGER DEFAULT 0 NOT NULL,
-      note TEXT,
-      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
-    )`),
-    db.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_transactions_provider_id ON transactions(provider_transaction_id)`),
-    db.prepare(`CREATE INDEX IF NOT EXISTS idx_transactions_household_date ON transactions(household_id, transaction_date)`),
-    db.prepare(`CREATE INDEX IF NOT EXISTS idx_transactions_household_review ON transactions(household_id, review_status)`),
-    db.prepare(`CREATE TABLE IF NOT EXISTS transaction_splits (
-      id TEXT PRIMARY KEY NOT NULL,
-      transaction_id TEXT NOT NULL REFERENCES transactions(id),
-      category_id TEXT NOT NULL REFERENCES categories(id),
-      spending_type TEXT NOT NULL,
-      personal_member_id TEXT REFERENCES members(id),
-      amount_cents INTEGER NOT NULL
-    )`),
-    db.prepare(`CREATE INDEX IF NOT EXISTS idx_transaction_splits_transaction_id ON transaction_splits(transaction_id)`),
-    db.prepare(`CREATE TABLE IF NOT EXISTS merchant_rules (
-      id TEXT PRIMARY KEY NOT NULL,
-      household_id TEXT NOT NULL REFERENCES households(id),
-      created_by_member_id TEXT NOT NULL REFERENCES members(id),
-      match_text TEXT NOT NULL,
-      merchant_name TEXT NOT NULL,
-      category_id TEXT NOT NULL REFERENCES categories(id),
-      spending_type TEXT NOT NULL,
-      personal_member_id TEXT REFERENCES members(id),
-      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
-      updated_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
-    )`),
-    db.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_merchant_rules_member_match ON merchant_rules(household_id, created_by_member_id, match_text)`),
-    db.prepare(`CREATE INDEX IF NOT EXISTS idx_merchant_rules_household_match ON merchant_rules(household_id, match_text)`),
-    db.prepare(`CREATE TABLE IF NOT EXISTS tasks (
-      id TEXT PRIMARY KEY NOT NULL,
-      household_id TEXT NOT NULL REFERENCES households(id),
-      owner_member_id TEXT REFERENCES members(id),
-      title TEXT NOT NULL,
-      status TEXT DEFAULT 'open' NOT NULL,
-      due_date TEXT,
-      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
-    )`),
-    db.prepare(`CREATE INDEX IF NOT EXISTS idx_tasks_household_status ON tasks(household_id, status)`),
-    db.prepare(`CREATE TABLE IF NOT EXISTS grocery_items (
-      id TEXT PRIMARY KEY NOT NULL,
-      household_id TEXT NOT NULL REFERENCES households(id),
-      added_by_member_id TEXT REFERENCES members(id),
-      name TEXT NOT NULL,
-      checked INTEGER DEFAULT 0 NOT NULL,
-      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
-    )`),
-    db.prepare(`CREATE INDEX IF NOT EXISTS idx_grocery_items_household_checked ON grocery_items(household_id, checked)`),
-    db.prepare(`CREATE TABLE IF NOT EXISTS goals (
-      id TEXT PRIMARY KEY NOT NULL,
-      household_id TEXT NOT NULL REFERENCES households(id),
-      owner_member_id TEXT REFERENCES members(id),
-      ownership_type TEXT NOT NULL,
-      name TEXT NOT NULL,
-      tracking_type TEXT NOT NULL,
-      target_value INTEGER NOT NULL,
-      minimum_value INTEGER,
-      active INTEGER DEFAULT 1 NOT NULL
-    )`),
-    db.prepare(`CREATE INDEX IF NOT EXISTS idx_goals_household_active ON goals(household_id, active)`),
-    db.prepare(`CREATE TABLE IF NOT EXISTS goal_entries (
-      id TEXT PRIMARY KEY NOT NULL,
-      goal_id TEXT NOT NULL REFERENCES goals(id),
-      member_id TEXT REFERENCES members(id),
-      value INTEGER NOT NULL,
-      occurred_at TEXT NOT NULL
-    )`),
-    db.prepare(`CREATE INDEX IF NOT EXISTS idx_goal_entries_goal_date ON goal_entries(goal_id, occurred_at)`),
-  ]);
-  await db.prepare("PRAGMA optimize").run();
+  try {
+    await assertDatabaseSchemaReady(db);
+  } catch {
+    throw new HttpError(503, "Homebase storage needs an update. Please try again soon.");
+  }
 }
 
 function ids(householdId: string, ownerId: string) {
@@ -288,7 +122,7 @@ async function seedPersonalCategories(householdId: string, memberId: string) {
 
 async function ensureMember(request: Request, allowOwnerBootstrap: boolean) {
   const identity = identityFromRequest(request);
-  await ensureSchema();
+  await ensureStorageReady();
   const db = database();
   const existing = await db.prepare("SELECT * FROM members WHERE external_user_id = ? LIMIT 1").bind(identity.externalId).first<MemberRow>();
   if (existing) return { identity, member: existing };

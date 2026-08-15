@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 import test from "node:test";
 
 async function render() {
@@ -12,6 +12,17 @@ async function render() {
     { ASSETS: { fetch: async () => new Response("Not found", { status: 404 }) } },
     { waitUntil() {}, passThroughOnException() {} },
   );
+}
+
+async function sourceFiles(relativeDirectory) {
+  const directory = new URL(relativeDirectory, import.meta.url);
+  const entries = await readdir(directory, { withFileTypes: true });
+  const files = await Promise.all(entries.map(async (entry) => {
+    const url = new URL(entry.name, directory.href.endsWith("/") ? directory : new URL(`${directory.href}/`));
+    if (entry.isDirectory()) return sourceFiles(`${relativeDirectory}${entry.name}/`);
+    return /\.(?:ts|tsx)$/.test(entry.name) ? [url] : [];
+  }));
+  return files.flat();
 }
 
 test("server-renders the Homebase product shell", async () => {
@@ -40,8 +51,55 @@ test("publishes PWA and social metadata", async () => {
 test("authenticates before touching household storage", async () => {
   const source = await readFile(new URL("../lib/household.ts", import.meta.url), "utf8");
   const ensureMember = source.slice(source.indexOf("async function ensureMember"), source.indexOf("async function requireMember"));
-  assert.ok(ensureMember.indexOf("identityFromRequest(request)") < ensureMember.indexOf("ensureSchema()"));
+  assert.ok(ensureMember.indexOf("identityFromRequest(request)") < ensureMember.indexOf("ensureStorageReady()"));
   assert.match(source, /WHERE id = \? AND household_id = \?/);
+});
+
+test("keeps schema ownership in Drizzle and checked-in migrations", async () => {
+  const runtimeDirectories = ["../app/", "../build/", "../db/", "../lib/", "../worker/"];
+  const runtimeFiles = (await Promise.all(runtimeDirectories.map(sourceFiles))).flat();
+  const runtimeSources = await Promise.all(runtimeFiles
+    .filter((url) => !url.pathname.endsWith("/db/schema.ts"))
+    .map(async (url) => `${url.pathname}\n${await readFile(url, "utf8")}`));
+  const runtimeSource = runtimeSources.join("\n");
+  const drizzleConfig = await readFile(new URL("../drizzle.config.ts", import.meta.url), "utf8");
+  const packaging = await readFile(new URL("../build/sites-vite-plugin.ts", import.meta.url), "utf8");
+
+  assert.doesNotMatch(runtimeSource, /\b(?:CREATE\s+(?:TABLE|INDEX)|ALTER\s+TABLE)\b/i);
+  assert.match(drizzleConfig, /schema:\s*"\.\/db\/schema\.ts"/);
+  assert.match(drizzleConfig, /out:\s*"\.\/drizzle"/);
+  assert.match(packaging, /const drizzleSource = resolve\(root, "drizzle"\)/);
+  assert.match(packaging, /cp\(drizzleSource/);
+});
+
+test("checks migration readiness without mutating or leaking storage details", async () => {
+  const readinessUrl = new URL("../db/readiness.ts", import.meta.url);
+  readinessUrl.searchParams.set("test", `${process.pid}-${Date.now()}`);
+  const { assertDatabaseSchemaReady, DatabaseSchemaNotReadyError } = await import(readinessUrl.href);
+  const statements = [];
+  const readyDatabase = {
+    prepare(statement) {
+      statements.push(statement);
+      return { first: async () => null };
+    },
+  };
+
+  await assertDatabaseSchemaReady(readyDatabase);
+  assert.equal(statements.length, 1);
+  assert.match(statements[0], /last_sync_attempt_at/);
+  assert.doesNotMatch(statements[0], /\b(?:CREATE|ALTER|INSERT|UPDATE|DELETE|PRAGMA)\b/i);
+
+  const unavailableDatabase = {
+    prepare() {
+      return { first: async () => { throw new Error("provider SQL detail"); } };
+    },
+  };
+  await assert.rejects(
+    assertDatabaseSchemaReady(unavailableDatabase),
+    (error) => error instanceof DatabaseSchemaNotReadyError
+      && error.message === "Homebase storage needs an update."
+      && !error.message.includes("provider SQL detail"),
+  );
 });
 
 test("protects personal budgets while allowing exact categorization", async () => {
