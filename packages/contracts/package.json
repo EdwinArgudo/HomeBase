@@ -1,0 +1,14 @@
+{
+  "name": "@homebase/contracts",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "types": "./index.ts",
+  "scripts": {
+    "test": "node --test tests/*.test.mjs",
+    "type-check": "tsc --project tsconfig.json"
+  }
+}
