@@ -27,6 +27,25 @@ test("database readiness covers the generated daily-move schema", async () => {
   assert.match(readiness, /dm\.move_policy_version/);
 });
 
+test("generated action-loop migration has canonical events and partial progress uniqueness", async () => {
+  const migration = await readFile(new URL("../drizzle/0007_faithful_mockingbird.sql", import.meta.url), "utf8");
+  assert.match(migration, /CREATE TABLE `game_events`/);
+  assert.match(migration, /CREATE UNIQUE INDEX `idx_game_events_idempotency_key`/);
+  assert.match(migration, /CREATE INDEX `idx_game_events_household_occurred`/);
+  assert.match(migration, /CREATE INDEX `idx_game_events_member_occurred`/);
+  assert.match(migration, /CREATE TABLE `progress_balances`/);
+  assert.match(migration, /idx_progress_balances_personal_dimension[^;]+WHERE .*member_id.* IS NOT NULL/);
+  assert.match(migration, /idx_progress_balances_household_dimension[^;]+WHERE .*member_id.* IS NULL/);
+  assert.match(migration, /progress_balances_points_check/);
+  assert.match(migration, /daily_moves_replacement_count_check/);
+  assert.match(migration, /SELECT [^;]+ 0, "created_at" FROM `daily_moves`/);
+
+  const readiness = await readFile(new URL("../db/readiness.ts", import.meta.url), "utf8");
+  assert.match(readiness, /dm\.replacement_count/);
+  assert.match(readiness, /LEFT JOIN game_events ge ON 0/);
+  assert.match(readiness, /LEFT JOIN progress_balances pb ON 0/);
+});
+
 test("moves HTTP boundary validates dates before membership storage", async () => {
   let membershipCalls = 0;
   const handler = createMovesGetHandler({
@@ -80,4 +99,13 @@ test("moves route wires authenticated domain candidates without fixtures or an e
   assert.match(route, /minimumModeProvider:\s*loadHouseholdMinimumMode/);
   assert.doesNotMatch(route, /emptyCandidateProvider/);
   assert.doesNotMatch(route, /from\s+["'][^"']*fixtures/i);
+});
+
+test("daily-move action routes remain thin authenticated handlers", async () => {
+  for (const action of ["complete", "defer", "replace"]) {
+    const route = await readFile(new URL(`../app/api/game/moves/[id]/${action}/route.ts`, import.meta.url), "utf8");
+    assert.match(route, /requireMember:\s*requireHouseholdMember/);
+    assert.match(route, /dynamic = "force-dynamic"/);
+    assert.doesNotMatch(route, /fixture|demo/i);
+  }
 });

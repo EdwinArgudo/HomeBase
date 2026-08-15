@@ -163,10 +163,12 @@ test("checks migration readiness without mutating or leaking storage details", a
 test("protects personal budgets while allowing exact categorization", async () => {
   const budgetUpdates = await readFile(new URL("../lib/household/budgets.ts", import.meta.url), "utf8");
   const transactionReview = await readFile(new URL("../lib/household/transactions.ts", import.meta.url), "utf8");
+  const transactionReviewPlan = await readFile(new URL("../lib/household/transaction-review.ts", import.meta.url), "utf8");
 
   assert.match(budgetUpdates, /ownership_type = 'shared' OR owner_member_id = \?/);
-  assert.match(transactionReview, /ownsPersonalRecord\(member, category\.owner_member_id\)/);
-  assert.match(transactionReview, /category_id = \?/);
+  assert.match(transactionReviewPlan, /ownsPersonalRecord\(member, category\.owner_member_id\)/);
+  assert.match(transactionReviewPlan, /category_id = \?/);
+  assert.match(transactionReview, /prepareTransactionReviewStatements/);
 });
 
 test("keeps Plaid credentials server-side and encrypts saved access tokens", async () => {

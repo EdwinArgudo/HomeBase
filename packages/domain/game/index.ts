@@ -1,7 +1,9 @@
 import {
   MOVE_FAMILIES,
   parseDailyMove,
+  parseGameEvent,
   type DailyMoveV1,
+  type GameEventV1,
   type MoveFamily,
   type MoveReasonCode,
   type MoveSourceType,
@@ -10,6 +12,63 @@ import {
 } from "@homebase/contracts";
 
 export const MOVE_POLICY_VERSION = 1 as const;
+export const PROGRESSION_POLICY_VERSION = 1 as const;
+export const PERSONAL_COMPLETION_POINTS = 10 as const;
+export const HOUSEHOLD_COMPLETION_POINTS = 4 as const;
+
+export type CompletionAwardV1 = {
+  policyVersion: 1;
+  family: MoveFamily;
+  ownership: OwnershipType;
+  personalPoints: 10;
+  householdPoints: 0 | 4;
+};
+
+export function completionAwardV1(move: Pick<DailyMoveV1, "family" | "ownership">): CompletionAwardV1 {
+  return {
+    policyVersion: PROGRESSION_POLICY_VERSION,
+    family: move.family,
+    ownership: move.ownership,
+    personalPoints: PERSONAL_COMPLETION_POINTS,
+    householdPoints: move.ownership === "shared" ? HOUSEHOLD_COMPLETION_POINTS : 0,
+  };
+}
+
+export function levelForLifetimePointsV1(lifetimePoints: number) {
+  if (!Number.isSafeInteger(lifetimePoints) || lifetimePoints < 0) {
+    throw new RangeError("Lifetime points must be a nonnegative safe integer.");
+  }
+  return Math.min(1_000, Math.floor(lifetimePoints / 100) + 1);
+}
+
+export function completedMoveEventV1(
+  move: DailyMoveV1,
+  occurredAt: string,
+  createdAt = occurredAt,
+): GameEventV1 {
+  const award = completionAwardV1(move);
+  return parseGameEvent({
+    contractVersion: 1,
+    id: move.id,
+    householdId: move.householdId,
+    memberId: move.memberId,
+    eventType: "daily_move.completed",
+    source: { type: "daily_move", id: move.id },
+    visibility: move.visibility,
+    payload: {
+      version: 1,
+      data: {
+        family: award.family,
+        ownership: award.ownership,
+        personalPoints: award.personalPoints,
+        householdPoints: award.householdPoints,
+      },
+    },
+    idempotencyKey: `daily_move.completed:${move.id}:v1`,
+    occurredAt,
+    createdAt,
+  });
+}
 
 export type MoveCandidateSignals = {
   urgency: number;

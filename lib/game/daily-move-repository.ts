@@ -6,7 +6,7 @@ export type DailyMoveScope = {
   localDate: string;
 };
 
-type DailyMoveRow = {
+export type DailyMoveRow = {
   id: string;
   household_id: string;
   member_id: string;
@@ -24,13 +24,14 @@ type DailyMoveRow = {
   selection_reason_code: string;
   move_policy_version: number;
   completed_at: string | null;
+  replacement_count?: number;
   created_at: string;
 };
 
 const READ_SNAPSHOT_SQL = `SELECT
   id, household_id, member_id, local_date, slot, family, ownership_type,
   visibility, source_type, source_id, title, short_label, estimated_seconds,
-  status, selection_reason_code, move_policy_version, completed_at, created_at
+  status, selection_reason_code, move_policy_version, completed_at, replacement_count, created_at
 FROM daily_moves
 WHERE household_id = ? AND member_id = ? AND local_date = ?
 ORDER BY slot ASC`;
@@ -41,7 +42,7 @@ const INSERT_MOVE_SQL = `INSERT OR IGNORE INTO daily_moves (
   status, selection_reason_code, move_policy_version, completed_at, created_at
 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
-function rowToContract(row: DailyMoveRow) {
+export function dailyMoveRowToContract(row: DailyMoveRow) {
   return parseDailyMove({
     contractVersion: 1,
     id: row.id,
@@ -68,7 +69,7 @@ export async function readDailyMoveSnapshot(db: D1Database, scope: DailyMoveScop
   const result = await db.prepare(READ_SNAPSHOT_SQL)
     .bind(scope.householdId, scope.memberId, scope.localDate)
     .all<DailyMoveRow>();
-  return result.results.map(rowToContract);
+  return result.results.map(dailyMoveRowToContract);
 }
 
 export async function insertDailyMoveSnapshot(

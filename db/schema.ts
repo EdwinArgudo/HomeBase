@@ -209,6 +209,7 @@ export const dailyMoves = sqliteTable("daily_moves", {
   selectionReasonCode: text("selection_reason_code", { enum: ["urgent", "uncertainty", "due_soon", "preference", "cooperative", "minimum_mode", "comeback"] }).notNull(),
   movePolicyVersion: integer("move_policy_version").notNull().default(1),
   completedAt: text("completed_at"),
+  replacementCount: integer("replacement_count").notNull().default(0),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 }, (table) => [
   uniqueIndex("idx_daily_moves_member_date_slot").on(table.memberId, table.localDate, table.slot),
@@ -216,4 +217,45 @@ export const dailyMoves = sqliteTable("daily_moves", {
   check("daily_moves_slot_check", sql`${table.slot} BETWEEN 1 AND 3`),
   check("daily_moves_estimated_seconds_check", sql`${table.estimatedSeconds} BETWEEN 1 AND 86400`),
   check("daily_moves_policy_version_check", sql`${table.movePolicyVersion} = 1`),
+  check("daily_moves_replacement_count_check", sql`${table.replacementCount} BETWEEN 0 AND 1`),
+]);
+
+export const gameEvents = sqliteTable("game_events", {
+  id: text("id").primaryKey(),
+  householdId: text("household_id").notNull().references(() => households.id),
+  memberId: text("member_id").references(() => members.id),
+  eventType: text("event_type", { enum: ["transaction.reviewed", "merchant_rule.created", "bank_connection.repaired", "task.completed", "grocery_item.checked", "goal_entry.recorded", "daily_move.completed", "adventure.completed", "persona.approved", "persona.cosmetic_equipped"] }).notNull(),
+  sourceType: text("source_type", { enum: ["transaction", "merchant_rule", "bank_connection", "task", "grocery_item", "goal_entry", "daily_move", "adventure", "persona", "cosmetic"] }).notNull(),
+  sourceId: text("source_id").notNull(),
+  visibility: text("visibility", { enum: ["private", "household", "display"] }).notNull(),
+  payloadVersion: integer("payload_version").notNull().default(1),
+  payloadJson: text("payload_json").notNull(),
+  idempotencyKey: text("idempotency_key").notNull(),
+  occurredAt: text("occurred_at").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("idx_game_events_idempotency_key").on(table.idempotencyKey),
+  index("idx_game_events_household_occurred").on(table.householdId, table.occurredAt),
+  index("idx_game_events_member_occurred").on(table.memberId, table.occurredAt),
+  check("game_events_payload_version_check", sql`${table.payloadVersion} = 1`),
+]);
+
+export const progressBalances = sqliteTable("progress_balances", {
+  id: text("id").primaryKey(),
+  householdId: text("household_id").notNull().references(() => households.id),
+  memberId: text("member_id").references(() => members.id),
+  dimension: text("dimension", { enum: ["tend", "move", "grow", "connect", "household"] }).notNull(),
+  lifetimePoints: integer("lifetime_points").notNull().default(0),
+  level: integer("level").notNull().default(1),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("idx_progress_balances_personal_dimension")
+    .on(table.householdId, table.memberId, table.dimension)
+    .where(sql`${table.memberId} IS NOT NULL`),
+  uniqueIndex("idx_progress_balances_household_dimension")
+    .on(table.householdId, table.dimension)
+    .where(sql`${table.memberId} IS NULL`),
+  index("idx_progress_balances_household_member").on(table.householdId, table.memberId),
+  check("progress_balances_points_check", sql`${table.lifetimePoints} >= 0`),
+  check("progress_balances_level_check", sql`${table.level} BETWEEN 1 AND 1000`),
 ]);

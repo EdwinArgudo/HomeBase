@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { selectDailyMovesV1 } from "../index.ts";
+import {
+  completedMoveEventV1,
+  completionAwardV1,
+  levelForLifetimePointsV1,
+  selectDailyMovesV1,
+} from "../index.ts";
 
 const scope = {
   householdId: "household-current",
@@ -162,4 +167,45 @@ test("policy never returns more than three moves", () => {
     source: { type: "task", id: `task-${index}` },
   }));
   assert.ok(select(many, { maxMoves: 99 }).length <= 3);
+});
+
+test("progression policy awards fixed positive points without private detail", () => {
+  const [personalMove] = select([candidate()]);
+  const [sharedMove] = select([candidate({
+    memberId: null,
+    ownership: "shared",
+    visibility: "household",
+    source: { type: "task", id: "shared-task" },
+  })]);
+
+  assert.deepEqual(completionAwardV1(personalMove), {
+    policyVersion: 1,
+    family: "tend",
+    ownership: "personal",
+    personalPoints: 10,
+    householdPoints: 0,
+  });
+  assert.equal(completionAwardV1(sharedMove).householdPoints, 4);
+
+  const event = completedMoveEventV1(personalMove, "2026-08-16T11:00:00.000Z");
+  assert.equal(event.idempotencyKey, `daily_move.completed:${personalMove.id}:v1`);
+  assert.equal(event.visibility, "private");
+  assert.deepEqual(event.payload.data, {
+    family: "tend",
+    ownership: "personal",
+    personalPoints: 10,
+    householdPoints: 0,
+  });
+  assert.doesNotMatch(JSON.stringify(event.payload), /title|sourceId|detail/i);
+});
+
+test("level policy has deterministic monotonic boundaries and rejects negative points", () => {
+  assert.deepEqual([0, 99, 100, 199, 200].map(levelForLifetimePointsV1), [1, 1, 2, 2, 3]);
+  let previous = 0;
+  for (let points = 0; points <= 10_000; points += 17) {
+    const level = levelForLifetimePointsV1(points);
+    assert.ok(level >= previous);
+    previous = level;
+  }
+  assert.throws(() => levelForLifetimePointsV1(-1), RangeError);
 });
