@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { check, index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 export const households = sqliteTable("households", {
   id: text("id").primaryKey(),
@@ -190,3 +190,30 @@ export const goalEntries = sqliteTable("goal_entries", {
   value: integer("value").notNull(),
   occurredAt: text("occurred_at").notNull(),
 }, (table) => [index("idx_goal_entries_goal_date").on(table.goalId, table.occurredAt)]);
+
+export const dailyMoves = sqliteTable("daily_moves", {
+  id: text("id").primaryKey(),
+  householdId: text("household_id").notNull().references(() => households.id),
+  memberId: text("member_id").notNull().references(() => members.id),
+  localDate: text("local_date").notNull(),
+  slot: integer("slot").notNull(),
+  family: text("family", { enum: ["tend", "move", "grow", "connect"] }).notNull(),
+  ownershipType: text("ownership_type", { enum: ["personal", "shared"] }).notNull(),
+  visibility: text("visibility", { enum: ["private", "household", "display"] }).notNull(),
+  sourceType: text("source_type", { enum: ["transaction", "bank_connection", "task", "grocery_item", "goal", "adventure", "comeback", "household"] }).notNull(),
+  sourceId: text("source_id").notNull(),
+  title: text("title").notNull(),
+  shortLabel: text("short_label").notNull(),
+  estimatedSeconds: integer("estimated_seconds").notNull(),
+  status: text("status", { enum: ["active", "complete", "deferred", "replaced", "expired"] }).notNull().default("active"),
+  selectionReasonCode: text("selection_reason_code", { enum: ["urgent", "uncertainty", "due_soon", "preference", "cooperative", "minimum_mode", "comeback"] }).notNull(),
+  movePolicyVersion: integer("move_policy_version").notNull().default(1),
+  completedAt: text("completed_at"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("idx_daily_moves_member_date_slot").on(table.memberId, table.localDate, table.slot),
+  index("idx_daily_moves_household_member_date_status").on(table.householdId, table.memberId, table.localDate, table.status),
+  check("daily_moves_slot_check", sql`${table.slot} BETWEEN 1 AND 3`),
+  check("daily_moves_estimated_seconds_check", sql`${table.estimatedSeconds} BETWEEN 1 AND 86400`),
+  check("daily_moves_policy_version_check", sql`${table.movePolicyVersion} = 1`),
+]);
