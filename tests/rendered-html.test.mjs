@@ -49,10 +49,68 @@ test("publishes PWA and social metadata", async () => {
 });
 
 test("authenticates before touching household storage", async () => {
-  const source = await readFile(new URL("../lib/household.ts", import.meta.url), "utf8");
-  const ensureMember = source.slice(source.indexOf("async function ensureMember"), source.indexOf("async function requireMember"));
-  assert.ok(ensureMember.indexOf("identityFromRequest(request)") < ensureMember.indexOf("ensureStorageReady()"));
-  assert.match(source, /WHERE id = \? AND household_id = \?/);
+  const identityUrl = new URL("../lib/auth/identity.ts", import.meta.url);
+  identityUrl.searchParams.set("test", `${process.pid}-${Date.now()}`);
+  const { HttpError, identityBeforeStorage } = await import(identityUrl.href);
+  let storageOpened = false;
+  const request = new Request("https://homebase.example/");
+
+  await assert.rejects(
+    identityBeforeStorage(request, async () => {
+      storageOpened = true;
+      return {};
+    }),
+    (error) => error instanceof HttpError && error.status === 401,
+  );
+  assert.equal(storageOpened, false);
+
+  const membershipSource = await readFile(new URL("../lib/household/membership.ts", import.meta.url), "utf8");
+  assert.match(membershipSource, /identityBeforeStorage\(request, readyHouseholdDatabase\)/);
+});
+
+test("denies cross-household task mutation at the query boundary", async () => {
+  const queryUrl = new URL("../lib/household/home-queries.ts", import.meta.url);
+  queryUrl.searchParams.set("test", `${process.pid}-${Date.now()}`);
+  const { toggleTaskForHousehold } = await import(queryUrl.href);
+  const task = { id: "task-partner", householdId: "household-partner", status: "open" };
+  let boundValues = [];
+  const db = {
+    prepare(statement) {
+      assert.match(statement, /WHERE id = \? AND household_id = \?/);
+      return {
+        bind(...values) {
+          boundValues = values;
+          return {
+            async run() {
+              const [id, householdId] = values;
+              const changes = id === task.id && householdId === task.householdId ? 1 : 0;
+              if (changes) task.status = task.status === "open" ? "complete" : "open";
+              return { meta: { changes } };
+            },
+          };
+        },
+      };
+    },
+  };
+
+  const changed = await toggleTaskForHousehold(db, "household-current", task.id);
+  assert.equal(changed, false);
+  assert.deepEqual(boundValues, [task.id, "household-current"]);
+  assert.equal(task.status, "open");
+
+  const homeService = await readFile(new URL("../lib/household/home.ts", import.meta.url), "utf8");
+  assert.match(homeService, /if \(!updated\) throw new HttpError\(404, "Task not found\."\)/);
+});
+
+test("denies cross-household and partner-private ownership in shared authorization", async () => {
+  const authorizationUrl = new URL("../lib/household/authorization.ts", import.meta.url);
+  authorizationUrl.searchParams.set("test", `${process.pid}-${Date.now()}`);
+  const { belongsToHousehold, ownsPersonalRecord } = await import(authorizationUrl.href);
+  const member = { id: "member-current", household_id: "household-current" };
+
+  assert.equal(belongsToHousehold(member, { household_id: "household-partner" }), false);
+  assert.equal(ownsPersonalRecord(member, "member-partner"), false);
+  assert.equal(ownsPersonalRecord(member, member.id), true);
 });
 
 test("keeps schema ownership in Drizzle and checked-in migrations", async () => {
@@ -103,12 +161,11 @@ test("checks migration readiness without mutating or leaking storage details", a
 });
 
 test("protects personal budgets while allowing exact categorization", async () => {
-  const source = await readFile(new URL("../lib/household.ts", import.meta.url), "utf8");
-  const budgetUpdates = source.slice(source.indexOf("export async function saveBudgetLimits"), source.indexOf("export async function createBudgetCategory"));
-  const transactionReview = source.slice(source.indexOf("export async function reviewTransaction"), source.indexOf("export async function setMinimumMode"));
+  const budgetUpdates = await readFile(new URL("../lib/household/budgets.ts", import.meta.url), "utf8");
+  const transactionReview = await readFile(new URL("../lib/household/transactions.ts", import.meta.url), "utf8");
 
   assert.match(budgetUpdates, /ownership_type = 'shared' OR owner_member_id = \?/);
-  assert.match(transactionReview, /category\.owner_member_id !== member\.id/);
+  assert.match(transactionReview, /ownsPersonalRecord\(member, category\.owner_member_id\)/);
   assert.match(transactionReview, /category_id = \?/);
 });
 
@@ -127,16 +184,17 @@ test("keeps Plaid credentials server-side and encrypts saved access tokens", asy
 });
 
 test("persists merchant rules and exact transaction splits", async () => {
-  const householdSource = await readFile(new URL("../lib/household.ts", import.meta.url), "utf8");
+  const transactionSource = await readFile(new URL("../lib/household/transactions.ts", import.meta.url), "utf8");
+  const budgetSource = await readFile(new URL("../lib/household/budgets.ts", import.meta.url), "utf8");
   const plaidSource = await readFile(new URL("../lib/plaid.ts", import.meta.url), "utf8");
   const pageSource = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
   const migration = await readFile(new URL("../drizzle/0003_moaning_puppet_master.sql", import.meta.url), "utf8");
 
   assert.match(migration, /CREATE TABLE `merchant_rules`/);
   assert.match(migration, /CREATE UNIQUE INDEX `idx_merchant_rules_member_match`/);
-  assert.match(householdSource, /FROM transaction_splits ts[\s\S]*review_status = 'split'/);
-  assert.match(householdSource, /Split amounts must add up to the transaction total/);
-  assert.match(householdSource, /created_by_member_id = \?/);
+  assert.match(budgetSource, /FROM transaction_splits ts[\s\S]*review_status = 'split'/);
+  assert.match(transactionSource, /Split amounts must add up to the transaction total/);
+  assert.match(transactionSource, /created_by_member_id = \?/);
   assert.match(plaidSource, /merchantRules\.get\(normalizeMerchantName\(merchantName\)\)/);
   assert.match(pageSource, /Remember this merchant/);
   assert.match(pageSource, /Save split/);
@@ -144,22 +202,22 @@ test("persists merchant rules and exact transaction splits", async () => {
 });
 
 test("scopes budgets to durable calendar months with optional rollover", async () => {
-  const householdSource = await readFile(new URL("../lib/household.ts", import.meta.url), "utf8");
+  const budgetSource = await readFile(new URL("../lib/household/budgets.ts", import.meta.url), "utf8");
   const pageSource = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
   const migration = await readFile(new URL("../drizzle/0004_flimsy_wither.sql", import.meta.url), "utf8");
 
   assert.match(migration, /CREATE TABLE `monthly_category_budgets`/);
   assert.match(migration, /CREATE UNIQUE INDEX `idx_monthly_category_budgets_category_month`/);
-  assert.match(householdSource, /transaction_date >= \? AND transaction_date < \?/);
-  assert.match(householdSource, /rolloverCents = category\.rollover_enabled \? Math\.max/);
-  assert.match(householdSource, /Past budget months are read-only/);
+  assert.match(budgetSource, /transaction_date >= \? AND transaction_date < \?/);
+  assert.match(budgetSource, /rolloverCents = category\.rollover_enabled \? Math\.max/);
+  assert.match(budgetSource, /Past budget months are read-only/);
   assert.match(pageSource, /Previous budget month/);
   assert.match(pageSource, /Roll over unused funds next month/);
   assert.match(pageSource, /daysRemaining/);
 });
 
 test("automatically refreshes Plaid connections and surfaces repairable health", async () => {
-  const householdSource = await readFile(new URL("../lib/household.ts", import.meta.url), "utf8");
+  const snapshotSource = await readFile(new URL("../lib/household/snapshot.ts", import.meta.url), "utf8");
   const plaidSource = await readFile(new URL("../lib/plaid.ts", import.meta.url), "utf8");
   const pageSource = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
   const autoSyncRoute = await readFile(new URL("../app/api/plaid/auto-sync/route.ts", import.meta.url), "utf8");
@@ -171,7 +229,7 @@ test("automatically refreshes Plaid connections and surfaces repairable health",
   assert.match(plaidSource, /provider_last_successful_update/);
   assert.match(plaidSource, /body\.access_token = await decryptAccessToken/);
   assert.match(autoSyncRoute, /autoSyncPlaidConnections/);
-  assert.match(householdSource, /healthLabel/);
+  assert.match(snapshotSource, /healthLabel/);
   assert.match(pageSource, /refresh automatically/);
   assert.match(pageSource, /Repair connection/);
 });
