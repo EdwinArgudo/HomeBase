@@ -1,0 +1,212 @@
+import {
+  REQUIRED_ANIMATIONS,
+  parseDailyMove,
+  parsePersonaManifest,
+  parseProgressBalance,
+  parseWorldProjection,
+  type PersonaManifestV1,
+} from "@homebase/contracts";
+
+const generatedAt = "2026-08-15T12:00:00.000Z";
+
+function personaManifest(personaId: string, assetPrefix: string): PersonaManifestV1 {
+  return parsePersonaManifest({
+    manifestVersion: 1,
+    personaId,
+    baseStyleVersion: "homebase-pixel-v1",
+    grid: { frameWidth: 32, frameHeight: 48, columns: 4, rows: 2 },
+    assets: [
+      { id: `${assetPrefix}-portrait`, kind: "portrait", width: 64, height: 64, transparent: true },
+      { id: `${assetPrefix}-neutral`, kind: "neutral", width: 32, height: 48, transparent: true },
+      { id: `${assetPrefix}-sheet`, kind: "sprite_sheet", width: 128, height: 96, transparent: true },
+    ],
+    animations: REQUIRED_ANIMATIONS.map((name, index) => ({
+      name,
+      assetId: `${assetPrefix}-sheet`,
+      loop: name !== "celebrate",
+      frames: [{ column: index % 4, row: Math.floor(index / 4), durationMs: 160 }],
+    })),
+    attachmentAnchors: [
+      { kind: "hair", x: 16, y: 4 },
+      { kind: "clothing", x: 16, y: 28 },
+      { kind: "accessory", x: 25, y: 18 },
+      { kind: "prop", x: 30, y: 30 },
+    ],
+  });
+}
+
+const edwinManifest = personaManifest("persona-edwin", "edwin");
+const viennaManifest = personaManifest("persona-vienna", "vienna");
+
+export const worldFixture = parseWorldProjection({
+  contractVersion: 1,
+  worldVersion: 1,
+  revision: 1,
+  householdId: "household-homebase",
+  viewer: "member",
+  generatedAt,
+  scene: { key: "sunny-apartment", theme: "soft-morning" },
+  personas: [
+    {
+      id: "persona-edwin",
+      displayName: "Edwin",
+      altDescription: "Edwin's pixel persona watering the window plants.",
+      visibility: "household",
+      activity: "tend",
+      x: 28,
+      y: 62,
+      manifest: edwinManifest,
+    },
+    {
+      id: "persona-vienna",
+      displayName: "Vienna",
+      altDescription: "Vienna's pixel persona reading on the sofa.",
+      visibility: "household",
+      activity: "read",
+      x: 70,
+      y: 57,
+      manifest: viennaManifest,
+    },
+  ],
+  items: [
+    { id: "item-window", catalogKey: "sunny-window", zone: "living-room", visibility: "household", x: 22, y: 20, zIndex: 1, state: "active" },
+    { id: "item-sofa", catalogKey: "green-sofa", zone: "living-room", visibility: "household", x: 68, y: 64, zIndex: 1, state: "idle" },
+  ],
+  adventures: [
+    {
+      id: "adventure-shared-dinners",
+      title: "Make three dinners together",
+      status: "active",
+      targetValue: 3,
+      currentValue: 1,
+      endsAt: "2026-08-22T23:59:59.000Z",
+      visibility: "household",
+    },
+  ],
+});
+
+export const displayWorldFixture = parseWorldProjection({
+  contractVersion: 1,
+  worldVersion: 1,
+  revision: 1,
+  householdId: "household-homebase",
+  viewer: "display",
+  generatedAt,
+  scene: { key: "sunny-apartment", theme: "soft-morning" },
+  personas: [
+    {
+      id: "persona-edwin",
+      displayName: "Edwin",
+      altDescription: "Edwin's pixel persona enjoying a calm morning at home.",
+      visibility: "display",
+      activity: "idle",
+      x: 30,
+      y: 62,
+      manifest: edwinManifest,
+    },
+    {
+      id: "persona-vienna",
+      displayName: "Vienna",
+      altDescription: "Vienna's pixel persona reading by the window.",
+      visibility: "display",
+      activity: "read",
+      x: 68,
+      y: 57,
+      manifest: viennaManifest,
+    },
+  ],
+  items: [
+    { id: "item-window", catalogKey: "sunny-window", zone: "living-room", visibility: "display", x: 22, y: 20, zIndex: 1, state: "active" },
+    { id: "item-sofa", catalogKey: "green-sofa", zone: "living-room", visibility: "display", x: 68, y: 64, zIndex: 1, state: "idle" },
+  ],
+  adventures: [
+    {
+      id: "adventure-shared-dinners",
+      title: "Make three dinners together",
+      status: "active",
+      targetValue: 3,
+      currentValue: 1,
+      endsAt: "2026-08-22T23:59:59.000Z",
+      visibility: "display",
+    },
+  ],
+});
+
+export const dailyMoveFixtures = [
+  parseDailyMove({
+    contractVersion: 1,
+    id: "move-groceries",
+    householdId: "household-homebase",
+    memberId: "member-edwin",
+    localDate: "2026-08-15",
+    slot: 1,
+    family: "tend",
+    ownership: "shared",
+    visibility: "household",
+    source: { type: "grocery_item", id: "groceries-weekend" },
+    title: "Choose the weekend groceries",
+    shortLabel: "Plan groceries",
+    estimatedSeconds: 90,
+    status: "active",
+    selectionReasonCode: "due_soon",
+    movePolicyVersion: 1,
+    completedAt: null,
+    createdAt: generatedAt,
+  }),
+  parseDailyMove({
+    contractVersion: 1,
+    id: "move-language",
+    householdId: "household-homebase",
+    memberId: "member-edwin",
+    localDate: "2026-08-15",
+    slot: 2,
+    family: "grow",
+    ownership: "personal",
+    visibility: "private",
+    source: { type: "goal", id: "goal-language" },
+    title: "Practice five travel phrases",
+    shortLabel: "Practice phrases",
+    estimatedSeconds: 120,
+    status: "active",
+    selectionReasonCode: "preference",
+    movePolicyVersion: 1,
+    completedAt: null,
+    createdAt: generatedAt,
+  }),
+  parseDailyMove({
+    contractVersion: 1,
+    id: "move-walk",
+    householdId: "household-homebase",
+    memberId: "member-edwin",
+    localDate: "2026-08-15",
+    slot: 3,
+    family: "move",
+    ownership: "personal",
+    visibility: "private",
+    source: { type: "goal", id: "goal-walk" },
+    title: "Take a ten-minute walk",
+    shortLabel: "Take a walk",
+    estimatedSeconds: 600,
+    status: "complete",
+    selectionReasonCode: "minimum_mode",
+    movePolicyVersion: 1,
+    completedAt: generatedAt,
+    createdAt: generatedAt,
+  }),
+] as const;
+
+export const progressFixtures = [
+  ["tend", 68, 4],
+  ["move", 42, 3],
+  ["grow", 55, 3],
+  ["connect", 74, 5],
+].map(([dimension, lifetimePoints, level]) => parseProgressBalance({
+  contractVersion: 1,
+  id: `progress-${dimension}`,
+  householdId: "household-homebase",
+  memberId: "member-edwin",
+  dimension,
+  lifetimePoints,
+  level,
+  updatedAt: generatedAt,
+}));

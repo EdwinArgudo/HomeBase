@@ -291,7 +291,13 @@ function nullableTimestampAt(input: unknown, path: string) {
 function localDateAt(input: unknown, path: string) {
   const value = stringAt(input, path, 10, 10);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return fail(path, "must be a calendar date in YYYY-MM-DD format");
-  const [year, month, day] = value.split("-").map(Number);
+  const parts = value.split("-").map(Number);
+  const year = parts[0];
+  const month = parts[1];
+  const day = parts[2];
+  if (year === undefined || month === undefined || day === undefined) {
+    return fail(path, "must be a calendar date in YYYY-MM-DD format");
+  }
   const parsed = new Date(Date.UTC(year, month - 1, day));
   if (
     parsed.getUTCFullYear() !== year

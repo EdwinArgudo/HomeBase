@@ -15,6 +15,7 @@
     "lint": "eslint ."
   },
   "dependencies": {
+    "@homebase/contracts": "file:../../packages/contracts",
     "hono": "^4.9.2",
     "pinia": "^3.0.3",
     "vue": "^3.5.18",

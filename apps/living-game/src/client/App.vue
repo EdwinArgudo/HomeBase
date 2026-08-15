@@ -1,10 +1,5 @@
 <script setup lang="ts">
-const primaryLinks = [
-  { to: "/", label: "World" },
-  { to: "/today", label: "Today" },
-  { to: "/adventures", label: "Adventures" },
-  { to: "/persona", label: "Persona" },
-] as const;
+import PrimaryNavigation from "./components/PrimaryNavigation.vue";
 </script>
 
 <template>
@@ -12,25 +7,23 @@ const primaryLinks = [
   <div class="app-shell">
     <header class="app-header">
       <RouterLink class="brand" to="/" aria-label="Homebase Living Game home">
-        Homebase
+        <span class="brand__pet" aria-hidden="true"><span>•</span><span>•</span></span>
+        <span>Homebase</span>
       </RouterLink>
-      <nav aria-label="Primary navigation">
-        <ul class="nav-list">
-          <li v-for="link in primaryLinks" :key="link.to">
-            <RouterLink :to="link.to">{{ link.label }}</RouterLink>
-          </li>
-        </ul>
-      </nav>
-      <nav aria-label="Utilities">
-        <ul class="nav-list nav-list--utilities">
-          <li><RouterLink to="/ledger">Ledger</RouterLink></li>
-          <li><RouterLink to="/display">Display</RouterLink></li>
-        </ul>
+
+      <p class="home-status"><span aria-hidden="true" /> Home feels calm</p>
+
+      <nav class="utility-nav" aria-label="Utilities">
+        <RouterLink class="ledger-link" to="/ledger"><span aria-hidden="true">▦</span> Ledger</RouterLink>
+        <RouterLink class="display-link" to="/display">Display</RouterLink>
       </nav>
     </header>
 
-    <main id="main-content" class="view-shell" tabindex="-1">
-      <RouterView />
-    </main>
+    <div class="app-layout">
+      <PrimaryNavigation />
+      <main id="main-content" class="view-shell" tabindex="-1">
+        <RouterView />
+      </main>
+    </div>
   </div>
 </template>
