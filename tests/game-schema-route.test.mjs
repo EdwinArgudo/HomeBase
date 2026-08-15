@@ -73,10 +73,11 @@ test("moves HTTP boundary never exposes internal storage details", async () => {
   assert.doesNotMatch(body, new RegExp(secret));
 });
 
-test("transitional route uses membership and an explicitly empty server candidate provider", async () => {
+test("moves route wires authenticated domain candidates without fixtures or an empty provider", async () => {
   const route = await readFile(new URL("../app/api/game/moves/route.ts", import.meta.url), "utf8");
   assert.match(route, /requireMember:\s*requireHouseholdMember/);
-  assert.match(route, /emptyCandidateProvider/);
-  assert.match(route, /return \[\]/);
+  assert.match(route, /candidateProvider:\s*loadAuthorizedMoveCandidates/);
+  assert.match(route, /minimumModeProvider:\s*loadHouseholdMinimumMode/);
+  assert.doesNotMatch(route, /emptyCandidateProvider/);
   assert.doesNotMatch(route, /from\s+["'][^"']*fixtures/i);
 });

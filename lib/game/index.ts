@@ -3,3 +3,4 @@ export type { DailyMoveScope } from "./daily-move-repository.ts";
 export { getOrCreateDailyMoveSnapshot } from "./daily-moves.ts";
 export type { DailyMoveSnapshotPolicy } from "./daily-moves.ts";
 export { createMovesGetHandler } from "./http.ts";
+export { loadAuthorizedMoveCandidates, loadHouseholdMinimumMode } from "./candidate-coordinator.ts";

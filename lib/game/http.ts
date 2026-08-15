@@ -6,12 +6,14 @@ import { getOrCreateDailyMoveSnapshot } from "./daily-moves.ts";
 
 type MovesHttpDependencies = {
   requireMember: (request: Request) => Promise<HouseholdContext>;
-  candidateProvider: (scope: { householdId: string; memberId: string; localDate: string }) => Promise<readonly MoveCandidate[]>;
+  candidateProvider: (context: HouseholdContext, localDate: string) => Promise<readonly MoveCandidate[]>;
+  minimumModeProvider?: (context: HouseholdContext) => Promise<boolean>;
   createdAt: () => string;
   createId: (context: DailyMoveIdContext) => string;
 };
 
 export function createMovesGetHandler(dependencies: MovesHttpDependencies) {
+  const minimumModeProvider = dependencies.minimumModeProvider;
   return async function GET(request: Request) {
     try {
       const localDate = new URL(request.url).searchParams.get("date") ?? "";
@@ -23,7 +25,10 @@ export function createMovesGetHandler(dependencies: MovesHttpDependencies) {
         memberId: context.member.id,
         localDate,
       }, {
-        candidateProvider: dependencies.candidateProvider,
+        candidateProvider: () => dependencies.candidateProvider(context, localDate),
+        minimumModeProvider: minimumModeProvider
+          ? () => minimumModeProvider(context)
+          : undefined,
         createdAt: dependencies.createdAt,
         createId: dependencies.createId,
       });

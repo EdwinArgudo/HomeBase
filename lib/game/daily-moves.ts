@@ -15,6 +15,7 @@ export type DailyMoveSnapshotPolicy = {
   createdAt: () => string;
   createId: (context: DailyMoveIdContext) => string;
   minimumMode?: boolean;
+  minimumModeProvider?: () => Promise<boolean>;
   recentSourceIds?: readonly string[];
   cooldownSourceIds?: readonly string[];
 };
@@ -27,13 +28,16 @@ export async function getOrCreateDailyMoveSnapshot(
   const existing = await readDailyMoveSnapshot(db, scope);
   if (existing.length > 0) return existing;
 
-  const candidates = await policy.candidateProvider(scope);
+  const [candidates, minimumMode] = await Promise.all([
+    policy.candidateProvider(scope),
+    policy.minimumModeProvider ? policy.minimumModeProvider() : Promise.resolve(Boolean(policy.minimumMode)),
+  ]);
   const selected = selectDailyMovesV1({
     ...scope,
     candidates,
     createdAt: policy.createdAt(),
     createId: policy.createId,
-    minimumMode: policy.minimumMode,
+    minimumMode,
     recentSourceIds: policy.recentSourceIds,
     cooldownSourceIds: policy.cooldownSourceIds,
   });
