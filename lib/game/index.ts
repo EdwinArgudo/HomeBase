@@ -6,6 +6,8 @@ export { createMovesGetHandler } from "./http.ts";
 export { loadAuthorizedMoveCandidates, loadHouseholdMinimumMode } from "./candidate-coordinator.ts";
 export { completeDailyMove } from "./completion.ts";
 export { deferDailyMove, replaceDailyMove } from "./move-actions.ts";
+export { loadMoveCompletionOptions } from "./completion-options.ts";
+export { createMoveOptionsHandler } from "./options-http.ts";
 export {
   createMoveCompleteHandler,
   createMoveDeferHandler,

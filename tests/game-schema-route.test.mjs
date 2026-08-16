@@ -109,3 +109,10 @@ test("daily-move action routes remain thin authenticated handlers", async () => 
     assert.doesNotMatch(route, /fixture|demo/i);
   }
 });
+
+test("completion-options route remains a thin authenticated boundary", async () => {
+  const source = await readFile(new URL("../app/api/game/moves/[id]/options/route.ts", import.meta.url), "utf8");
+  assert.match(source, /createMoveOptionsHandler/);
+  assert.match(source, /requireHouseholdMember/);
+  assert.doesNotMatch(source, /SELECT|categories|merchant|amount/i);
+});

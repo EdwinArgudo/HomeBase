@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   ContractValidationError,
   parseDailyMove,
+  parseMoveCompletionOptions,
   parseGameEvent,
   parsePersonaManifest,
   parseProgressBalance,
@@ -210,6 +211,61 @@ test("DailyMove enforces completion, slot, duration, and date invariants", () =>
   const badDate = validDailyMove();
   badDate.localDate = "2026-02-31";
   expectContractError(() => parseDailyMove(badDate), "$.localDate");
+});
+
+test("MoveCompletionOptions validates closed, minimal source-specific responses", () => {
+  const transaction = parseMoveCompletionOptions({
+    contractVersion: 1,
+    moveId: "move-1",
+    kind: "transaction",
+    categories: [
+      { id: "category-shared", name: "Groceries", ownership: "shared" },
+      { id: "category-mine", name: "Personal", ownership: "personal" },
+    ],
+    createRuleDefault: false,
+  });
+  assert.equal(transaction.kind, "transaction");
+  assert.equal(transaction.categories.length, 2);
+
+  assert.deepEqual(parseMoveCompletionOptions({
+    contractVersion: 1,
+    moveId: "move-2",
+    kind: "goal",
+    unitLabel: "sessions",
+    defaultValue: 1,
+  }), {
+    contractVersion: 1,
+    moveId: "move-2",
+    kind: "goal",
+    unitLabel: "sessions",
+    defaultValue: 1,
+  });
+  assert.deepEqual(parseMoveCompletionOptions({
+    contractVersion: 1,
+    moveId: "move-3",
+    kind: "none",
+  }), {
+    contractVersion: 1,
+    moveId: "move-3",
+    kind: "none",
+  });
+
+  assert.throws(() => parseMoveCompletionOptions({
+    contractVersion: 1,
+    moveId: "move-1",
+    kind: "transaction",
+    categories: [
+      { id: "category-shared", name: "Groceries", ownership: "shared", merchant: "SECRET" },
+    ],
+    createRuleDefault: false,
+  }), (error) => error instanceof ContractValidationError && error.code === "unknown_field");
+  assert.throws(() => parseMoveCompletionOptions({
+    contractVersion: 1,
+    moveId: "move-1",
+    kind: "transaction",
+    categories: [],
+    createRuleDefault: true,
+  }), ContractValidationError);
 });
 
 test("GameEvent rejects unsupported event boundaries and invalid privacy", () => {
@@ -427,6 +483,7 @@ test("display world projections cannot contain private or household-only entitie
 test("closed public boundaries reject unknown fields without echoing their data", () => {
   const fixtures = [
     [validDailyMove(), parseDailyMove],
+    [{ contractVersion: 1, moveId: "move-1", kind: "none" }, parseMoveCompletionOptions],
     [validGameEvent(), parseGameEvent],
     [validProgressBalance(), parseProgressBalance],
     [validPersonaManifest(), parsePersonaManifest],

@@ -2,9 +2,9 @@
 
 This directory contains the Vue/Hono implementation of the Homebase Living
 Game. The current React/Vinext application remains the rollback-safe Homebase
-experience at `/`. The current milestone is a contract-backed, fixture-driven
-world shell: it proves the interaction model and privacy boundary before the
-live backend is connected.
+experience at `/`. The current milestone connects the embedded preview's daily
+moves to the authenticated Homebase backend while keeping the surrounding world
+as a contract-backed visual preview.
 
 ## Stack
 
@@ -26,11 +26,12 @@ live backend is connected.
 - Reduced-motion, keyboard-focus, screen-reader summary, and forced-colors
   accommodations
 
-The UI currently reads validated local fixtures. Its moves, progress, personas,
-and Ledger balances are preview data and are not live household records. No
-database, object storage, Plaid, production game engine, or backend persistence
-is wired into this preview yet. Access to the preview uses the existing private
-Sites project boundary; the client does not imitate authentication.
+In the embedded `/living-game` build, daily moves and their complete, defer, and
+replace actions are live authenticated household data. The surrounding world,
+persona progress, adventures, and Ledger balances remain fixture-driven preview
+data. The embedded client never falls back to move fixtures when authentication,
+storage, or networking fails. Access uses the existing private Sites project
+boundary; the client does not imitate authentication.
 
 ## Embedded private preview
 
@@ -54,6 +55,8 @@ Vue Router uses `/living-game/` as its embedded base, so routes such as
 The generated browser assets live under `public/living-game-preview/`; they are
 ignored and must not be committed. The normal standalone Vue/Hono build remains
 available through this package's `npm run build` command.
+That standalone build explicitly installs the fixture move adapter so local UI
+development and tests do not depend on the root authenticated APIs.
 
 ## Local development
 

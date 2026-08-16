@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import PrimaryNavigation from "./components/PrimaryNavigation.vue";
+
+const liveMoves = import.meta.env.VITE_LIVE_MOVES === "true";
 </script>
 
 <template>
@@ -16,7 +18,7 @@ import PrimaryNavigation from "./components/PrimaryNavigation.vue";
       <div class="header-actions">
         <div class="preview-context" aria-label="Preview uses fixture data">
           <span class="preview-badge">Preview</span>
-          <span class="preview-fixture">Fixture data</span>
+          <span class="preview-fixture">{{ liveMoves ? "Live moves · Preview world" : "Fixture data · Preview world" }}</span>
           <a class="back-to-homebase" href="/">Current Homebase</a>
         </div>
 

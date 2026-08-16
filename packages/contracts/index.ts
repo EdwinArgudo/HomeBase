@@ -68,6 +68,33 @@ export type DailyMoveV1 = {
   createdAt: string;
 };
 
+export type MoveCompletionCategoryV1 = {
+  id: string;
+  name: string;
+  ownership: OwnershipType;
+};
+
+export type MoveCompletionOptionsV1 =
+  | {
+      contractVersion: 1;
+      moveId: string;
+      kind: "none";
+    }
+  | {
+      contractVersion: 1;
+      moveId: string;
+      kind: "goal";
+      unitLabel: string;
+      defaultValue: 1;
+    }
+  | {
+      contractVersion: 1;
+      moveId: string;
+      kind: "transaction";
+      categories: MoveCompletionCategoryV1[];
+      createRuleDefault: false;
+    };
+
 export type GameEventV1 = {
   contractVersion: 1;
   id: string;
@@ -386,6 +413,44 @@ export function parseDailyMove(input: unknown): DailyMoveV1 {
     completedAt,
     createdAt: timestampAt(required(record, "createdAt", path), "$.createdAt"),
   };
+}
+
+export function parseMoveCompletionOptions(input: unknown): MoveCompletionOptionsV1 {
+  const path = "$";
+  const broad = objectAt(input, path, ["contractVersion", "moveId", "kind", "unitLabel", "defaultValue", "categories", "createRuleDefault"]);
+  versionAt(required(broad, "contractVersion", path), "$.contractVersion", 1);
+  const moveId = idAt(required(broad, "moveId", path), "$.moveId");
+  const kind = enumAt(required(broad, "kind", path), "$.kind", ["none", "goal", "transaction"] as const);
+  if (kind === "none") {
+    objectAt(input, path, ["contractVersion", "moveId", "kind"]);
+    return { contractVersion: 1, moveId, kind };
+  }
+  if (kind === "goal") {
+    const record = objectAt(input, path, ["contractVersion", "moveId", "kind", "unitLabel", "defaultValue"]);
+    versionAt(required(record, "defaultValue", path), "$.defaultValue", 1);
+    return {
+      contractVersion: 1,
+      moveId,
+      kind,
+      unitLabel: stringAt(required(record, "unitLabel", path), "$.unitLabel", 1, 40),
+      defaultValue: 1,
+    };
+  }
+  const record = objectAt(input, path, ["contractVersion", "moveId", "kind", "categories", "createRuleDefault"]);
+  const categories = arrayAt(required(record, "categories", path), "$.categories", 0, 100).map((category, index) => {
+    const categoryPath = `$.categories[${index}]`;
+    const categoryRecord = objectAt(category, categoryPath, ["id", "name", "ownership"]);
+    return {
+      id: idAt(required(categoryRecord, "id", categoryPath), `${categoryPath}.id`),
+      name: stringAt(required(categoryRecord, "name", categoryPath), `${categoryPath}.name`, 1, 80),
+      ownership: enumAt(required(categoryRecord, "ownership", categoryPath), `${categoryPath}.ownership`, OWNERSHIP_TYPES),
+    };
+  });
+  uniqueBy(categories, (category) => category.id, "$.categories", "id");
+  if (required(record, "createRuleDefault", path) !== false) {
+    fail("$.createRuleDefault", "must be false");
+  }
+  return { contractVersion: 1, moveId, kind, categories, createRuleDefault: false };
 }
 
 export function parseGameEvent(input: unknown): GameEventV1 {

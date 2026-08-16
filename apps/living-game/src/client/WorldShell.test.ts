@@ -1,13 +1,16 @@
-import { mount } from "@vue/test-utils";
+import { flushPromises, mount } from "@vue/test-utils";
 import { createPinia } from "pinia";
 import { createMemoryHistory, createRouter } from "vue-router";
 import { describe, expect, it } from "vitest";
 
 import App from "./App.vue";
+import { createFixtureDailyMovesApi } from "./api/fixtureDailyMoves";
 import { displayWorldFixture } from "./fixtures/game";
 import { routes } from "./router";
+import { configureDailyMovesRuntime } from "./stores/dailyMoves";
 
 async function mountAt(path: string) {
+  configureDailyMovesRuntime({ api: createFixtureDailyMovesApi(), now: () => new Date(2026, 7, 15) });
   const router = createRouter({
     history: createMemoryHistory(),
     routes: [...routes],
@@ -42,19 +45,21 @@ describe("Living Game world shell", () => {
 
   it("lets a member complete a move without a confirmation flow", async () => {
     const wrapper = await mountAt("/today");
+    await flushPromises();
     const buttons = wrapper.findAll(".move-card .action-button");
 
     expect(wrapper.get(".count-bubble").text()).toContain("2 remaining");
     await buttons[0]?.trigger("click");
+    await flushPromises();
     expect(wrapper.get(".count-bubble").text()).toContain("1 remaining");
-    expect(buttons[0]?.attributes("disabled")).toBeDefined();
-    expect(buttons[0]?.text()).toContain("Done for today");
+    expect(wrapper.findAll(".move-status").some((status) => status.text().includes("Done for today"))).toBe(true);
 
     wrapper.unmount();
   });
 
   it("selects labeled scene personas and updates the readable world state", async () => {
     const wrapper = await mountAt("/");
+    await flushPromises();
     const scenePersonaButtons = wrapper.findAll(".world-scene .persona-control");
     const personaButtons = wrapper.findAll(".world-readout button");
 
@@ -74,10 +79,12 @@ describe("Living Game world shell", () => {
 
   it("advances the accessible world summary after completing its recommended move", async () => {
     const wrapper = await mountAt("/");
+    await flushPromises();
     const summary = wrapper.get(".world-text-equivalent");
 
     expect(summary.text()).toContain("Choose the weekend groceries");
     await wrapper.get(".recommended-move .action-button").trigger("click");
+    await flushPromises();
     expect(summary.text()).toContain("Practice five travel phrases");
     expect(summary.text()).not.toContain("Choose the weekend groceries");
 

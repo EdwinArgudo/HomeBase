@@ -40,18 +40,22 @@ test("wires deterministic ignored Vue preview assets into the root build", async
   assert.match(eslintConfig, /public\/living-game-preview\/\*\*/);
 });
 
-test("uses the living-game router base and identifies fixture data without weakening privacy copy", async () => {
-  const [router, previewConfig, app, displayView] = await Promise.all([
+test("uses the living-game router base and identifies live moves inside the fixture world", async () => {
+  const [router, previewConfig, app, api, displayView] = await Promise.all([
     source("apps/living-game/src/client/router.ts"),
     source("apps/living-game/vite.preview.config.ts"),
     source("apps/living-game/src/client/App.vue"),
+    source("apps/living-game/src/client/api/dailyMoves.ts"),
     source("apps/living-game/src/client/views/DisplayView.vue"),
   ]);
 
   assert.match(router, /createWebHistory\(import\.meta\.env\.VITE_ROUTER_BASE/);
   assert.match(previewConfig, /VITE_ROUTER_BASE.*"\/living-game\/"/s);
+  assert.match(previewConfig, /VITE_LIVE_MOVES.*"true"/s);
   assert.match(app, />Preview</);
-  assert.match(app, />Fixture data</);
+  assert.match(app, /Live moves · Preview world/);
+  assert.match(api, /\/api\/game\/moves\?date=/);
+  assert.doesNotMatch(api, /dailyMoveFixtures/);
   assert.match(app, /href="\/"/);
   assert.match(app, />Current Homebase</);
   assert.match(displayView, /No personal or financial details are shown/);

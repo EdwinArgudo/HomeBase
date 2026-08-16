@@ -5,6 +5,7 @@ export default defineConfig({
   base: "/living-game-preview/",
   define: {
     "import.meta.env.VITE_ROUTER_BASE": JSON.stringify("/living-game/"),
+    "import.meta.env.VITE_LIVE_MOVES": JSON.stringify("true"),
   },
   plugins: [vue()],
   build: {
