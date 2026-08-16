@@ -1,13 +1,13 @@
-import { companionActivityV1 } from "@homebase/domain-game";
+import { companionActivityV1, isEmblemRewardKeyV1 } from "@homebase/domain-game";
 import {
   parsePersonaAppearance,
   parseWorldProjection,
-  REWARD_KEYS_V1,
   type RewardKeyV1,
   type WorldProjectionV1,
 } from "@homebase/contracts";
 
 import type { HouseholdContext } from "../household/types.ts";
+import { furnishingItems, materializeHouseholdFurnishings } from "./furnishings.ts";
 import { createManualPersonaManifest } from "../personas/service.ts";
 
 type WorldPersonaRow = {
@@ -47,7 +47,7 @@ const POSITIONS = [
 ] as const;
 
 function knownRewardKey(value: string | null): RewardKeyV1 | null {
-  return REWARD_KEYS_V1.includes(value as RewardKeyV1) ? value as RewardKeyV1 : null;
+  return isEmblemRewardKeyV1(value) ? value : null;
 }
 
 export async function loadMemberWorldProjection(
@@ -96,6 +96,8 @@ export async function loadMemberWorldProjection(
     )
     .all<WorldPersonaRow>();
 
+  const furnishings = await materializeHouseholdFurnishings(context);
+
   const personas = result.results.map((row, index) => {
     const activity = companionActivityV1({ generatedAt, lastCompletion: lastCompletion(row) });
     return {
@@ -121,7 +123,7 @@ export async function loadMemberWorldProjection(
     generatedAt,
     scene: { key: "homebase-apartment", theme: "calm-morning" },
     personas,
-    items: [],
+    items: furnishingItems(furnishings, "household"),
     adventures: [],
   });
 }
@@ -159,6 +161,8 @@ export async function loadDisplayWorldProjection(
     .bind(context.member.household_id)
     .all<DisplayPersonaRow>();
 
+  const furnishings = await materializeHouseholdFurnishings(context);
+
   const personas = result.results.map((row, index) => {
     const celebrating = row.last_celebrated_at !== null
       && companionActivityV1({ generatedAt, lastCompletion: { family: "tend", occurredAt: row.last_celebrated_at } }) === "celebrate";
@@ -187,7 +191,9 @@ export async function loadDisplayWorldProjection(
     generatedAt,
     scene: { key: "homebase-apartment", theme: "calm-morning" },
     personas,
-    items: [],
+    // Furniture says nothing about anyone, so the wall display shows the room
+    // exactly as the household earned it.
+    items: furnishingItems(furnishings, "display"),
     adventures: [],
   });
 }

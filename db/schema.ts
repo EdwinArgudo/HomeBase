@@ -283,6 +283,21 @@ export const personaUnlocks = sqliteTable("persona_unlocks", {
   check("persona_unlocks_policy_version_check", sql`${table.policyVersion} = 1`),
 ]);
 
+export const householdUnlocks = sqliteTable("household_unlocks", {
+  id: text("id").primaryKey(),
+  householdId: text("household_id").notNull().references(() => households.id),
+  rewardKey: text("reward_key").notNull(),
+  catalogVersion: integer("catalog_version").notNull().default(1),
+  policyVersion: integer("policy_version").notNull().default(1),
+  sourceEventId: text("source_event_id").notNull().references(() => gameEvents.id),
+  unlockedAt: text("unlocked_at").notNull(),
+}, (table) => [
+  uniqueIndex("idx_household_unlocks_household_reward").on(table.householdId, table.rewardKey),
+  index("idx_household_unlocks_household").on(table.householdId, table.unlockedAt),
+  check("household_unlocks_catalog_version_check", sql`${table.catalogVersion} = 1`),
+  check("household_unlocks_policy_version_check", sql`${table.policyVersion} = 1`),
+]);
+
 export const progressBalances = sqliteTable("progress_balances", {
   id: text("id").primaryKey(),
   householdId: text("household_id").notNull().references(() => households.id),

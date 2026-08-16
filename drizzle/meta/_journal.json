@@ -85,6 +85,13 @@
       "when": 1786855715707,
       "tag": "0011_character_roster",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1786897528023,
+      "tag": "0012_white_polaris",
+      "breakpoints": true
     }
   ]
 }

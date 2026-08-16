@@ -27,13 +27,13 @@ const accessory = computed(() => look.value.accessory);
 const asleep = computed(() => props.persona.activity === "rest");
 const cheerful = computed(() => props.persona.activity === "celebrate");
 
-const emblemLabels = {
+const emblemLabels: Record<string, string> = {
   "first-tend": "Steady Hands",
   "first-move": "Gentle Motion",
   "first-grow": "New Leaf",
   "first-connect": "Warm Hello",
   "first-household": "Shared Spark",
-} as const;
+};
 
 const emblemSuffix = computed(() => {
   const emblem = props.persona.equippedRewardKey;

@@ -2,7 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  FURNISHING_PLACEMENTS_V1,
+  FURNISHING_REWARDS_V1,
   companionActivityV1,
+  unlockedFurnishingsV1,
   completedMoveEventV1,
   completionAwardV1,
   levelForLifetimePointsV1,
@@ -11,22 +14,42 @@ import {
   selectDailyMovesV1,
 } from "../index.ts";
 
-test("reward policy v1 has an exact stable permanent-emblem catalog", () => {
+test("reward policy v1 has an exact stable catalog of emblems and furnishings", () => {
   assert.deepEqual(REWARD_CATALOG_V1.map(({ key, dimension, thresholdPoints, kind }) => ({ key, dimension, thresholdPoints, kind })), [
     { key: "first-tend", dimension: "tend", thresholdPoints: 10, kind: "emblem" },
     { key: "first-move", dimension: "move", thresholdPoints: 10, kind: "emblem" },
     { key: "first-grow", dimension: "grow", thresholdPoints: 10, kind: "emblem" },
     { key: "first-connect", dimension: "connect", thresholdPoints: 10, kind: "emblem" },
     { key: "first-household", dimension: "household", thresholdPoints: 4, kind: "emblem" },
+    { key: "home-lamp", dimension: "household", thresholdPoints: 8, kind: "furnishing" },
+    { key: "home-art", dimension: "household", thresholdPoints: 20, kind: "furnishing" },
+    { key: "home-cushion", dimension: "household", thresholdPoints: 40, kind: "furnishing" },
+    { key: "home-lights", dimension: "household", thresholdPoints: 70, kind: "furnishing" },
   ]);
+
+  // Every furnishing has somewhere to stand, or the home would earn an item it
+  // cannot show.
+  for (const reward of FURNISHING_REWARDS_V1) {
+    assert.ok(FURNISHING_PLACEMENTS_V1[reward.key], `${reward.key} has a placement`);
+  }
+});
+
+test("furnishings unlock on household points and stay unlocked", () => {
+  assert.deepEqual(unlockedFurnishingsV1(0).map((reward) => reward.key), []);
+  assert.deepEqual(unlockedFurnishingsV1(7).map((reward) => reward.key), []);
+  assert.deepEqual(unlockedFurnishingsV1(8).map((reward) => reward.key), ["home-lamp"]);
+  assert.deepEqual(unlockedFurnishingsV1(45).map((reward) => reward.key), ["home-lamp", "home-art", "home-cushion"]);
+  assert.deepEqual(unlockedFurnishingsV1(9_999).map((reward) => reward.key),
+    FURNISHING_REWARDS_V1.map((reward) => reward.key));
 });
 
 test("reward eligibility uses exact thresholds and deterministic catalog order", () => {
   const below = { tend: 9, move: 0, grow: 0, connect: 0, household: 3 };
   assert.deepEqual(eligibleRewardsV1(below), []);
-  const at = { tend: 10, move: 10, grow: 10, connect: 10, household: 4 };
+  // Household points high enough for every furnishing keeps the order stable.
+  const at = { tend: 10, move: 10, grow: 10, connect: 10, household: 70 };
   const first = eligibleRewardsV1(at);
-  const second = eligibleRewardsV1({ household: 4, connect: 10, grow: 10, move: 10, tend: 10 });
+  const second = eligibleRewardsV1({ household: 70, connect: 10, grow: 10, move: 10, tend: 10 });
   assert.deepEqual(first.map((reward) => reward.key), REWARD_CATALOG_V1.map((reward) => reward.key));
   assert.deepEqual(second, first);
   assert.deepEqual(eligibleRewardsV1({ ...at, tend: 999 }), first);

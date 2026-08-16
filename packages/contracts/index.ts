@@ -40,8 +40,12 @@ export const PERSONA_CHARACTERS = [
   "moss-bunny",
   "dusk-cat",
 ] as const;
-export const REWARD_KINDS = ["emblem"] as const;
-export const REWARD_KEYS_V1 = ["first-tend", "first-move", "first-grow", "first-connect", "first-household"] as const;
+export const REWARD_KINDS = ["emblem", "furnishing"] as const;
+export const REWARD_KEYS_V1 = [
+  "first-tend", "first-move", "first-grow", "first-connect", "first-household",
+  // Furnishings the household earns together, which appear in the home itself.
+  "home-lamp", "home-art", "home-cushion", "home-lights",
+] as const;
 
 export type OwnershipType = typeof OWNERSHIP_TYPES[number];
 export type Visibility = typeof VISIBILITIES[number];

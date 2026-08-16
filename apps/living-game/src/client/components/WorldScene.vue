@@ -37,6 +37,15 @@ defineEmits<{
         <div class="world-table" />
       </div>
 
+      <div
+        v-for="item in world.items"
+        :key="item.id"
+        class="world-item"
+        :class="`world-item--${item.catalogKey}`"
+        :style="{ left: `${item.x}%`, top: `${item.y}%`, zIndex: item.zIndex }"
+        aria-hidden="true"
+      ><span /><span /></div>
+
       <PersonaSprite
         v-for="(persona, index) in world.personas"
         :key="persona.id"

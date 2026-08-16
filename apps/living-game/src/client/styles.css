@@ -2509,3 +2509,174 @@ summary:focus-visible,
   font-size: 0.88rem;
   text-align: center;
 }
+
+/* Furnishings the household earned. Each one is placed by the projection, so
+   the same unlocks always produce the same room. */
+.world-item {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.world-item--corner-lamp {
+  width: 2.6rem;
+  height: 5rem;
+}
+
+.world-item--corner-lamp span:first-child {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 2.4rem;
+  height: 1.6rem;
+  background: linear-gradient(180deg, #fbe6b4, #f0c874);
+  border-radius: 0.6rem 0.6rem 0.9rem 0.9rem;
+  box-shadow: 0 0.5rem 1.6rem rgb(240 200 116 / 55%);
+  transform: translateX(-50%);
+}
+
+.world-item--corner-lamp span:last-child {
+  position: absolute;
+  top: 1.5rem;
+  left: 50%;
+  width: 0.28rem;
+  height: 3.4rem;
+  background: #b9a184;
+  border-radius: 0.2rem;
+  transform: translateX(-50%);
+}
+
+.world-item--framed-print {
+  width: 3.4rem;
+  height: 2.6rem;
+  background: #fdf7ec;
+  border: 0.28rem solid #cbb08f;
+  border-radius: 0.2rem;
+  box-shadow: var(--lift-1);
+}
+
+.world-item--framed-print span:first-child {
+  position: absolute;
+  right: 0.35rem;
+  bottom: 0.3rem;
+  left: 0.35rem;
+  height: 0.9rem;
+  background: #bcdcee;
+  border-radius: 0.15rem;
+}
+
+.world-item--framed-print span:last-child {
+  position: absolute;
+  top: 0.35rem;
+  left: 0.5rem;
+  width: 0.7rem;
+  height: 0.7rem;
+  background: var(--accent-warm);
+  border-radius: 50%;
+}
+
+.world-item--floor-cushion {
+  width: 3.2rem;
+  height: 1.5rem;
+  background: #e9b6bf;
+  border-radius: 50%;
+  box-shadow: inset 0 -0.2rem 0 rgb(74 59 50 / 10%);
+}
+
+.world-item--floor-cushion span {
+  display: none;
+}
+
+.world-item--string-lights {
+  width: 78%;
+  height: 1.6rem;
+  background:
+    radial-gradient(circle at 10% 60%, var(--accent-warm) 0.18rem, transparent 0.2rem),
+    radial-gradient(circle at 30% 85%, var(--accent-rose) 0.18rem, transparent 0.2rem),
+    radial-gradient(circle at 50% 95%, var(--accent-warm) 0.18rem, transparent 0.2rem),
+    radial-gradient(circle at 70% 85%, var(--accent-cool) 0.18rem, transparent 0.2rem),
+    radial-gradient(circle at 90% 60%, var(--accent-warm) 0.18rem, transparent 0.2rem);
+  border-top: 0.12rem solid rgb(74 59 50 / 25%);
+  border-radius: 0 0 50% 50% / 0 0 100% 100%;
+}
+
+.world-item--string-lights span {
+  display: none;
+}
+
+/* Furnishings live in the home, so the shelf shows them as a place rather than
+   as another row of locked slots. */
+.furnishing-shelf {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  padding-top: 1.2rem;
+  margin-top: 0.4rem;
+  border-top: 1px solid var(--line);
+}
+
+.furnishing-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+  gap: 0.6rem;
+}
+
+.furnishing-list li {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.6rem 0.75rem;
+  background: var(--surface-sunk, #f5f0e8);
+  border-radius: var(--radius-sm);
+  opacity: 0.62;
+}
+
+.furnishing-list li.furnishing--earned {
+  background: var(--accent-soft);
+  opacity: 1;
+}
+
+.furnishing-list div {
+  display: grid;
+  gap: 0.05rem;
+  min-width: 0;
+}
+
+.furnishing-list strong {
+  font-size: 0.9rem;
+}
+
+.furnishing-list span {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.furnishing-list b {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.furnishing--earned b {
+  color: var(--accent-deep);
+}
+
+.furnishing-mark {
+  flex: 0 0 auto;
+  width: 1.9rem;
+  height: 1.9rem;
+  background: var(--paper);
+  border-radius: 0.5rem;
+}
+
+.furnishing-mark--home-lamp { background: radial-gradient(circle at 50% 35%, #fbe6b4, #f0c874); }
+.furnishing-mark--home-art { background: linear-gradient(160deg, #fdf7ec 55%, #bcdcee 55%); }
+.furnishing-mark--home-cushion { background: radial-gradient(circle at 50% 60%, #e9b6bf, #d896a3); }
+.furnishing-mark--home-lights { background: linear-gradient(90deg, var(--accent-warm), var(--accent-rose), var(--accent-cool)); }
+
+.furnishing-note {
+  color: var(--muted);
+  font-size: 0.8rem;
+}

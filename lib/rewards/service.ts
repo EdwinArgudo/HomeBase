@@ -1,5 +1,4 @@
 import {
-  REWARD_KEYS_V1,
   parseRewardEquipInput,
   parseRewardSnapshot,
   type ProgressDimension,
@@ -9,6 +8,7 @@ import {
 } from "@homebase/contracts";
 import {
   REWARD_CATALOG_V1,
+  isEmblemRewardKeyV1,
   REWARD_CATALOG_VERSION,
   REWARD_POLICY_VERSION,
   eligibleRewardsV1,
@@ -35,7 +35,7 @@ export function parseStoredActiveLoadout(input: string): RewardKeyV1 | null {
   const keys = Object.keys(record);
   if (keys.length === 0) return null;
   if (keys.length !== 1 || keys[0] !== "emblem") return null;
-  return REWARD_KEYS_V1.includes(record.emblem as RewardKeyV1) ? record.emblem as RewardKeyV1 : null;
+  return isEmblemRewardKeyV1(record.emblem) ? record.emblem : null;
 }
 
 function zeroTotals(): RewardPointTotalsV1 {
@@ -187,6 +187,10 @@ export async function equipCurrentPersonaReward(
     .first<PersonaLoadoutRow>();
   if (!persona) throw new HttpError(404, "Create your persona before equipping a reward.");
 
+  // A furnishing lives in the home and can never be worn.
+  if (request.rewardKey !== null && !isEmblemRewardKeyV1(request.rewardKey)) {
+    throw new HttpError(409, "That reward belongs to your home, not your companion.");
+  }
   if (request.rewardKey !== null) {
     const unlock = await context.db.prepare(`SELECT reward_key
       FROM persona_unlocks

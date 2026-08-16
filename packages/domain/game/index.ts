@@ -12,6 +12,7 @@ import {
   type PersonaActivityState,
   type ProgressDimension,
   type RewardDefinitionV1,
+  type RewardKeyV1,
   type Visibility,
 } from "@homebase/contracts";
 
@@ -30,7 +31,43 @@ export const REWARD_CATALOG_V1: readonly RewardDefinitionV1[] = Object.freeze(([
   { catalogVersion: 1, key: "first-grow", kind: "emblem", title: "New Leaf", description: "A first moment invested in learning and growth.", dimension: "grow", thresholdPoints: 10 },
   { catalogVersion: 1, key: "first-connect", kind: "emblem", title: "Warm Hello", description: "A first intentional moment of connection.", dimension: "connect", thresholdPoints: 10 },
   { catalogVersion: 1, key: "first-household", kind: "emblem", title: "Shared Spark", description: "A first shared move that helped the household together.", dimension: "household", thresholdPoints: 4 },
+  { catalogVersion: 1, key: "home-lamp", kind: "furnishing", title: "Corner Lamp", description: "A warm light for the evenings you spend in.", dimension: "household", thresholdPoints: 8 },
+  { catalogVersion: 1, key: "home-art", kind: "furnishing", title: "Framed Print", description: "Something on the wall that is yours.", dimension: "household", thresholdPoints: 20 },
+  { catalogVersion: 1, key: "home-cushion", kind: "furnishing", title: "Floor Cushion", description: "Somewhere soft to land.", dimension: "household", thresholdPoints: 40 },
+  { catalogVersion: 1, key: "home-lights", kind: "furnishing", title: "String Lights", description: "The room feels like a celebration now.", dimension: "household", thresholdPoints: 70 },
 ] satisfies RewardDefinitionV1[]).map((reward) => Object.freeze(reward)));
+
+/**
+ * Where each earned furnishing sits. Placement is fixed so the home looks the
+ * same to both members and rebuilds identically from the same unlocks.
+ */
+export const FURNISHING_PLACEMENTS_V1 = Object.freeze({
+  "home-lamp": { catalogKey: "corner-lamp", zone: "living-room", x: 62, y: 50, zIndex: 2 },
+  "home-art": { catalogKey: "framed-print", zone: "living-room", x: 40, y: 22, zIndex: 1 },
+  "home-cushion": { catalogKey: "floor-cushion", zone: "living-room", x: 16, y: 82, zIndex: 3 },
+  "home-lights": { catalogKey: "string-lights", zone: "living-room", x: 50, y: 8, zIndex: 1 },
+} as const);
+
+export const FURNISHING_REWARDS_V1: readonly RewardDefinitionV1[] = Object.freeze(
+  REWARD_CATALOG_V1.filter((reward) => reward.kind === "furnishing"),
+);
+
+/** Only emblems are worn by a companion; furnishings belong to the home. */
+export const EMBLEM_REWARD_KEYS_V1: readonly RewardKeyV1[] = Object.freeze(
+  REWARD_CATALOG_V1.filter((reward) => reward.kind === "emblem").map((reward) => reward.key),
+);
+
+export function isEmblemRewardKeyV1(value: unknown): value is RewardKeyV1 {
+  return EMBLEM_REWARD_KEYS_V1.includes(value as RewardKeyV1);
+}
+
+/** Furnishings the household has earned, in catalogue order. */
+export function unlockedFurnishingsV1(householdPoints: number): readonly RewardDefinitionV1[] {
+  if (!Number.isSafeInteger(householdPoints) || householdPoints < 0) {
+    throw new RangeError("Household points must be a nonnegative safe integer.");
+  }
+  return FURNISHING_REWARDS_V1.filter((reward) => householdPoints >= reward.thresholdPoints);
+}
 
 function assertRewardPointTotals(input: RewardPointTotalsV1) {
   if (input === null || typeof input !== "object" || Array.isArray(input)) {

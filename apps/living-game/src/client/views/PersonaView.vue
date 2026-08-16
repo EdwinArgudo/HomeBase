@@ -36,6 +36,8 @@ const form = reactive<{ displayName: string; visibility: "private" | "household"
   appearance: { character: "marshmallow" },
 });
 const dirty = ref(false);
+const emblemRewards = computed(() => (rewardSnapshot.value?.rewards ?? []).filter((entry) => entry.reward.kind === "emblem"));
+const furnishingRewards = computed(() => (rewardSnapshot.value?.rewards ?? []).filter((entry) => entry.reward.kind === "furnishing"));
 const characterNames = Object.fromEntries(
   Object.entries(CHARACTER_LOOKS).map(([key, value]) => [key, value.name]),
 ) as Record<string, string>;
@@ -142,7 +144,7 @@ onMounted(() => void rewardsStore.ensureLoaded(true));
 
     <section class="reward-shelf" aria-labelledby="reward-shelf-heading">
       <div class="section-heading-row">
-        <div><p class="eyebrow">Permanent emblems · live rewards</p><h2 id="reward-shelf-heading">Reward Shelf</h2></div>
+        <div><p class="eyebrow">Kept forever</p><h2 id="reward-shelf-heading">Reward Shelf</h2></div>
         <span v-if="rewardLoadState === 'ready' && rewardSnapshot">{{ rewardSnapshot.rewards.filter((entry) => entry.unlockedAt).length }}/{{ rewardSnapshot.rewards.length }} unlocked</span>
       </div>
       <div v-if="rewardLoadState === 'idle' || rewardLoadState === 'loading'" class="reward-state" role="status" aria-live="polite">Loading your rewards…</div>
@@ -151,7 +153,7 @@ onMounted(() => void rewardsStore.ensureLoaded(true));
       </div>
       <p v-else-if="rewardSnapshot?.personaId === null" class="reward-state">Create a persona to begin keeping permanent rewards.</p>
       <ul v-else class="reward-list">
-        <li v-for="entry in rewardSnapshot?.rewards ?? []" :key="entry.reward.key" :class="{ 'reward-entry--unlocked': entry.unlockedAt }">
+        <li v-for="entry in emblemRewards" :key="entry.reward.key" :class="{ 'reward-entry--unlocked': entry.unlockedAt }">
           <span class="reward-emblem" aria-hidden="true">✦</span>
           <div><strong>{{ entry.reward.title }}</strong><span>{{ entry.reward.description }}</span></div>
           <template v-if="!entry.unlockedAt">
@@ -176,6 +178,21 @@ onMounted(() => void rewardsStore.ensureLoaded(true));
           >{{ rewardActionState === "equipping" ? "Updating…" : "Equip" }}</button>
         </li>
       </ul>
+      <div v-if="furnishingRewards.length > 0" class="furnishing-shelf">
+        <p class="eyebrow">Your home</p>
+        <ul class="furnishing-list">
+          <li v-for="entry in furnishingRewards" :key="entry.reward.key" :class="{ 'furnishing--earned': entry.unlockedAt }">
+            <span class="furnishing-mark" :class="`furnishing-mark--${entry.reward.key}`" aria-hidden="true" />
+            <div>
+              <strong>{{ entry.reward.title }}</strong>
+              <span>{{ entry.reward.description }}</span>
+            </div>
+            <b>{{ entry.unlockedAt ? "In your home" : `${Math.min(entry.currentPoints, entry.reward.thresholdPoints)}/${entry.reward.thresholdPoints}` }}</b>
+          </li>
+        </ul>
+        <p class="furnishing-note">Furnishings arrive from shared moves and stay in the home for good.</p>
+      </div>
+
       <p class="reward-action-feedback" :class="{ 'reward-action-feedback--error': rewardActionError }" :role="rewardActionError ? 'alert' : 'status'" aria-live="polite">{{ rewardActionError || rewardFeedback }}</p>
     </section>
 
