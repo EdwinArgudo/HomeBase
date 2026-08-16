@@ -138,10 +138,15 @@ export function resetLocalDatabase() {
 }
 
 const command = process.argv[2];
+const invokedDirectly = process.argv[1]?.endsWith("local-database.mjs") === true;
 try {
-  if (command === "migrate") await applyLocalMigrations();
-  else if (command === "reset") resetLocalDatabase();
-  else throw new Error("Usage: node scripts/local-database.mjs <migrate|reset>");
+  if (!invokedDirectly) {
+    // Imported for its helpers, not run as a command.
+  } else {
+    if (command === "migrate") await applyLocalMigrations();
+    else if (command === "reset") resetLocalDatabase();
+    else throw new Error("Usage: node scripts/local-database.mjs <migrate|reset>");
+  }
 } catch (error) {
   console.error(`\n${error.message}\n`);
   process.exitCode = 1;

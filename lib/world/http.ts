@@ -1,4 +1,5 @@
 import { HttpError } from "../auth/identity.ts";
+import { withTelemetry } from "../observability/telemetry.ts";
 import type { HouseholdContext } from "../household/types.ts";
 import { loadDisplayWorldProjection, loadMemberWorldProjection } from "./service.ts";
 
@@ -11,7 +12,9 @@ export function createWorldGetHandler(dependencies: {
   return async function GET(request: Request) {
     try {
       const context = await dependencies.requireMember(request);
-      return Response.json(await loadWorld(context, dependencies.generatedAt()));
+      const projection = await withTelemetry("world.projected", () => ({ viewer: "member" }),
+        () => loadWorld(context, dependencies.generatedAt()));
+      return Response.json(projection);
     } catch (error) {
       const safe = error instanceof HttpError;
       return Response.json(
@@ -31,7 +34,9 @@ export function createDisplayWorldGetHandler(dependencies: {
   return async function GET(request: Request) {
     try {
       const context = await dependencies.requireMember(request);
-      return Response.json(await loadDisplayWorld(context, dependencies.generatedAt()));
+      const projection = await withTelemetry("world.projected", () => ({ viewer: "display" }),
+        () => loadDisplayWorld(context, dependencies.generatedAt()));
+      return Response.json(projection);
     } catch (error) {
       const safe = error instanceof HttpError;
       return Response.json(

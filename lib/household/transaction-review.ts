@@ -1,5 +1,6 @@
 import { HttpError } from "../auth/identity.ts";
 import { isUnownedOrOwned, normalizeMerchantName, ownsPersonalRecord } from "./authorization.ts";
+import { auditEventStatement } from "../observability/audit.ts";
 
 export async function editableTransaction(db: D1Database, householdId: string, memberId: string, id: string) {
   const transaction = await db.prepare(`SELECT t.id, t.merchant_name, t.amount_cents, t.personal_member_id, a.owner_member_id AS account_owner_id, a.ownership_type AS account_ownership_type
@@ -43,8 +44,14 @@ export async function prepareTransactionReviewStatements(
     ? [moveGuard.moveId, member.household_id, moveGuard.memberId, id]
     : [];
   const statements: D1PreparedStatement[] = [
-    db.prepare(`DELETE FROM transaction_splits WHERE transaction_id = ? ${activeMoveSql}`)
-      .bind(id, ...activeMoveValues),
+    db.prepare(`DELETE FROM transaction_splits
+      WHERE transaction_id = ?
+        AND EXISTS (
+          SELECT 1 FROM transactions owning_transaction
+          WHERE owning_transaction.id = transaction_splits.transaction_id
+            AND owning_transaction.household_id = ?
+        ) ${activeMoveSql}`)
+      .bind(id, member.household_id, ...activeMoveValues),
     db.prepare(`UPDATE transactions SET spending_type = ?, personal_member_id = ?, category_id = ?, review_status = 'ready'
       WHERE id = ? AND household_id = ? AND review_status = 'needs_review'
         AND (personal_member_id IS NULL OR personal_member_id = ?)
@@ -139,9 +146,23 @@ export async function prepareTransferStatements(
   isTransfer: boolean,
 ) {
   await editableTransaction(db, member.household_id, member.id, id);
-  const statements: D1PreparedStatement[] = [];
+  const statements: D1PreparedStatement[] = [auditEventStatement(db, {
+    householdId: member.household_id,
+    memberId: member.id,
+    action: "transaction.reclassified",
+    subjectType: "transaction",
+    subjectId: id,
+    metadata: { isTransfer },
+    occurredAt: new Date().toISOString(),
+  })];
   if (isTransfer) {
-    statements.push(db.prepare("DELETE FROM transaction_splits WHERE transaction_id = ?").bind(id));
+    statements.push(db.prepare(`DELETE FROM transaction_splits
+      WHERE transaction_id = ?
+        AND EXISTS (
+          SELECT 1 FROM transactions owning_transaction
+          WHERE owning_transaction.id = transaction_splits.transaction_id
+            AND owning_transaction.household_id = ?
+        )`).bind(id, member.household_id));
     statements.push(db.prepare(`UPDATE transactions
       SET is_transfer = 1, category_id = NULL, review_status = 'ready'
       WHERE id = ? AND household_id = ?`).bind(id, member.household_id));

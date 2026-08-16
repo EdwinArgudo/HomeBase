@@ -15,6 +15,7 @@ import {
 } from "@homebase/contracts";
 
 import { HttpError } from "../auth/identity.ts";
+import { auditEventStatement } from "../observability/audit.ts";
 import type { HouseholdContext } from "../household/types.ts";
 
 const BASE_STYLE_VERSION = "homebase-pixel-v1";
@@ -155,7 +156,19 @@ export async function saveManualPersona(
   }
   const personaId = options.createId();
   const appearanceJson = JSON.stringify(draft.appearance);
+  const visibilityChanged = existing !== null && existing.visibility !== draft.visibility;
   await context.db.batch([
+    ...(visibilityChanged
+      ? [auditEventStatement(context.db, {
+        householdId: context.member.household_id,
+        memberId: context.member.id,
+        action: "persona.visibility_changed",
+        subjectType: "persona",
+        subjectId: existing.id,
+        metadata: { visibility: draft.visibility },
+        occurredAt: options.updatedAt,
+      })]
+      : []),
     context.db.prepare(`INSERT OR IGNORE INTO personas (
       id, household_id, member_id, display_name, creation_method, status,
       base_style_version, appearance_json, active_loadout_json, visibility,

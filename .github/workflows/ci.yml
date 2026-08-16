@@ -35,4 +35,7 @@ jobs:
 
       - run: npm run type-check
 
+      # Household scoping is a data-model rule, so it is checked, not assumed.
+      - run: npm run check:scoping
+
       - run: npm test

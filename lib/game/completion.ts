@@ -2,6 +2,7 @@ import { completedMoveEventV1 } from "@homebase/domain-game";
 import type { DailyMoveV1 } from "@homebase/contracts";
 
 import { HttpError } from "../auth/identity.ts";
+import { recordTelemetry } from "../observability/telemetry.ts";
 import { prepareTransactionReviewStatements } from "../household/transaction-review.ts";
 import type { HouseholdContext } from "../household/types.ts";
 import {
@@ -414,6 +415,12 @@ export async function completeDailyMove(
     stored.move.family,
     stored.move.ownership === "shared",
   );
+  recordTelemetry("daily_move.completed", {
+    family: stored.move.family,
+    source: stored.move.source.type,
+    reason: stored.move.selectionReasonCode,
+    ok: result.move.status === "complete",
+  });
   if (result.move.status !== "complete" || !result.event) {
     throw new HttpError(409, "The move could not be completed. Refresh and try again.");
   }

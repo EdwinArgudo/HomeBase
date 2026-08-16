@@ -35,7 +35,13 @@ export async function splitTransaction(request: Request, id: string, splits: Arr
   });
   const spendingTypes = new Set(parts.map((part) => part.category.ownership_type));
   const singleType = spendingTypes.size === 1 ? parts[0].category.ownership_type : null;
-  const statements: D1PreparedStatement[] = [db.prepare("DELETE FROM transaction_splits WHERE transaction_id = ?").bind(id)];
+  const statements: D1PreparedStatement[] = [db.prepare(`DELETE FROM transaction_splits
+      WHERE transaction_id = ?
+        AND EXISTS (
+          SELECT 1 FROM transactions owning_transaction
+          WHERE owning_transaction.id = transaction_splits.transaction_id
+            AND owning_transaction.household_id = ?
+        )`).bind(id, member.household_id)];
   for (const part of parts) {
     statements.push(db.prepare("INSERT INTO transaction_splits (id, transaction_id, category_id, spending_type, personal_member_id, amount_cents) VALUES (?, ?, ?, ?, ?, ?)")
       .bind(crypto.randomUUID(), id, part.categoryId, part.category.ownership_type, part.personalMemberId, part.amountCents));

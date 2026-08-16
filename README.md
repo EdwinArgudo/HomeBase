@@ -79,5 +79,10 @@ clients are selected by the `VITE_LIVE_*` flags, which only
 | `npm run lint` / `npm run lint:living-game` | ESLint for the root app and the Vue app |
 | `npm run type-check` | `vue-tsc` over the Vue app |
 | `npm run build` | The deployable build |
+| `npm run check:scoping` | Every query touching household data scopes it |
+| `npm run db:backup:local` / `db:restore:local` | Local backup and a restore you can rehearse |
+
+`docs/OPERATIONS.md` covers the audit trail, telemetry and backups.
+`docs/PRIVACY_REVIEW.md` records what has been checked and what is accepted.
 
 CI runs the same commands on every push and pull request.

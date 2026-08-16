@@ -7,6 +7,7 @@ import {
   type MoveCandidate,
 } from "@homebase/domain-game";
 
+import { recordTelemetry } from "../observability/telemetry.ts";
 import {
   expireStaleDailyMoves,
   insertDailyMoveSnapshot,
@@ -40,6 +41,7 @@ export async function getOrCreateDailyMoveSnapshot(
   scope: DailyMoveScope,
   policy: DailyMoveSnapshotPolicy,
 ) {
+  const startedAt = Date.now();
   const existing = await readDailyMoveSnapshot(db, scope);
   if (existing.length > 0) return existing;
 
@@ -74,5 +76,13 @@ export async function getOrCreateDailyMoveSnapshot(
 
   // Re-read even after this request inserted. INSERT OR IGNORE plus the unique
   // member/date/slot key makes concurrent selectors converge on one snapshot.
-  return readDailyMoveSnapshot(db, scope);
+  const materialized = await readDailyMoveSnapshot(db, scope);
+  recordTelemetry("daily_moves.materialized", {
+    durationMs: Date.now() - startedAt,
+    candidates: candidates.length,
+    selected: materialized.length,
+    minimumMode,
+    comeback: returning,
+  });
+  return materialized;
 }

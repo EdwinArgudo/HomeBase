@@ -283,6 +283,29 @@ export const personaUnlocks = sqliteTable("persona_unlocks", {
   check("persona_unlocks_policy_version_check", sql`${table.policyVersion} = 1`),
 ]);
 
+export const auditEvents = sqliteTable("audit_events", {
+  id: text("id").primaryKey(),
+  householdId: text("household_id").notNull().references(() => households.id),
+  memberId: text("member_id").references(() => members.id),
+  action: text("action", {
+    enum: [
+      "invitation.saved",
+      "persona.visibility_changed",
+      "bank_connection.created",
+      "budget_limits.changed",
+      "transaction.reclassified",
+    ],
+  }).notNull(),
+  subjectType: text("subject_type", { enum: ["invitation", "persona", "bank_connection", "budget", "transaction"] }).notNull(),
+  subjectId: text("subject_id").notNull(),
+  metadataJson: text("metadata_json").notNull().default("{}"),
+  occurredAt: text("occurred_at").notNull(),
+}, (table) => [
+  index("idx_audit_events_household_occurred").on(table.householdId, table.occurredAt),
+  index("idx_audit_events_household_action").on(table.householdId, table.action),
+  check("audit_events_metadata_json_check", sql`json_valid(${table.metadataJson})`),
+]);
+
 export const householdUnlocks = sqliteTable("household_unlocks", {
   id: text("id").primaryKey(),
   householdId: text("household_id").notNull().references(() => households.id),

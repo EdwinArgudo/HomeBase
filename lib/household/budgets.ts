@@ -1,5 +1,6 @@
 import { HttpError } from "../auth/identity";
 import { requireMember } from "./membership";
+import { auditEventStatement } from "../observability/audit.ts";
 import { currentBudgetMonth, monthBounds, shiftBudgetMonth, spendingByCategory } from "./spending.ts";
 
 export { currentBudgetMonth, monthBounds, shiftBudgetMonth, spendingByCategory };
@@ -93,6 +94,15 @@ export async function saveBudgetLimits(request: Request, month: string, changes:
   const statements: D1PreparedStatement[] = [];
   for (const change of changes) {
     const category = categories.get(change.id)!;
+    statements.push(auditEventStatement(db, {
+      householdId: member.household_id,
+      memberId: member.id,
+      action: "budget_limits.changed",
+      subjectType: "budget",
+      subjectId: change.id,
+      metadata: { month, rolloverEnabled: change.rolloverEnabled },
+      occurredAt: new Date().toISOString(),
+    }));
     const previous = previousBudgets.get(change.id);
     const previousAvailable = Number(previous?.limit_cents ?? category.monthly_limit_cents) + Number(previous?.rollover_cents ?? 0);
     const rolloverCents = change.rolloverEnabled ? Math.max(0, previousAvailable - (previousSpending.get(change.id) ?? 0)) : 0;
@@ -105,7 +115,10 @@ export async function saveBudgetLimits(request: Request, month: string, changes:
       .bind(crypto.randomUUID(), member.household_id, change.id, month, change.limitCents, rolloverCents));
   }
   const results = await db.batch(statements);
-  if (results.filter((_, index) => index % 2 === 0).some((result) => !result.meta.changes)) throw new HttpError(404, "One of those budget categories is no longer available.");
+  // Each change writes an audit row, the category update, then the month row.
+  if (results.filter((_, index) => index % 3 === 1).some((result) => !result.meta.changes)) {
+    throw new HttpError(404, "One of those budget categories is no longer available.");
+  }
 }
 
 export async function createBudgetCategory(request: Request, input: { scope: "ours" | "mine"; name: string; limitCents: number; month: string }) {

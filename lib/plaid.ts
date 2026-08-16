@@ -1,4 +1,5 @@
 import { env } from "cloudflare:workers";
+import { auditEventStatement } from "./observability/audit.ts";
 import { householdDatabase, HttpError, normalizeMerchantName, requireHouseholdMember } from "./household";
 
 type Ownership = "ours" | "mine";
@@ -302,6 +303,17 @@ export async function exchangePlaidPublicToken(request: Request, input: { public
         updated_at = CURRENT_TIMESTAMP
       WHERE bank_connections.household_id = excluded.household_id`)
       .bind(connectionId, member.household_id, ownerMemberId, ownershipType, exchange.item_id, encryptedAccessToken, institutionName),
+    auditEventStatement(db, {
+      householdId: member.household_id,
+      memberId: member.id,
+      action: "bank_connection.created",
+      subjectType: "bank_connection",
+      subjectId: connectionId,
+      // The institution name is the bank's, not the person's, but it is still
+      // not needed to know that a connection was added.
+      metadata: { ownership: ownershipType, accounts: accountData.accounts.length },
+      occurredAt: new Date().toISOString(),
+    }),
   ];
   for (const account of accountData.accounts) {
     statements.push(db.prepare(`INSERT INTO accounts
