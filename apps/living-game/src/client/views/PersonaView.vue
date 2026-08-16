@@ -1,10 +1,9 @@
 <script setup lang="ts">
 import {
-  PERSONA_ACCENTS,
-  PERSONA_HAIR_COLORS,
-  PERSONA_HAIR_STYLES,
-  PERSONA_OUTFITS,
-  PERSONA_SKIN_PALETTES,
+  PERSONA_ACCESSORIES,
+  PERSONA_PALETTES,
+  PERSONA_PATTERNS,
+  PERSONA_SPECIES,
   type PersonaAppearanceV1,
   type RewardKeyV1,
   type WorldPersonaV1,
@@ -36,7 +35,7 @@ const {
 const form = reactive<{ displayName: string; visibility: "private" | "household"; appearance: PersonaAppearanceV1 }>({
   displayName: "",
   visibility: "private",
-  appearance: { skinPalette: "warm", hairStyle: "short", hairColor: "espresso", outfit: "mint", accent: "none" },
+  appearance: { species: "marshmallow", palette: "cream", pattern: "plain", accessory: "none" },
 });
 const dirty = ref(false);
 const dimensionCopy = {
@@ -56,7 +55,7 @@ watch(persona, (current) => {
 const previewPersona = computed<WorldPersonaV1>(() => ({
   id: persona.value?.id ?? "persona-manual-preview",
   displayName: form.displayName.trim() || "Your persona",
-  altDescription: `Manual pixel persona preview for ${form.displayName.trim() || "the current member"}.`,
+  altDescription: `Companion preview for ${form.displayName.trim() || "the current member"}.`,
   visibility: form.visibility,
   activity: "idle",
   appearance: { ...form.appearance },
@@ -110,7 +109,7 @@ onMounted(() => void rewardsStore.ensureLoaded(true));
     <div v-else class="persona-layout">
       <section class="persona-card" aria-labelledby="persona-name">
         <div class="persona-stage">
-          <PersonaSprite :persona="previewPersona" :appearance="form.appearance" :variant="form.appearance.outfit" static />
+          <PersonaSprite :persona="previewPersona" :appearance="form.appearance" :variant="'mint'" static />
         </div>
         <div>
           <p class="eyebrow">Level {{ personaLevel }} · {{ personalTotalPoints }} total points</p>
@@ -187,11 +186,10 @@ onMounted(() => void rewardsStore.ensureLoaded(true));
       <div class="persona-builder__controls">
         <label>Display name<input v-model="form.displayName" maxlength="80" required @input="markDirty" /></label>
         <label>Visibility<select v-model="form.visibility" :disabled="persona?.status === 'ready'" @change="markDirty"><option value="private">Only me</option><option value="household">Household</option></select></label>
-        <label>Skin palette<select v-model="form.appearance.skinPalette" @change="markDirty"><option v-for="value in PERSONA_SKIN_PALETTES" :key="value" :value="value">{{ value }}</option></select></label>
-        <label>Hair style<select v-model="form.appearance.hairStyle" @change="markDirty"><option v-for="value in PERSONA_HAIR_STYLES" :key="value" :value="value">{{ value }}</option></select></label>
-        <label>Hair color<select v-model="form.appearance.hairColor" @change="markDirty"><option v-for="value in PERSONA_HAIR_COLORS" :key="value" :value="value">{{ value }}</option></select></label>
-        <label>Outfit<select v-model="form.appearance.outfit" @change="markDirty"><option v-for="value in PERSONA_OUTFITS" :key="value" :value="value">{{ value }}</option></select></label>
-        <label>Accent<select v-model="form.appearance.accent" @change="markDirty"><option v-for="value in PERSONA_ACCENTS" :key="value" :value="value">{{ value }}</option></select></label>
+        <label>Companion<select v-model="form.appearance.species" @change="markDirty"><option v-for="value in PERSONA_SPECIES" :key="value" :value="value">{{ value }}</option></select></label>
+        <label>Colour<select v-model="form.appearance.palette" @change="markDirty"><option v-for="value in PERSONA_PALETTES" :key="value" :value="value">{{ value }}</option></select></label>
+        <label>Markings<select v-model="form.appearance.pattern" @change="markDirty"><option v-for="value in PERSONA_PATTERNS" :key="value" :value="value">{{ value }}</option></select></label>
+        <label>Accessory<select v-model="form.appearance.accessory" @change="markDirty"><option v-for="value in PERSONA_ACCESSORIES" :key="value" :value="value">{{ value }}</option></select></label>
       </div>
       <div class="persona-builder__actions">
         <button type="submit" class="action-button action-button--primary" :disabled="actionState !== 'idle' || !form.displayName.trim()">{{ actionState === "saving" ? "Saving…" : "Save draft" }}</button>

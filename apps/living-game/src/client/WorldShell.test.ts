@@ -104,12 +104,12 @@ describe("Living Game world shell", () => {
     wrapper.unmount();
   });
 
-  it("makes the saved manual outfit control operable and stateful", async () => {
+  it("makes the saved companion colour control operable and stateful", async () => {
     const wrapper = await mountAt("/persona");
     await flushPromises();
-    const outfit = wrapper.findAll(".persona-builder label").find((label) => label.text().includes("Outfit"))!.get("select");
-    await outfit.setValue("berry");
-    expect(wrapper.get(".persona-stage .persona-anchor").classes()).toContain("persona-anchor--berry");
+    const colour = wrapper.findAll(".persona-builder label").find((label) => label.text().includes("Colour"))!.get("select");
+    await colour.setValue("blush");
+    expect(wrapper.get(".persona-stage .persona-anchor").classes()).toContain("persona-palette--blush");
     expect(wrapper.text()).toContain("Unsaved changes");
 
     wrapper.unmount();

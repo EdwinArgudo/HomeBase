@@ -23,7 +23,7 @@ defineEmits<{
     <div
       class="world-scene__panel"
       :role="displayMode ? 'img' : 'group'"
-      :aria-label="displayMode ? 'Shared pixel apartment scene' : 'Interactive pixel apartment scene'"
+      :aria-label="displayMode ? 'Shared household home' : 'Interactive household home'"
     >
       <div class="world-scene__wall" aria-hidden="true">
         <div class="world-window"><span class="world-window__sun" /></div>

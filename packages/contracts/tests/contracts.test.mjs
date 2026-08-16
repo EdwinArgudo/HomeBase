@@ -141,7 +141,7 @@ function validWorldProjection() {
         altDescription: "Edwin's pixel persona tending the household ledger.",
         visibility: "household",
         activity: "tend",
-        appearance: { skinPalette: "warm", hairStyle: "short", hairColor: "espresso", outfit: "mint", accent: "none" },
+        appearance: { species: "marshmallow", palette: "cream", pattern: "plain", accessory: "none" },
         equippedRewardKey: null,
         x: 35,
         y: 60,
@@ -175,7 +175,7 @@ function validPersonaProfile() {
     creationMethod: "manual",
     status: "ready",
     baseStyleVersion: "pixel-v1",
-    appearance: { skinPalette: "warm", hairStyle: "short", hairColor: "espresso", outfit: "mint", accent: "none" },
+    appearance: { species: "marshmallow", palette: "cream", pattern: "plain", accessory: "none" },
     visibility: "household",
     manifest: validPersonaManifest(),
     approvedAt: timestamp,
@@ -503,7 +503,7 @@ test("manual persona contracts are closed and allow-list every appearance choice
 
   const unknown = { contractVersion: 1, displayName: "Edwin", visibility: "private", appearance: validPersonaProfile().appearance, css: "url(secret)" };
   expectContractError(() => parsePersonaDraftInput(unknown), "$", "unknown_field");
-  for (const [key, value] of [["skinPalette", "custom"], ["hairStyle", "uploaded"], ["hairColor", "#fff"], ["outfit", "url"], ["accent", "biometric"]]) {
+  for (const [key, value] of [["species", "custom"], ["palette", "uploaded"], ["pattern", "#fff"], ["accessory", "biometric"]]) {
     const input = { contractVersion: 1, displayName: "Edwin", visibility: "private", appearance: { ...validPersonaProfile().appearance, [key]: value } };
     expectContractError(() => parsePersonaDraftInput(input), `$.appearance.${key}`);
   }
@@ -632,8 +632,8 @@ test("WorldPersona appearance and equipped emblem are allow-listed, nullable, an
   expectContractError(() => parseWorldProjection(unsafe), "$.personas[0].appearance", "unknown_field");
 
   const invalid = validWorldProjection();
-  invalid.personas[0].appearance.outfit = "uploaded";
-  expectContractError(() => parseWorldProjection(invalid), "$.personas[0].appearance.outfit");
+  invalid.personas[0].appearance.palette = "uploaded";
+  expectContractError(() => parseWorldProjection(invalid), "$.personas[0].appearance.palette");
 
   const equipped = validWorldProjection();
   equipped.personas[0].equippedRewardKey = "first-connect";

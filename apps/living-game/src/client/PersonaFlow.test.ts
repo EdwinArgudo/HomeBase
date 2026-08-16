@@ -25,39 +25,39 @@ describe("manual persona flow", () => {
         persona: worldFixture.personas[0]!,
         variant: "sun",
         static: true,
-        appearance: { skinPalette: "deep", hairStyle: "curls", hairColor: "midnight", outfit: "sun", accent: "glasses" },
+        appearance: { species: "bunny", palette: "mint", pattern: "belly", accessory: "bow" },
       },
     });
     expect(wrapper.get(".persona-anchor").classes()).toEqual(expect.arrayContaining([
-      "persona-skin--deep", "persona-hair--curls", "persona-hair-color--midnight", "persona-outfit--sun", "persona-accent--glasses",
+      "persona-species--bunny", "persona-palette--mint", "persona-pattern--belly", "persona-accessory--bow",
     ]));
-    expect(wrapper.get(".pixel-emblem--first-tend").text()).toBe("✦");
+    expect(wrapper.get(".companion-emblem--first-tend").text()).toBe("✦");
     expect(wrapper.get(".persona-control--static").attributes("aria-label")).toContain("Steady Hands emblem");
   });
 
-  it("draws the sprite as whole-pixel rects coloured only through fixed classes", () => {
+  it("draws the companion with colour supplied only through fixed classes", () => {
     const wrapper = mount(PersonaSprite, {
       props: {
         persona: worldFixture.personas[0]!,
         variant: "sun",
         static: true,
-        appearance: { skinPalette: "deep", hairStyle: "long", hairColor: "gold", outfit: "berry", accent: "glasses" },
+        appearance: { species: "bunny", palette: "mint", pattern: "belly", accessory: "bow" },
       },
     });
 
-    const rects = wrapper.findAll(".pixel-persona__sprite rect");
-    expect(rects.length).toBeGreaterThan(20);
-    for (const rect of rects) {
+    const shapes = wrapper.findAll(".companion__art *");
+    expect(shapes.length).toBeGreaterThan(10);
+    for (const shape of shapes) {
       // Colour comes from a stylesheet class, never from an attribute built out
-      // of persona data, and every part lands on the pixel grid.
-      expect(rect.attributes("style")).toBeUndefined();
-      expect(rect.attributes("fill")).toBeUndefined();
-      for (const attribute of ["x", "y", "width", "height"] as const) {
-        expect(Number.isInteger(Number(rect.attributes(attribute)))).toBe(true);
-      }
+      // of persona data.
+      expect(shape.attributes("style")).toBeUndefined();
+      expect(shape.attributes("fill")).toBeUndefined();
+      expect(shape.attributes("stroke")).toBeUndefined();
     }
-    expect(wrapper.findAll(".px--lens").length).toBe(2);
-    expect(wrapper.findAll(".px--hair").length).toBe(3);
+    // Species and accessory are drawn, not described by inline values.
+    expect(wrapper.findAll(".ear--fill").length).toBe(2);
+    expect(wrapper.findAll(".accessory-fill").length).toBe(2);
+    expect(wrapper.findAll(".mark--belly").length).toBe(1);
   });
 
   it("saves and approves the current persona through its dedicated API", async () => {
@@ -73,8 +73,8 @@ describe("manual persona flow", () => {
     await flushPromises();
 
     await wrapper.get('input[required]').setValue("Pixel Edwin");
-    const outfit = wrapper.findAll(".persona-builder label").find((label) => label.text().includes("Outfit"))!.get("select");
-    await outfit.setValue("berry");
+    const colour = wrapper.findAll(".persona-builder label").find((label) => label.text().includes("Colour"))!.get("select");
+    await colour.setValue("blush");
     await wrapper.get('button[type="submit"]').trigger("submit");
     await flushPromises();
     expect(wrapper.text()).toContain("Persona saved as a draft");

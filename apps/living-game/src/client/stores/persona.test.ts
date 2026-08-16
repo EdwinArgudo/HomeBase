@@ -37,7 +37,7 @@ describe("persona store", () => {
     configurePersonaRuntime({ api });
     const store = usePersonaStore();
     await store.ensureLoaded();
-    const input = { contractVersion: 1 as const, displayName: "Changed", visibility: "household" as const, appearance: { ...store.persona!.appearance, outfit: "berry" as const } };
+    const input = { contractVersion: 1 as const, displayName: "Changed", visibility: "household" as const, appearance: { ...store.persona!.appearance, palette: "blush" as const } };
     expect(await store.save(input)).toBe(true);
     expect(store.persona?.displayName).toBe("Changed");
     expect(store.persona?.status).toBe("draft");

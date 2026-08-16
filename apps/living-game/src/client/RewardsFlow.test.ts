@@ -87,19 +87,19 @@ describe("Persona reward shelf", () => {
     await flushPromises();
     expect(equip).toHaveBeenCalledWith("first-household");
     expect(wrapper.get('button[aria-label="Remove Shared Spark emblem"]').text()).toContain("Equipped");
-    expect(wrapper.find(".pixel-emblem--first-household").exists()).toBe(true);
+    expect(wrapper.find(".companion-emblem--first-household").exists()).toBe(true);
     expect(wrapper.get(".reward-action-feedback[role='status']").text()).toContain("Emblem equipped");
     expect(worldLoad).toHaveBeenCalledTimes(1);
 
     await router.push("/");
     await flushPromises();
-    expect(wrapper.find(".world-scene .pixel-emblem--first-household").exists()).toBe(true);
+    expect(wrapper.find(".world-scene .companion-emblem--first-household").exists()).toBe(true);
     await router.push("/persona");
     await flushPromises();
     await wrapper.get('button[aria-label="Remove Shared Spark emblem"]').trigger("click");
     await flushPromises();
     expect(equip).toHaveBeenLastCalledWith(null);
-    expect(wrapper.find(".pixel-emblem--first-household").exists()).toBe(false);
+    expect(wrapper.find(".companion-emblem--first-household").exists()).toBe(false);
     wrapper.unmount();
   });
 
@@ -117,11 +117,11 @@ describe("Persona reward shelf", () => {
     await remove().trigger("click");
     await flushPromises();
     expect(wrapper.get(".reward-action-feedback[role='alert']").text()).toContain("temporarily unavailable");
-    expect(wrapper.find(".pixel-emblem--first-tend").exists()).toBe(true);
+    expect(wrapper.find(".companion-emblem--first-tend").exists()).toBe(true);
     expect(worldLoad).not.toHaveBeenCalled();
     await remove().trigger("click");
     await flushPromises();
-    expect(wrapper.find(".pixel-emblem--first-tend").exists()).toBe(false);
+    expect(wrapper.find(".companion-emblem--first-tend").exists()).toBe(false);
     expect(worldLoad).toHaveBeenCalledTimes(1);
     wrapper.unmount();
   });

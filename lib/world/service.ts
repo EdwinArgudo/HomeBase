@@ -61,7 +61,7 @@ export async function loadMemberWorldProjection(
   const personas = result.results.map((row, index) => ({
       id: row.id,
       displayName: row.display_name,
-      altDescription: `${row.display_name}'s pixel persona is standing in the preview apartment.`,
+      altDescription: `${row.display_name} is settled in at home.`,
       visibility: row.visibility,
       activity: "idle",
       appearance: parsePersonaAppearance(JSON.parse(row.appearance_json) as unknown),

@@ -28,11 +28,10 @@ export const WORLD_VIEWERS = ["member", "display"] as const;
 export const PERSONA_CREATION_METHODS = ["manual"] as const;
 export const PERSONA_STATUSES = ["draft", "ready"] as const;
 export const PERSONA_VISIBILITIES = ["private", "household"] as const;
-export const PERSONA_SKIN_PALETTES = ["warm", "golden", "deep", "rose"] as const;
-export const PERSONA_HAIR_STYLES = ["short", "waves", "curls", "long"] as const;
-export const PERSONA_HAIR_COLORS = ["espresso", "chestnut", "gold", "midnight"] as const;
-export const PERSONA_OUTFITS = ["mint", "berry", "sun"] as const;
-export const PERSONA_ACCENTS = ["none", "glasses", "headband"] as const;
+export const PERSONA_SPECIES = ["marshmallow", "bunny", "cat", "dog", "bear", "chick"] as const;
+export const PERSONA_PALETTES = ["cream", "mint", "blush", "butter", "sky", "lilac"] as const;
+export const PERSONA_PATTERNS = ["plain", "belly", "spots", "patch"] as const;
+export const PERSONA_ACCESSORIES = ["none", "bow", "scarf", "glasses", "cap"] as const;
 export const REWARD_KINDS = ["emblem"] as const;
 export const REWARD_KEYS_V1 = ["first-tend", "first-move", "first-grow", "first-connect", "first-household"] as const;
 
@@ -58,11 +57,10 @@ export type RewardKind = typeof REWARD_KINDS[number];
 export type RewardKeyV1 = typeof REWARD_KEYS_V1[number];
 
 export type PersonaAppearanceV1 = {
-  skinPalette: typeof PERSONA_SKIN_PALETTES[number];
-  hairStyle: typeof PERSONA_HAIR_STYLES[number];
-  hairColor: typeof PERSONA_HAIR_COLORS[number];
-  outfit: typeof PERSONA_OUTFITS[number];
-  accent: typeof PERSONA_ACCENTS[number];
+  species: typeof PERSONA_SPECIES[number];
+  palette: typeof PERSONA_PALETTES[number];
+  pattern: typeof PERSONA_PATTERNS[number];
+  accessory: typeof PERSONA_ACCESSORIES[number];
 };
 
 export type PersonaDraftInputV1 = {
@@ -822,13 +820,12 @@ export function parsePersonaManifest(input: unknown): PersonaManifestV1 {
 }
 
 function personaAppearanceAt(input: unknown, path: string): PersonaAppearanceV1 {
-  const record = objectAt(input, path, ["skinPalette", "hairStyle", "hairColor", "outfit", "accent"]);
+  const record = objectAt(input, path, ["species", "palette", "pattern", "accessory"]);
   return {
-    skinPalette: enumAt(required(record, "skinPalette", path), `${path}.skinPalette`, PERSONA_SKIN_PALETTES),
-    hairStyle: enumAt(required(record, "hairStyle", path), `${path}.hairStyle`, PERSONA_HAIR_STYLES),
-    hairColor: enumAt(required(record, "hairColor", path), `${path}.hairColor`, PERSONA_HAIR_COLORS),
-    outfit: enumAt(required(record, "outfit", path), `${path}.outfit`, PERSONA_OUTFITS),
-    accent: enumAt(required(record, "accent", path), `${path}.accent`, PERSONA_ACCENTS),
+    species: enumAt(required(record, "species", path), `${path}.species`, PERSONA_SPECIES),
+    palette: enumAt(required(record, "palette", path), `${path}.palette`, PERSONA_PALETTES),
+    pattern: enumAt(required(record, "pattern", path), `${path}.pattern`, PERSONA_PATTERNS),
+    accessory: enumAt(required(record, "accessory", path), `${path}.accessory`, PERSONA_ACCESSORIES),
   };
 }
 

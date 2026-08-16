@@ -14,96 +14,15 @@ const emit = defineEmits<{
   select: [personaId: string];
 }>();
 
-// The sprite is authored on a 16x24 pixel grid. Every part is a whole-pixel
-// rect so the character stays crisp at any rendered size, and colours come from
-// custom properties set by the allow-listed appearance classes below — never
-// from values threaded through the template.
-type Part = { x: number; y: number; w: number; h: number; kind: string };
+// Companions are drawn on a 64x64 field as soft overlapping forms. Colour never
+// comes from persona data directly: the appearance classes on the wrapper set
+// custom properties, and every shape here paints from a fixed class.
+const species = computed(() => props.appearance?.species ?? "marshmallow");
+const pattern = computed(() => props.appearance?.pattern ?? "plain");
+const accessory = computed(() => props.appearance?.accessory ?? "none");
 
-const HEAD: Part[] = [
-  { x: 4, y: 4, w: 8, h: 8, kind: "skin" },
-];
-
-const HAIR: Record<PersonaAppearanceV1["hairStyle"], Part[]> = {
-  short: [{ x: 4, y: 2, w: 8, h: 3, kind: "hair" }],
-  waves: [
-    { x: 4, y: 2, w: 8, h: 3, kind: "hair" },
-    { x: 3, y: 4, w: 1, h: 3, kind: "hair" },
-    { x: 12, y: 4, w: 1, h: 3, kind: "hair" },
-  ],
-  curls: [
-    { x: 3, y: 1, w: 10, h: 4, kind: "hair" },
-    { x: 2, y: 3, w: 1, h: 3, kind: "hair" },
-    { x: 13, y: 3, w: 1, h: 3, kind: "hair" },
-  ],
-  long: [
-    { x: 4, y: 2, w: 8, h: 3, kind: "hair" },
-    { x: 3, y: 4, w: 1, h: 9, kind: "hair" },
-    { x: 12, y: 4, w: 1, h: 9, kind: "hair" },
-  ],
-};
-
-const FACE: Part[] = [
-  { x: 4, y: 9, w: 1, h: 1, kind: "blush" },
-  { x: 11, y: 9, w: 1, h: 1, kind: "blush" },
-  { x: 7, y: 10, w: 2, h: 1, kind: "mouth" },
-];
-
-const BODY: Part[] = [
-  { x: 4, y: 12, w: 8, h: 6, kind: "outfit" },
-  { x: 2, y: 12, w: 2, h: 3, kind: "outfit" },
-  { x: 12, y: 12, w: 2, h: 3, kind: "outfit" },
-  { x: 2, y: 15, w: 2, h: 2, kind: "skin" },
-  { x: 12, y: 15, w: 2, h: 2, kind: "skin" },
-  { x: 5, y: 18, w: 2, h: 3, kind: "legs" },
-  { x: 9, y: 18, w: 2, h: 3, kind: "legs" },
-  { x: 4, y: 21, w: 3, h: 1, kind: "shoes" },
-  { x: 9, y: 21, w: 3, h: 1, kind: "shoes" },
-];
-
-// An 8px-wide head cannot hold an enclosed frame without swallowing the eyes,
-// so glasses are a pale lens behind the eyes plus a bridge and temples in front.
-const ACCENT_BACK: Record<PersonaAppearanceV1["accent"], Part[]> = {
-  none: [],
-  glasses: [
-    { x: 4, y: 6, w: 3, h: 3, kind: "lens" },
-    { x: 9, y: 6, w: 3, h: 3, kind: "lens" },
-  ],
-  headband: [],
-};
-
-const ACCENT_FRONT: Record<PersonaAppearanceV1["accent"], Part[]> = {
-  none: [],
-  glasses: [
-    { x: 7, y: 7, w: 2, h: 1, kind: "frame" },
-    { x: 3, y: 7, w: 1, h: 1, kind: "frame" },
-    { x: 12, y: 7, w: 1, h: 1, kind: "frame" },
-  ],
-  headband: [{ x: 3, y: 3, w: 10, h: 1, kind: "band" }],
-};
-
-// A true 1px silhouette outline: the whole solid shape stamped in ink at four
-// offsets behind the colour layer. Expanding each part on its own instead
-// leaves ink seams wherever two parts meet.
-const OUTLINE_OFFSETS = [[-1, 0], [1, 0], [0, -1], [0, 1]] as const;
-
-const hairStyle = computed(() => props.appearance?.hairStyle ?? "short");
-const accent = computed(() => props.appearance?.accent ?? "none");
-
-// Everything except the face detail casts the silhouette outline, so the
-// character reads as one shape rather than a pile of boxes.
-const solids = computed<Part[]>(() => [
-  ...HAIR[hairStyle.value],
-  ...HEAD,
-  ...BODY,
-]);
-
-const behindEyes = computed<Part[]>(() => ACCENT_BACK[accent.value]);
-const details = computed<Part[]>(() => [...FACE, ...ACCENT_FRONT[accent.value]]);
-
-function activityLabel(activity: WorldPersonaV1["activity"]) {
-  return activity.replace("_", " ");
-}
+const asleep = computed(() => props.persona.activity === "rest");
+const cheerful = computed(() => props.persona.activity === "celebrate");
 
 const emblemLabels = {
   "first-tend": "Steady Hands",
@@ -113,111 +32,152 @@ const emblemLabels = {
   "first-household": "Shared Spark",
 } as const;
 
-function emblemSuffix() {
+const emblemSuffix = computed(() => {
   const emblem = props.persona.equippedRewardKey;
   return emblem ? ` wearing the ${emblemLabels[emblem]} emblem` : "";
-}
-
-// A tappable persona is a button; a display persona is an image. Both render
-// the same sprite, so only the control semantics differ.
-function controlAttributes() {
-  if (props.static) {
-    return {
-      role: "img",
-      "aria-label": `${props.persona.displayName}'s pixel persona${emblemSuffix()}`,
-    };
-  }
-  const emblem = emblemSuffix();
-  return {
-    type: "button",
-    "aria-label": `Select ${props.persona.displayName}, currently ${activityLabel(props.persona.activity)}${emblem ? `,${emblem}` : ""}`,
-    "aria-pressed": props.selected,
-    onClick: () => emit("select", props.persona.id),
-  };
-}
-
-function appearanceClasses() {
-  if (!props.appearance) return [];
-  return [
-    `persona-skin--${props.appearance.skinPalette}`,
-    `persona-hair--${props.appearance.hairStyle}`,
-    `persona-hair-color--${props.appearance.hairColor}`,
-    `persona-outfit--${props.appearance.outfit}`,
-    `persona-accent--${props.appearance.accent}`,
-  ];
-}
+});
 </script>
 
 <template>
-  <div class="persona-anchor" :class="[`persona-anchor--${variant}`, ...appearanceClasses()]">
+  <div
+    class="persona-anchor"
+    :class="[
+      `persona-anchor--${variant}`,
+      appearance ? `persona-species--${appearance.species}` : '',
+      appearance ? `persona-palette--${appearance.palette}` : '',
+      appearance ? `persona-pattern--${appearance.pattern}` : '',
+      appearance ? `persona-accessory--${appearance.accessory}` : '',
+    ]"
+  >
     <component
       :is="static ? 'div' : 'button'"
       class="persona-control"
       :class="{ 'persona-control--static': static }"
-      v-bind="controlAttributes()"
+      v-bind="static
+        ? { role: 'img', 'aria-label': `${persona.displayName}, a ${species} companion${emblemSuffix}` }
+        : {
+          type: 'button',
+          'aria-label': `Select ${persona.displayName}, currently ${persona.activity.replace('_', ' ')}${emblemSuffix}`,
+          'aria-pressed': selected,
+          onClick: () => emit('select', persona.id),
+        }"
     >
-      <span class="pixel-persona" aria-hidden="true">
-        <svg class="pixel-persona__sprite" viewBox="0 0 16 24" role="presentation" focusable="false">
-          <g class="px-outline">
-            <g
-              v-for="(offset, offsetIndex) in OUTLINE_OFFSETS"
-              :key="`outline-${offsetIndex}`"
-              :transform="`translate(${offset[0]} ${offset[1]})`"
-            >
-              <rect
-                v-for="(part, index) in solids"
-                :key="index"
-                :x="part.x"
-                :y="part.y"
-                :width="part.w"
-                :height="part.h"
-              />
+      <span class="companion" aria-hidden="true">
+        <svg class="companion__art" viewBox="0 0 64 64" role="presentation" focusable="false">
+          <ellipse class="companion__shadow" cx="32" cy="58" rx="17" ry="4" />
+
+          <g class="companion__body-group">
+            <!-- Ears sit behind the head so they read as part of one soft form. -->
+            <g class="companion__ears">
+              <template v-if="species === 'bunny'">
+                <rect class="ear ear--fill" x="19" y="2" width="9" height="24" rx="4.5" />
+                <rect class="ear ear--inner" x="21.5" y="6" width="4" height="16" rx="2" />
+                <rect class="ear ear--fill" x="36" y="2" width="9" height="24" rx="4.5" />
+                <rect class="ear ear--inner" x="38.5" y="6" width="4" height="16" rx="2" />
+              </template>
+              <template v-else-if="species === 'cat'">
+                <path class="ear ear--fill" d="M15 24 L18 8 L31 17 Z" />
+                <path class="ear ear--inner" d="M19 20 L20.5 13 L26 18 Z" />
+                <path class="ear ear--fill" d="M49 24 L46 8 L33 17 Z" />
+                <path class="ear ear--inner" d="M45 20 L43.5 13 L38 18 Z" />
+              </template>
+              <template v-else-if="species === 'dog'">
+                <rect class="ear ear--fill" x="7" y="16" width="13" height="26" rx="6.5" />
+                <rect class="ear ear--fill" x="44" y="16" width="13" height="26" rx="6.5" />
+              </template>
+              <template v-else-if="species === 'bear'">
+                <circle class="ear ear--fill" cx="17" cy="15" r="8" />
+                <circle class="ear ear--inner" cx="17" cy="15" r="4" />
+                <circle class="ear ear--fill" cx="47" cy="15" r="8" />
+                <circle class="ear ear--inner" cx="47" cy="15" r="4" />
+              </template>
+              <template v-else-if="species === 'chick'">
+                <path class="ear ear--tuft" d="M28 8 Q32 -1 36 8 Q32 5 28 8 Z" />
+              </template>
+            </g>
+
+            <!-- One rounded body. The species tweaks its proportions in CSS. -->
+            <rect class="companion__body" x="10" y="16" width="44" height="42" rx="21" />
+
+            <g class="companion__pattern">
+              <ellipse v-if="pattern === 'belly'" class="mark mark--belly" cx="32" cy="45" rx="13" ry="11" />
+              <template v-else-if="pattern === 'spots'">
+                <circle class="mark" cx="19" cy="42" r="4" />
+                <circle class="mark" cx="45" cy="46" r="5.5" />
+                <circle class="mark" cx="27" cy="52" r="3" />
+              </template>
+              <path v-else-if="pattern === 'patch'" class="mark" d="M10 30 Q22 20 30 22 L30 44 Q16 46 10 40 Z" />
+            </g>
+
+            <!-- Face -->
+            <g class="companion__face">
+              <g class="companion__eyes">
+                <template v-if="asleep">
+                  <path class="eye-line" d="M20 35 q4 4 8 0" />
+                  <path class="eye-line" d="M36 35 q4 4 8 0" />
+                </template>
+                <template v-else-if="cheerful">
+                  <path class="eye-line" d="M20 37 q4 -6 8 0" />
+                  <path class="eye-line" d="M36 37 q4 -6 8 0" />
+                </template>
+                <template v-else>
+                  <ellipse class="eye" cx="24" cy="35" rx="3.6" ry="4.2" />
+                  <ellipse class="eye" cx="40" cy="35" rx="3.6" ry="4.2" />
+                  <circle class="eye-shine" cx="25.4" cy="33.4" r="1.3" />
+                  <circle class="eye-shine" cx="41.4" cy="33.4" r="1.3" />
+                </template>
+              </g>
+              <ellipse class="blush" cx="16.5" cy="42" rx="4" ry="2.6" />
+              <ellipse class="blush" cx="47.5" cy="42" rx="4" ry="2.6" />
+              <path v-if="cheerful" class="mouth" d="M28 42 q4 5 8 0" />
+              <path v-else class="mouth" d="M29 41 q3 3 6 0" />
+              <g v-if="species === 'cat'" class="whiskers">
+                <path class="whisker" d="M6 36 h8" />
+                <path class="whisker" d="M6 41 h8" />
+                <path class="whisker" d="M50 36 h8" />
+                <path class="whisker" d="M50 41 h8" />
+              </g>
+              <ellipse v-if="species === 'chick'" class="beak" cx="32" cy="41" rx="4" ry="3" />
+              <ellipse v-if="species === 'dog' || species === 'bear'" class="snout" cx="32" cy="42" rx="8" ry="6" />
+              <ellipse v-if="species === 'dog' || species === 'bear' || species === 'cat'" class="nose" cx="32" cy="39.5" rx="2.6" ry="2" />
+            </g>
+
+            <!-- Feet peek out from under the body. -->
+            <ellipse class="companion__foot" cx="23" cy="57" rx="6" ry="3.4" />
+            <ellipse class="companion__foot" cx="41" cy="57" rx="6" ry="3.4" />
+
+            <g class="companion__accessory">
+              <template v-if="accessory === 'bow'">
+                <ellipse class="accessory-fill" cx="42.5" cy="24" rx="5.5" ry="4" transform="rotate(-18 42.5 24)" />
+                <ellipse class="accessory-fill" cx="53.5" cy="24" rx="5.5" ry="4" transform="rotate(18 53.5 24)" />
+                <circle class="accessory-knot" cx="48" cy="24" r="2.8" />
+              </template>
+              <template v-else-if="accessory === 'scarf'">
+                <path class="accessory-fill" d="M14 47 q18 9 36 0 l0 6 q-18 8 -36 0 Z" />
+                <path class="accessory-fill" d="M44 51 l7 10 -6 1 -3 -9 Z" />
+              </template>
+              <template v-else-if="accessory === 'glasses'">
+                <circle class="accessory-lens" cx="24" cy="35" r="7" />
+                <circle class="accessory-lens" cx="40" cy="35" r="7" />
+                <path class="accessory-stroke" d="M31 35 h2" />
+              </template>
+              <template v-else-if="accessory === 'cap'">
+                <path class="accessory-fill" d="M13 22 q19 -16 38 0 Z" />
+                <rect class="accessory-fill" x="9" y="20" width="26" height="5" rx="2.5" />
+              </template>
             </g>
           </g>
-          <rect
-            v-for="(part, index) in solids"
-            :key="`solid-${index}`"
-            :class="`px px--${part.kind}`"
-            :x="part.x"
-            :y="part.y"
-            :width="part.w"
-            :height="part.h"
-          />
-          <rect
-            v-for="(part, index) in behindEyes"
-            :key="`back-${index}`"
-            :class="`px px--${part.kind}`"
-            :x="part.x"
-            :y="part.y"
-            :width="part.w"
-            :height="part.h"
-          />
-          <rect class="px px--eyes-shut" x="5" y="8" width="2" height="1" />
-          <rect class="px px--eyes-shut" x="9" y="8" width="2" height="1" />
-          <g class="px-eyes">
-            <rect class="px px--eyes" x="5" y="7" width="2" height="2" />
-            <rect class="px px--eyes" x="9" y="7" width="2" height="2" />
-          </g>
-          <rect
-            v-for="(part, index) in details"
-            :key="`detail-${index}`"
-            :class="`px px--${part.kind}`"
-            :x="part.x"
-            :y="part.y"
-            :width="part.w"
-            :height="part.h"
-          />
         </svg>
         <span
           v-if="persona.equippedRewardKey"
-          class="pixel-emblem"
-          :class="`pixel-emblem--${persona.equippedRewardKey}`"
+          class="companion-emblem"
+          :class="`companion-emblem--${persona.equippedRewardKey}`"
           aria-hidden="true"
         >✦</span>
       </span>
       <span class="persona-label">
         <strong>{{ persona.displayName }}</strong>
-        <span>{{ activityLabel(persona.activity) }}</span>
+        <span>{{ persona.activity.replace("_", " ") }}</span>
       </span>
     </component>
   </div>
