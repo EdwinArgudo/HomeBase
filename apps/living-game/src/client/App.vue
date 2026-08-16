@@ -4,6 +4,7 @@ import PrimaryNavigation from "./components/PrimaryNavigation.vue";
 const liveData = import.meta.env.VITE_LIVE_MOVES === "true" && import.meta.env.VITE_LIVE_PROGRESS === "true";
 const livePersona = import.meta.env.VITE_LIVE_PERSONA === "true";
 const liveWorld = import.meta.env.VITE_LIVE_WORLD === "true";
+const liveRewards = import.meta.env.VITE_LIVE_REWARDS === "true";
 </script>
 
 <template>
@@ -20,7 +21,7 @@ const liveWorld = import.meta.env.VITE_LIVE_WORLD === "true";
       <div class="header-actions">
         <div class="preview-context" aria-label="Living Game data disclosure">
           <span class="preview-badge">Preview</span>
-          <span class="preview-fixture">{{ liveData && livePersona && liveWorld ? "Live moves + progress + household personas · Preview scene" : "Fixture data · Preview world" }}</span>
+          <span class="preview-fixture">{{ liveData && livePersona && liveWorld && liveRewards ? "Live moves + progress + rewards + household personas · Preview scene" : "Fixture data · Preview world" }}</span>
           <a class="back-to-homebase" href="/">Current Homebase</a>
         </div>
 

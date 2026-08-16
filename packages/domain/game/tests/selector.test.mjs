@@ -5,8 +5,41 @@ import {
   completedMoveEventV1,
   completionAwardV1,
   levelForLifetimePointsV1,
+  REWARD_CATALOG_V1,
+  eligibleRewardsV1,
   selectDailyMovesV1,
 } from "../index.ts";
+
+test("reward policy v1 has an exact stable permanent-emblem catalog", () => {
+  assert.deepEqual(REWARD_CATALOG_V1.map(({ key, dimension, thresholdPoints, kind }) => ({ key, dimension, thresholdPoints, kind })), [
+    { key: "first-tend", dimension: "tend", thresholdPoints: 10, kind: "emblem" },
+    { key: "first-move", dimension: "move", thresholdPoints: 10, kind: "emblem" },
+    { key: "first-grow", dimension: "grow", thresholdPoints: 10, kind: "emblem" },
+    { key: "first-connect", dimension: "connect", thresholdPoints: 10, kind: "emblem" },
+    { key: "first-household", dimension: "household", thresholdPoints: 4, kind: "emblem" },
+  ]);
+});
+
+test("reward eligibility uses exact thresholds and deterministic catalog order", () => {
+  const below = { tend: 9, move: 0, grow: 0, connect: 0, household: 3 };
+  assert.deepEqual(eligibleRewardsV1(below), []);
+  const at = { tend: 10, move: 10, grow: 10, connect: 10, household: 4 };
+  const first = eligibleRewardsV1(at);
+  const second = eligibleRewardsV1({ household: 4, connect: 10, grow: 10, move: 10, tend: 10 });
+  assert.deepEqual(first.map((reward) => reward.key), REWARD_CATALOG_V1.map((reward) => reward.key));
+  assert.deepEqual(second, first);
+  assert.deepEqual(eligibleRewardsV1({ ...at, tend: 999 }), first);
+});
+
+test("reward eligibility rejects incomplete, extra, negative, fractional, and unsafe totals", () => {
+  for (const invalid of [
+    { tend: 10, move: 0, grow: 0, connect: 0 },
+    { tend: 10, move: 0, grow: 0, connect: 0, household: 0, extra: 1 },
+    { tend: -1, move: 0, grow: 0, connect: 0, household: 0 },
+    { tend: 1.5, move: 0, grow: 0, connect: 0, household: 0 },
+    { tend: Number.MAX_SAFE_INTEGER + 1, move: 0, grow: 0, connect: 0, household: 0 },
+  ]) assert.throws(() => eligibleRewardsV1(invalid));
+});
 
 const scope = {
   householdId: "household-current",

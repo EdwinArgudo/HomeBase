@@ -6,11 +6,13 @@ import { beforeEach, describe, expect, it } from "vitest";
 import App from "./App.vue";
 import { createFixtureDailyMovesApi } from "./api/fixtureDailyMoves";
 import { createFixtureProgressApi } from "./api/fixtureProgress";
+import { createFixtureRewardsApi } from "./api/fixtureRewards";
 import { createFixturePersonaApi } from "./api/fixturePersona";
 import { createFixtureWorldApi } from "./api/fixtureWorld";
 import { routes } from "./router";
 import { configureDailyMovesRuntime } from "./stores/dailyMoves";
 import { configureProgressRuntime } from "./stores/progress";
+import { configureRewardsRuntime } from "./stores/rewards";
 import { configurePersonaRuntime } from "./stores/persona";
 import { configureWorldRuntime } from "./stores/world";
 
@@ -27,6 +29,7 @@ describe("client routes", () => {
   beforeEach(() => {
     configureDailyMovesRuntime({ api: createFixtureDailyMovesApi(), now: () => new Date(2026, 7, 15) });
     configureProgressRuntime({ api: createFixtureProgressApi() });
+    configureRewardsRuntime({ api: createFixtureRewardsApi() });
     configurePersonaRuntime({ api: createFixturePersonaApi() });
     configureWorldRuntime({ api: createFixtureWorldApi() });
   });

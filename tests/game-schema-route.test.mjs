@@ -155,3 +155,24 @@ test("world route remains a thin authenticated boundary without fixtures", async
   assert.match(source, /dynamic = "force-dynamic"/);
   assert.doesNotMatch(source, /SELECT|personas|fixture|demo/i);
 });
+
+test("generated reward migration stores permanent canonical unlock facts", async () => {
+  const migration = await readFile(new URL("../drizzle/0009_steep_triathlon.sql", import.meta.url), "utf8");
+  assert.match(migration, /CREATE TABLE `persona_unlocks`/);
+  for (const column of ["household_id", "member_id", "persona_id", "reward_key", "catalog_version", "policy_version", "source_event_id", "unlocked_at"]) assert.match(migration, new RegExp("`" + column + "`"));
+  assert.match(migration, /FOREIGN KEY \(`source_event_id`\) REFERENCES `game_events`/);
+  assert.match(migration, /idx_persona_unlocks_persona_reward[^;]+`persona_id`,`reward_key`/);
+  assert.match(migration, /idx_persona_unlocks_household_member[^;]+`household_id`,`member_id`,`persona_id`/);
+  assert.match(migration, /persona_unlocks_catalog_version_check/);
+  const readiness = await readFile(new URL("../db/readiness.ts", import.meta.url), "utf8");
+  assert.match(readiness, /LEFT JOIN persona_unlocks pu ON 0/);
+  assert.match(readiness, /pu\.source_event_id/);
+});
+
+test("rewards route remains a thin authenticated boundary", async () => {
+  const source = await readFile(new URL("../app/api/game/rewards/route.ts", import.meta.url), "utf8");
+  assert.match(source, /createRewardsGetHandler/);
+  assert.match(source, /requireHouseholdMember/);
+  assert.match(source, /dynamic = "force-dynamic"/);
+  assert.doesNotMatch(source, /SELECT|persona_unlocks|progress_balances|game_events|fixture|demo/i);
+});

@@ -1,5 +1,6 @@
 import {
   MOVE_FAMILIES,
+  PROGRESS_DIMENSIONS,
   parseDailyMove,
   parseGameEvent,
   type DailyMoveV1,
@@ -8,6 +9,8 @@ import {
   type MoveReasonCode,
   type MoveSourceType,
   type OwnershipType,
+  type ProgressDimension,
+  type RewardDefinitionV1,
   type Visibility,
 } from "@homebase/contracts";
 
@@ -15,6 +18,38 @@ export const MOVE_POLICY_VERSION = 1 as const;
 export const PROGRESSION_POLICY_VERSION = 1 as const;
 export const PERSONAL_COMPLETION_POINTS = 10 as const;
 export const HOUSEHOLD_COMPLETION_POINTS = 4 as const;
+export const REWARD_CATALOG_VERSION = 1 as const;
+export const REWARD_POLICY_VERSION = 1 as const;
+
+export type RewardPointTotalsV1 = Record<ProgressDimension, number>;
+
+export const REWARD_CATALOG_V1: readonly RewardDefinitionV1[] = Object.freeze(([
+  { catalogVersion: 1, key: "first-tend", kind: "emblem", title: "Steady Hands", description: "A calm first step in tending everyday life.", dimension: "tend", thresholdPoints: 10 },
+  { catalogVersion: 1, key: "first-move", kind: "emblem", title: "Gentle Motion", description: "A first bit of energy put toward feeling well.", dimension: "move", thresholdPoints: 10 },
+  { catalogVersion: 1, key: "first-grow", kind: "emblem", title: "New Leaf", description: "A first moment invested in learning and growth.", dimension: "grow", thresholdPoints: 10 },
+  { catalogVersion: 1, key: "first-connect", kind: "emblem", title: "Warm Hello", description: "A first intentional moment of connection.", dimension: "connect", thresholdPoints: 10 },
+  { catalogVersion: 1, key: "first-household", kind: "emblem", title: "Shared Spark", description: "A first shared move that helped the household together.", dimension: "household", thresholdPoints: 4 },
+] satisfies RewardDefinitionV1[]).map((reward) => Object.freeze(reward)));
+
+function assertRewardPointTotals(input: RewardPointTotalsV1) {
+  if (input === null || typeof input !== "object" || Array.isArray(input)) {
+    throw new TypeError("Reward point totals must be an object.");
+  }
+  const keys = Object.keys(input).sort();
+  const expected = [...PROGRESS_DIMENSIONS].sort();
+  if (keys.length !== expected.length || keys.some((key, index) => key !== expected[index])) {
+    throw new TypeError("Reward point totals must contain exactly the supported dimensions.");
+  }
+  for (const dimension of PROGRESS_DIMENSIONS) {
+    const value = input[dimension];
+    if (!Number.isSafeInteger(value) || value < 0) throw new RangeError("Reward point totals must be nonnegative safe integers.");
+  }
+}
+
+export function eligibleRewardsV1(input: RewardPointTotalsV1): readonly RewardDefinitionV1[] {
+  assertRewardPointTotals(input);
+  return REWARD_CATALOG_V1.filter((reward) => input[reward.dimension] >= reward.thresholdPoints);
+}
 
 export type CompletionAwardV1 = {
   policyVersion: 1;

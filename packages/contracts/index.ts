@@ -33,6 +33,7 @@ export const PERSONA_HAIR_STYLES = ["short", "waves", "curls", "long"] as const;
 export const PERSONA_HAIR_COLORS = ["espresso", "chestnut", "gold", "midnight"] as const;
 export const PERSONA_OUTFITS = ["mint", "berry", "sun"] as const;
 export const PERSONA_ACCENTS = ["none", "glasses", "headband"] as const;
+export const REWARD_KINDS = ["emblem"] as const;
 
 export type OwnershipType = typeof OWNERSHIP_TYPES[number];
 export type Visibility = typeof VISIBILITIES[number];
@@ -52,6 +53,7 @@ export type AdventureStatus = typeof ADVENTURE_STATUSES[number];
 export type WorldViewer = typeof WORLD_VIEWERS[number];
 export type PersonaStatus = typeof PERSONA_STATUSES[number];
 export type PersonaVisibility = typeof PERSONA_VISIBILITIES[number];
+export type RewardKind = typeof REWARD_KINDS[number];
 
 export type PersonaAppearanceV1 = {
   skinPalette: typeof PERSONA_SKIN_PALETTES[number];
@@ -151,6 +153,35 @@ export type ProgressSnapshotV1 = {
   member: { id: string; displayName: string };
   balances: ProgressBalanceV1[];
   generatedAt: string;
+};
+
+export type RewardDefinitionV1 = {
+  catalogVersion: 1;
+  key: string;
+  kind: RewardKind;
+  title: string;
+  description: string;
+  dimension: ProgressDimension;
+  thresholdPoints: number;
+};
+
+export type RewardProgressV1 = {
+  contractVersion: 1;
+  policyVersion: 1;
+  reward: RewardDefinitionV1;
+  currentPoints: number;
+  unlockedAt: string | null;
+};
+
+export type RewardSnapshotV1 = {
+  contractVersion: 1;
+  catalogVersion: 1;
+  policyVersion: 1;
+  householdId: string;
+  memberId: string;
+  personaId: string | null;
+  generatedAt: string;
+  rewards: RewardProgressV1[];
 };
 
 export type SpriteAssetV1 = {
@@ -598,6 +629,66 @@ export function parseProgressSnapshot(input: unknown): ProgressSnapshotV1 {
     member,
     balances,
     generatedAt: timestampAt(required(record, "generatedAt", path), "$.generatedAt"),
+  };
+}
+
+function rewardDefinitionAt(input: unknown, path: string): RewardDefinitionV1 {
+  const record = objectAt(input, path, ["catalogVersion", "key", "kind", "title", "description", "dimension", "thresholdPoints"]);
+  versionAt(required(record, "catalogVersion", path), `${path}.catalogVersion`, 1);
+  return {
+    catalogVersion: 1,
+    key: idAt(required(record, "key", path), `${path}.key`),
+    kind: enumAt(required(record, "kind", path), `${path}.kind`, REWARD_KINDS),
+    title: stringAt(required(record, "title", path), `${path}.title`, 1, 80),
+    description: stringAt(required(record, "description", path), `${path}.description`, 1, 180),
+    dimension: enumAt(required(record, "dimension", path), `${path}.dimension`, PROGRESS_DIMENSIONS),
+    thresholdPoints: integerAt(required(record, "thresholdPoints", path), `${path}.thresholdPoints`, 1, Number.MAX_SAFE_INTEGER),
+  };
+}
+
+export function parseRewardDefinition(input: unknown): RewardDefinitionV1 {
+  return rewardDefinitionAt(input, "$");
+}
+
+function rewardProgressAt(input: unknown, path: string): RewardProgressV1 {
+  const record = objectAt(input, path, ["contractVersion", "policyVersion", "reward", "currentPoints", "unlockedAt"]);
+  versionAt(required(record, "contractVersion", path), `${path}.contractVersion`, 1);
+  versionAt(required(record, "policyVersion", path), `${path}.policyVersion`, 1);
+  const reward = rewardDefinitionAt(required(record, "reward", path), `${path}.reward`);
+  const currentPoints = integerAt(required(record, "currentPoints", path), `${path}.currentPoints`, 0, Number.MAX_SAFE_INTEGER);
+  const unlockedAt = nullableTimestampAt(required(record, "unlockedAt", path), `${path}.unlockedAt`);
+  if (unlockedAt !== null && currentPoints < reward.thresholdPoints) {
+    fail(`${path}.unlockedAt`, "requires current points to meet the reward threshold");
+  }
+  return { contractVersion: 1, policyVersion: 1, reward, currentPoints, unlockedAt };
+}
+
+export function parseRewardProgress(input: unknown): RewardProgressV1 {
+  return rewardProgressAt(input, "$");
+}
+
+export function parseRewardSnapshot(input: unknown): RewardSnapshotV1 {
+  const path = "$";
+  const record = objectAt(input, path, ["contractVersion", "catalogVersion", "policyVersion", "householdId", "memberId", "personaId", "generatedAt", "rewards"]);
+  versionAt(required(record, "contractVersion", path), "$.contractVersion", 1);
+  versionAt(required(record, "catalogVersion", path), "$.catalogVersion", 1);
+  versionAt(required(record, "policyVersion", path), "$.policyVersion", 1);
+  const rewards = arrayAt(required(record, "rewards", path), "$.rewards", 0, 64)
+    .map((reward, index) => rewardProgressAt(reward, `$.rewards[${index}]`));
+  uniqueBy(rewards, (entry) => entry.reward.key, "$.rewards", "reward.key");
+  rewards.forEach((entry, index) => {
+    if (entry.reward.catalogVersion !== 1) fail(`$.rewards[${index}].reward.catalogVersion`, "must match the snapshot catalog version");
+    if (entry.policyVersion !== 1) fail(`$.rewards[${index}].policyVersion`, "must match the snapshot policy version");
+  });
+  return {
+    contractVersion: 1,
+    catalogVersion: 1,
+    policyVersion: 1,
+    householdId: idAt(required(record, "householdId", path), "$.householdId"),
+    memberId: idAt(required(record, "memberId", path), "$.memberId"),
+    personaId: nullableIdAt(required(record, "personaId", path), "$.personaId"),
+    generatedAt: timestampAt(required(record, "generatedAt", path), "$.generatedAt"),
+    rewards,
   };
 }
 

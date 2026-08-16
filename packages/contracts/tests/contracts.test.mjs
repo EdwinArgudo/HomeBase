@@ -12,6 +12,9 @@ import {
   parsePersonaSnapshot,
   parseProgressBalance,
   parseProgressSnapshot,
+  parseRewardDefinition,
+  parseRewardProgress,
+  parseRewardSnapshot,
   parseWorldProjection,
   safeParse,
 } from "../index.ts";
@@ -176,6 +179,23 @@ function validPersonaProfile() {
     approvedAt: timestamp,
     createdAt: timestamp,
     updatedAt: timestamp,
+  };
+}
+
+function validRewardDefinition() {
+  return { catalogVersion: 1, key: "first-tend", kind: "emblem", title: "Steady Hands", description: "A calm first step.", dimension: "tend", thresholdPoints: 10 };
+}
+
+function validRewardSnapshot() {
+  return {
+    contractVersion: 1,
+    catalogVersion: 1,
+    policyVersion: 1,
+    householdId: "household-1",
+    memberId: "member-1",
+    personaId: "persona-1",
+    generatedAt: timestamp,
+    rewards: [{ contractVersion: 1, policyVersion: 1, reward: validRewardDefinition(), currentPoints: 10, unlockedAt: timestamp }],
   };
 }
 
@@ -511,6 +531,30 @@ test("persona snapshot rejects partner and household scope mismatches", () => {
   assert.deepEqual(parsePersonaSnapshot(snapshot), snapshot);
   expectContractError(() => parsePersonaSnapshot({ ...snapshot, memberId: "member-2" }), "$.persona.memberId");
   expectContractError(() => parsePersonaSnapshot({ ...snapshot, householdId: "household-2" }), "$.persona.householdId");
+});
+
+test("reward contracts validate closed versions, keys, progress, and unlock invariants", () => {
+  assert.deepEqual(parseRewardDefinition(validRewardDefinition()), validRewardDefinition());
+  assert.deepEqual(parseRewardProgress(validRewardSnapshot().rewards[0]), validRewardSnapshot().rewards[0]);
+  assert.deepEqual(parseRewardSnapshot(validRewardSnapshot()), validRewardSnapshot());
+  const noPersona = { ...validRewardSnapshot(), personaId: null, rewards: [{ ...validRewardSnapshot().rewards[0], currentPoints: 0, unlockedAt: null }] };
+  assert.equal(parseRewardSnapshot(noPersona).personaId, null);
+
+  for (const [field, value, path] of [
+    ["catalogVersion", 2, "$.catalogVersion"], ["policyVersion", 2, "$.policyVersion"],
+    ["personaId", "unsafe id", "$.personaId"],
+  ]) expectContractError(() => parseRewardSnapshot({ ...validRewardSnapshot(), [field]: value }), path);
+
+  expectContractError(() => parseRewardDefinition({ ...validRewardDefinition(), kind: "loot" }), "$.kind");
+  expectContractError(() => parseRewardDefinition({ ...validRewardDefinition(), thresholdPoints: -1 }), "$.thresholdPoints");
+  expectContractError(() => parseRewardDefinition({ ...validRewardDefinition(), sourceEventId: "private" }), "$", "unknown_field");
+  const premature = { ...validRewardSnapshot().rewards[0], currentPoints: 9 };
+  expectContractError(() => parseRewardProgress(premature), "$.unlockedAt");
+  const duplicate = validRewardSnapshot();
+  duplicate.rewards.push(structuredClone(duplicate.rewards[0]));
+  expectContractError(() => parseRewardSnapshot(duplicate), "$.rewards[1].reward.key", "duplicate");
+  const leaked = { ...validRewardSnapshot(), partnerMemberId: "member-2" };
+  expectContractError(() => parseRewardSnapshot(leaked), "$", "unknown_field");
 });
 
 test("WorldProjection validates versions, ranges, relationships, and scene values", () => {

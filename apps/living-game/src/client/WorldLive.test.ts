@@ -7,16 +7,19 @@ import App from "./App.vue";
 import { createFixtureDailyMovesApi } from "./api/fixtureDailyMoves";
 import { createFixturePersonaApi } from "./api/fixturePersona";
 import { createFixtureProgressApi } from "./api/fixtureProgress";
+import { createFixtureRewardsApi } from "./api/fixtureRewards";
 import { createFixtureWorldApi } from "./api/fixtureWorld";
 import { routes } from "./router";
 import { configureDailyMovesRuntime } from "./stores/dailyMoves";
 import { configurePersonaRuntime } from "./stores/persona";
 import { configureProgressRuntime } from "./stores/progress";
+import { configureRewardsRuntime } from "./stores/rewards";
 import { configureWorldRuntime } from "./stores/world";
 
 async function mountWorld(load: () => ReturnType<ReturnType<typeof createFixtureWorldApi>["load"]>) {
   configureDailyMovesRuntime({ api: createFixtureDailyMovesApi(), now: () => new Date(2026, 7, 15) });
   configureProgressRuntime({ api: createFixtureProgressApi() });
+  configureRewardsRuntime({ api: createFixtureRewardsApi() });
   configurePersonaRuntime({ api: createFixturePersonaApi() });
   configureWorldRuntime({ api: { load } });
   const router = createRouter({ history: createMemoryHistory(), routes: [...routes] });

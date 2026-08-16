@@ -4,8 +4,9 @@ This directory contains the Vue/Hono implementation of the Homebase Living
 Game. The current React/Vinext application remains the rollback-safe Homebase
 experience at `/`. The embedded preview uses authenticated daily moves,
 progress, the current member's persistent manual persona, and a privacy-filtered
-household persona projection while keeping the apartment itself as a visual
-preview.
+household persona projection. It also materializes permanent, deterministic
+emblem rewards from canonical completion progress while keeping the apartment
+itself as a visual preview.
 
 ## Stack
 
@@ -30,10 +31,13 @@ preview.
 In the embedded `/living-game` build, daily moves, their complete/defer/replace
 actions, canonical current-member/household progress balances, and the current
 member's allow-listed manual persona appearance are live authenticated data.
+The Persona Reward Shelf is also live: it shows five permanent v1 emblems and
+only unlocks them when canonical completion events support the stored progress.
+Rewards cannot be equipped and do not affect the World yet.
 World includes the current member's saved persona and only approved,
 household-visible partner personas. The apartment scene, items, adventures,
 Display projection, and Ledger balances remain preview-only. The embedded
-client never falls back to move, progress, persona, or world fixtures when
+client never falls back to move, progress, persona, world, or reward fixtures when
 authentication, storage, or networking fails. Access uses the existing private
 Sites project boundary; the client does not imitate authentication.
 
@@ -59,9 +63,9 @@ Vue Router uses `/living-game/` as its embedded base, so routes such as
 The generated browser assets live under `public/living-game-preview/`; they are
 ignored and must not be committed. The normal standalone Vue/Hono build remains
 available through this package's `npm run build` command.
-That standalone build explicitly installs fixture move, progress, persona, and
-world adapters so local UI development and tests do not depend on the root
-authenticated APIs.
+That standalone build explicitly installs fixture move, progress, persona,
+world, and reward adapters so local UI development and tests do not depend on
+the root authenticated APIs.
 
 ## Local development
 

@@ -7,6 +7,7 @@ import App from "./App.vue";
 import { createFixtureDailyMovesApi } from "./api/fixtureDailyMoves";
 import { createFixturePersonaApi } from "./api/fixturePersona";
 import { createFixtureProgressApi } from "./api/fixtureProgress";
+import { createFixtureRewardsApi } from "./api/fixtureRewards";
 import { createFixtureWorldApi } from "./api/fixtureWorld";
 import PersonaSprite from "./components/PersonaSprite.vue";
 import { worldFixture } from "./fixtures/game";
@@ -14,6 +15,7 @@ import { routes } from "./router";
 import { configureDailyMovesRuntime } from "./stores/dailyMoves";
 import { configurePersonaRuntime } from "./stores/persona";
 import { configureProgressRuntime } from "./stores/progress";
+import { configureRewardsRuntime } from "./stores/rewards";
 import { configureWorldRuntime } from "./stores/world";
 
 describe("manual persona flow", () => {
@@ -34,6 +36,7 @@ describe("manual persona flow", () => {
   it("saves and approves the current persona through its dedicated API", async () => {
     configureDailyMovesRuntime({ api: createFixtureDailyMovesApi(), now: () => new Date(2026, 7, 15) });
     configureProgressRuntime({ api: createFixtureProgressApi() });
+    configureRewardsRuntime({ api: createFixtureRewardsApi() });
     configurePersonaRuntime({ api: createFixturePersonaApi() });
     configureWorldRuntime({ api: createFixtureWorldApi() });
     const router = createRouter({ history: createMemoryHistory(), routes: [...routes] });

@@ -41,7 +41,7 @@ test("wires deterministic ignored Vue preview assets into the root build", async
 });
 
 test("uses the living-game router base and identifies live member data inside the preview world", async () => {
-  const [router, previewConfig, app, api, progressApi, personaApi, worldApi, worldView, displayView] = await Promise.all([
+  const [router, previewConfig, app, api, progressApi, personaApi, worldApi, rewardsApi, worldView, displayView] = await Promise.all([
     source("apps/living-game/src/client/router.ts"),
     source("apps/living-game/vite.preview.config.ts"),
     source("apps/living-game/src/client/App.vue"),
@@ -49,6 +49,7 @@ test("uses the living-game router base and identifies live member data inside th
     source("apps/living-game/src/client/api/progress.ts"),
     source("apps/living-game/src/client/api/persona.ts"),
     source("apps/living-game/src/client/api/world.ts"),
+    source("apps/living-game/src/client/api/rewards.ts"),
     source("apps/living-game/src/client/views/WorldView.vue"),
     source("apps/living-game/src/client/views/DisplayView.vue"),
   ]);
@@ -59,8 +60,9 @@ test("uses the living-game router base and identifies live member data inside th
   assert.match(previewConfig, /VITE_LIVE_PROGRESS.*"true"/s);
   assert.match(previewConfig, /VITE_LIVE_PERSONA.*"true"/s);
   assert.match(previewConfig, /VITE_LIVE_WORLD.*"true"/s);
+  assert.match(previewConfig, /VITE_LIVE_REWARDS.*"true"/s);
   assert.match(app, />Preview</);
-  assert.match(app, /Live moves \+ progress \+ household personas · Preview scene/);
+  assert.match(app, /Live moves \+ progress \+ rewards \+ household personas · Preview scene/);
   assert.match(api, /\/api\/game\/moves\?date=/);
   assert.doesNotMatch(api, /dailyMoveFixtures/);
   assert.match(progressApi, /\/api\/game\/progress/);
@@ -69,6 +71,8 @@ test("uses the living-game router base and identifies live member data inside th
   assert.doesNotMatch(personaApi, /worldFixture|fixturePersona/);
   assert.match(worldApi, /\/api\/world/);
   assert.doesNotMatch(worldApi, /worldFixture|fixtureWorld/);
+  assert.match(rewardsApi, /\/api\/game\/rewards/);
+  assert.doesNotMatch(rewardsApi, /fixtureRewards/);
   assert.doesNotMatch(worldView, /worldFixture|usePersonaStore/);
   assert.match(app, /href="\/"/);
   assert.match(app, />Current Homebase</);

@@ -15,11 +15,14 @@ import PersonaSprite from "../components/PersonaSprite.vue";
 import { worldFixture } from "../fixtures/game";
 import { usePersonaStore } from "../stores/persona";
 import { useProgressStore } from "../stores/progress";
+import { useRewardsStore } from "../stores/rewards";
 
 const personaStore = usePersonaStore();
 const progressStore = useProgressStore();
+const rewardsStore = useRewardsStore();
 const { persona, loadState: personaLoadState, loadError: personaLoadError, actionState, actionError, feedback } = storeToRefs(personaStore);
 const { personaLevel, personalBalances, personalTotalPoints, loadState, loadError } = storeToRefs(progressStore);
+const { snapshot: rewardSnapshot, loadState: rewardLoadState, loadError: rewardLoadError } = storeToRefs(rewardsStore);
 const form = reactive<{ displayName: string; visibility: "private" | "household"; appearance: PersonaAppearanceV1 }>({
   displayName: "",
   visibility: "private",
@@ -68,6 +71,7 @@ async function save() {
 
 onMounted(() => void personaStore.ensureLoaded());
 onMounted(() => void progressStore.ensureLoaded());
+onMounted(() => void rewardsStore.ensureLoaded(true));
 </script>
 
 <template>
@@ -120,6 +124,25 @@ onMounted(() => void progressStore.ensureLoaded());
         </template>
       </section>
     </div>
+
+    <section class="reward-shelf" aria-labelledby="reward-shelf-heading">
+      <div class="section-heading-row">
+        <div><p class="eyebrow">Permanent emblems · live rewards</p><h2 id="reward-shelf-heading">Reward Shelf</h2></div>
+        <span v-if="rewardLoadState === 'ready' && rewardSnapshot">{{ rewardSnapshot.rewards.filter((entry) => entry.unlockedAt).length }}/{{ rewardSnapshot.rewards.length }} unlocked</span>
+      </div>
+      <div v-if="rewardLoadState === 'idle' || rewardLoadState === 'loading'" class="reward-state" role="status" aria-live="polite">Loading your rewards…</div>
+      <div v-else-if="rewardLoadState === 'error'" class="reward-state" role="alert">
+        <p>{{ rewardLoadError }}</p><button type="button" class="inline-retry" @click="rewardsStore.ensureLoaded(true)">Retry</button>
+      </div>
+      <p v-else-if="rewardSnapshot?.personaId === null" class="reward-state">Create a persona to begin keeping permanent rewards.</p>
+      <ul v-else class="reward-list">
+        <li v-for="entry in rewardSnapshot?.rewards ?? []" :key="entry.reward.key" :class="{ 'reward-entry--unlocked': entry.unlockedAt }">
+          <span class="reward-emblem" aria-hidden="true">✦</span>
+          <div><strong>{{ entry.reward.title }}</strong><span>{{ entry.reward.description }}</span></div>
+          <b>{{ entry.unlockedAt ? "Unlocked" : `${Math.min(entry.currentPoints, entry.reward.thresholdPoints)}/${entry.reward.thresholdPoints}` }}</b>
+        </li>
+      </ul>
+    </section>
 
     <form v-if="personaLoadState === 'ready'" class="persona-builder" aria-labelledby="customize-heading" @submit.prevent="save">
       <div class="persona-builder__heading">

@@ -1431,6 +1431,48 @@ summary:focus-visible,
   margin-top: 1rem;
 }
 
+.reward-shelf {
+  margin-top: 1rem;
+  padding: 1.25rem;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 1rem;
+}
+
+.reward-shelf .section-heading-row > span,
+.reward-state {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.reward-state { margin-top: 1rem; }
+.reward-state .inline-retry { margin-top: 0.65rem; }
+
+.reward-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: 0.65rem;
+  margin-top: 1rem;
+}
+
+.reward-list li {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.55rem;
+  padding: 0.75rem;
+  background: var(--canvas);
+  border: 1px solid var(--line);
+  border-radius: 0.75rem;
+  opacity: 0.7;
+}
+
+.reward-list li.reward-entry--unlocked { opacity: 1; border-color: var(--mint-dark); }
+.reward-emblem { color: var(--mint-dark); font-size: 1.25rem; }
+.reward-list div { display: grid; gap: 0.2rem; }
+.reward-list strong { font-size: 0.78rem; }
+.reward-list div span { color: var(--muted); font-size: 0.66rem; line-height: 1.35; }
+.reward-list b { grid-column: 2; color: var(--mint-dark); font-size: 0.68rem; }
+
 .persona-unsaved,
 .persona-action-feedback {
   color: var(--muted);
