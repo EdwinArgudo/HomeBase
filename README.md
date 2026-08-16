@@ -29,6 +29,13 @@ npm install
 npm run dev
 ```
 
+`npm run dev` runs two things: the Homebase server on
+<http://localhost:3000>, and a watcher that builds the Living Game bundle the
+`/living-game` route serves. Vue edits rebuild in well under a second and the
+page reloads itself, so there is no separate build step while developing.
+Either process can also be run alone with `npm run dev:app` and
+`npm run dev:living-game`.
+
 The dev server starts with an empty local database, so every household request
 answers `503` until the checked-in migrations are applied. In a second terminal:
 
@@ -49,6 +56,20 @@ on its own yet.
 If a local database predates this command, or local state gets into a shape you
 do not want, reset it: stop the dev server, run `npm run db:reset:local`, start
 the dev server, then migrate again. Local data is seeded demonstration data.
+
+### Working on the Living Game
+
+The `/living-game` route above is the one backed by real household data. For UI
+work that does not need a database, the Vue app also runs on its own:
+
+```bash
+npm --prefix apps/living-game run dev
+```
+
+That serves <http://localhost:5173> with Vue HMR, using the fixtures in
+`src/client/fixtures/game.ts`. It has no Homebase API behind it: the live API
+clients are selected by the `VITE_LIVE_*` flags, which only
+`vite.preview.config.ts` sets.
 
 ## Verification
 

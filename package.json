@@ -7,7 +7,9 @@
   },
   "scripts": {
     "postinstall": "npm --prefix apps/living-game install",
-    "dev": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext dev",
+    "dev": "node scripts/dev.mjs",
+    "dev:app": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext dev",
+    "dev:living-game": "npm --prefix apps/living-game run watch:preview",
     "build": "npm run build:living-game-preview && WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext build",
     "build:living-game-preview": "npm --prefix apps/living-game run build:preview",
     "start": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext start",

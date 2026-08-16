@@ -40,6 +40,24 @@ test("wires deterministic ignored Vue preview assets into the root build", async
   assert.match(eslintConfig, /public\/living-game-preview\/\*\*/);
 });
 
+test("the dev server builds and watches the preview bundle it serves", async () => {
+  // public/living-game-preview is ignored, so a dev server that only runs
+  // vinext serves a missing bundle on a fresh checkout and a stale one after
+  // every edit.
+  const [rootPackage, vuePackage] = await Promise.all([
+    source("package.json"),
+    source("apps/living-game/package.json"),
+  ]);
+
+  assert.match(rootPackage, /"dev": "node scripts\/dev\.mjs"/);
+  assert.match(rootPackage, /"dev:living-game": "npm --prefix apps\/living-game run watch:preview"/);
+  assert.match(vuePackage, /"watch:preview": "vite build --watch --config vite\.preview\.config\.ts"/);
+
+  const runner = await source("scripts/dev.mjs");
+  assert.match(runner, /"dev:living-game"/);
+  assert.match(runner, /"dev:app"/);
+});
+
 test("uses the living-game router base and identifies live member data inside the preview world", async () => {
   const [router, previewConfig, app, api, progressApi, personaApi, worldApi, rewardsApi, worldView, displayView] = await Promise.all([
     source("apps/living-game/src/client/router.ts"),
