@@ -246,3 +246,70 @@ describe("budget limits", () => {
     wrapper.unmount();
   });
 });
+
+describe("transfers and refunds", () => {
+  beforeEach(() => {
+    setActivePinia(createPinia());
+  });
+
+  it("marks a purchase as moving money, which takes it out of the inbox", async () => {
+    const api = createFixtureLedgerApi();
+    const setTransfer = vi.spyOn(api, "setTransfer");
+    configureLedgerRuntime({ api });
+
+    const wrapper = mount(LedgerView);
+    await flushPromises();
+    expect(useLedgerStore().needsReviewCount).toBe(1);
+
+    await wrapper.findAll(".review-row__controls button").find((button) => button.text() === "Not spending")!.trigger("click");
+    await flushPromises();
+
+    expect(setTransfer).toHaveBeenCalledWith("txn-costco", true);
+    // A transfer belongs to no budget, so it stops asking to be filed.
+    expect(useLedgerStore().needsReviewCount).toBe(0);
+    wrapper.unmount();
+  });
+
+  it("shows a transfer as not counted, and can count it again", async () => {
+    const api = createFixtureLedgerApi();
+    const setTransfer = vi.spyOn(api, "setTransfer");
+    configureLedgerRuntime({ api });
+
+    const wrapper = mount(LedgerView);
+    await flushPromises();
+    const transferRow = wrapper.findAll(".recent-list li").find((row) => row.text().includes("Card payment"))!;
+    expect(transferRow.text()).toContain("not counted as spending");
+
+    await transferRow.get("button").trigger("click");
+    await flushPromises();
+    expect(setTransfer).toHaveBeenCalledWith("txn-card-payment", false);
+    wrapper.unmount();
+  });
+
+  it("can reclassify a purchase that was already filed as spending", async () => {
+    const api = createFixtureLedgerApi();
+    const setTransfer = vi.spyOn(api, "setTransfer");
+    configureLedgerRuntime({ api });
+
+    const wrapper = mount(LedgerView);
+    await flushPromises();
+    const filedRow = wrapper.findAll(".recent-list li").find((row) => row.text().includes("Whole Foods"))!;
+    await filedRow.get("button").trigger("click");
+    await flushPromises();
+
+    expect(setTransfer).toHaveBeenCalledWith("txn-whole-foods", true);
+    wrapper.unmount();
+  });
+
+  it("reads a refund as money coming back rather than a negative purchase", async () => {
+    configureLedgerRuntime({ api: createFixtureLedgerApi() });
+    const wrapper = mount(LedgerView);
+    await flushPromises();
+
+    const refundRow = wrapper.findAll(".recent-list li").find((row) => row.text().includes("Uniqlo refund"))!;
+    expect(refundRow.text()).toContain("Money back into Clothing");
+    expect(refundRow.get("b").text()).toContain("+$32.50");
+    expect(refundRow.get("b").text()).not.toContain("-");
+    wrapper.unmount();
+  });
+});

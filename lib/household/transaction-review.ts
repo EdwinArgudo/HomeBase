@@ -126,3 +126,29 @@ export async function prepareTransactionReviewStatements(
   }
   return { statements, transactionUpdateIndex: 1, transaction };
 }
+
+/**
+ * Moving money between your own accounts, or paying a card, is not spending.
+ * Marking a transfer clears whatever it was filed under, because a transfer
+ * belongs to no budget; unmarking it asks for a category again.
+ */
+export async function prepareTransferStatements(
+  db: D1Database,
+  member: { id: string; household_id: string },
+  id: string,
+  isTransfer: boolean,
+) {
+  await editableTransaction(db, member.household_id, member.id, id);
+  const statements: D1PreparedStatement[] = [];
+  if (isTransfer) {
+    statements.push(db.prepare("DELETE FROM transaction_splits WHERE transaction_id = ?").bind(id));
+    statements.push(db.prepare(`UPDATE transactions
+      SET is_transfer = 1, category_id = NULL, review_status = 'ready'
+      WHERE id = ? AND household_id = ?`).bind(id, member.household_id));
+  } else {
+    statements.push(db.prepare(`UPDATE transactions
+      SET is_transfer = 0, review_status = 'needs_review'
+      WHERE id = ? AND household_id = ?`).bind(id, member.household_id));
+  }
+  return statements;
+}

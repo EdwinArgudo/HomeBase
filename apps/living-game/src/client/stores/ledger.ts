@@ -98,6 +98,28 @@ export const useLedgerStore = defineStore("ledger", () => {
     }
   }
 
+  async function setTransfer(transactionId: string, isTransfer: boolean) {
+    if (busyTransactionIds.value.has(transactionId)) return false;
+    busyTransactionIds.value = new Set(busyTransactionIds.value).add(transactionId);
+    actionError.value = "";
+    feedback.value = "";
+    try {
+      await configuredRuntime().api.setTransfer(transactionId, isTransfer);
+      await ensureLoaded(true);
+      feedback.value = isTransfer
+        ? "Marked as moving money. It no longer counts as spending."
+        : "Counted as spending again. Give it a category when you can.";
+      return true;
+    } catch (error) {
+      actionError.value = safeMessage(error, "Unable to update that transaction.");
+      return false;
+    } finally {
+      const next = new Set(busyTransactionIds.value);
+      next.delete(transactionId);
+      busyTransactionIds.value = next;
+    }
+  }
+
   async function saveLimits(changes: LedgerLimitChange[]) {
     const month = snapshot.value?.monthValue ?? "";
     if (changes.length === 0 || month.length === 0) return false;
@@ -134,6 +156,6 @@ export const useLedgerStore = defineStore("ledger", () => {
 
   return {
     snapshot, loadState, loadError, busyTransactionIds, actionError, feedback, needsReviewCount,
-    ensureLoaded, review, split, removeMerchantRule, saveLimits, createCategory,
+    ensureLoaded, review, split, removeMerchantRule, setTransfer, saveLimits, createCategory,
   };
 });

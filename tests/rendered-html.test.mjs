@@ -205,8 +205,8 @@ test("keeps Plaid credentials server-side and encrypts saved access tokens", asy
 });
 
 test("persists merchant rules and exact transaction splits", async () => {
-  const transactionSource = await readFile(new URL("../lib/household/transactions.ts", import.meta.url), "utf8");
-  const budgetSource = await readFile(new URL("../lib/household/budgets.ts", import.meta.url), "utf8");
+  const budgetSource = await readFile(new URL("../lib/household/spending.ts", import.meta.url), "utf8");
+  const transactionsSource = await readFile(new URL("../lib/household/transactions.ts", import.meta.url), "utf8");
   const plaidSource = await readFile(new URL("../lib/plaid.ts", import.meta.url), "utf8");
   const pageSource = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
   const migration = await readFile(new URL("../drizzle/0003_moaning_puppet_master.sql", import.meta.url), "utf8");
@@ -214,8 +214,8 @@ test("persists merchant rules and exact transaction splits", async () => {
   assert.match(migration, /CREATE TABLE `merchant_rules`/);
   assert.match(migration, /CREATE UNIQUE INDEX `idx_merchant_rules_member_match`/);
   assert.match(budgetSource, /FROM transaction_splits ts[\s\S]*review_status = 'split'/);
-  assert.match(transactionSource, /Split amounts must add up to the transaction total/);
-  assert.match(transactionSource, /created_by_member_id = \?/);
+  assert.match(transactionsSource, /Split amounts must add up to the transaction total/);
+  assert.match(transactionsSource, /created_by_member_id = \?/);
   assert.match(plaidSource, /merchantRules\.get\(normalizeMerchantName\(merchantName\)\)/);
   assert.match(pageSource, /Remember this merchant/);
   assert.match(pageSource, /Save split/);
@@ -223,7 +223,10 @@ test("persists merchant rules and exact transaction splits", async () => {
 });
 
 test("scopes budgets to durable calendar months with optional rollover", async () => {
-  const budgetSource = await readFile(new URL("../lib/household/budgets.ts", import.meta.url), "utf8");
+  const budgetSource = [
+    await readFile(new URL("../lib/household/budgets.ts", import.meta.url), "utf8"),
+    await readFile(new URL("../lib/household/spending.ts", import.meta.url), "utf8"),
+  ].join("\n");
   const pageSource = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
   const migration = await readFile(new URL("../drizzle/0004_flimsy_wither.sql", import.meta.url), "utf8");
 

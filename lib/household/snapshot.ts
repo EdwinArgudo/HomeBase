@@ -141,6 +141,7 @@ export async function loadHousehold(request: Request) {
         category: isOtherPrivate ? "Private" : row.review_status === "split" ? `Split · ${splits.length} categories` : row.category_name ?? "Needs review",
         mark: isOtherPrivate ? "P" : String(row.merchant_name).split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase(),
         reviewStatus: row.review_status,
+        isTransfer: Boolean(row.is_transfer),
         editable: !isOtherPrivate && (!row.account_owner_id || row.account_owner_id === member.id) && (!personalId || personalId === member.id),
         splits: isOtherPrivate ? [] : splits.map((split) => ({
           categoryId: split.category_id,

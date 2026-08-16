@@ -111,6 +111,12 @@ function exactMoney(value: number) {
   return value.toLocaleString(undefined, { style: "currency", currency: "USD", minimumFractionDigits: 2 });
 }
 
+// A refund is money coming back, so it reads as a credit rather than a purchase
+// with a minus sign in front of it.
+function signedMoney(value: number) {
+  return value < 0 ? `+${exactMoney(Math.abs(value))}` : exactMoney(value);
+}
+
 function percent(spent: number, limit: number) {
   return limit > 0 ? Math.min(100, Math.round((spent / limit) * 100)) : 0;
 }
@@ -160,9 +166,14 @@ onMounted(() => void ledger.ensureLoaded());
             <div class="review-row">
               <div class="review-row__what">
                 <strong>{{ transaction.merchant }}</strong>
-                <span>{{ transaction.detail }}</span>
+                <span>
+                  {{ transaction.detail }}
+                  <template v-if="transaction.isRefund"> · money coming back</template>
+                </span>
               </div>
-              <b class="review-row__amount">{{ exactMoney(transaction.amount) }}</b>
+              <b class="review-row__amount" :class="{ 'review-row__amount--refund': transaction.isRefund }">
+                {{ signedMoney(transaction.amount) }}
+              </b>
             </div>
             <div class="review-row__controls">
               <label>
@@ -194,6 +205,13 @@ onMounted(() => void ledger.ensureLoaded());
                 class="move-secondary-action"
                 @click="beginSplit(transaction.id)"
               >Split it</button>
+              <button
+                v-if="!splitRowsFor(transaction.id)"
+                type="button"
+                class="move-secondary-action"
+                :disabled="busyTransactionIds.has(transaction.id)"
+                @click="ledger.setTransfer(transaction.id, true)"
+              >Not spending</button>
             </div>
 
             <div v-if="splitRowsFor(transaction.id)" class="split-editor">
@@ -365,9 +383,24 @@ onMounted(() => void ledger.ensureLoaded());
           <li v-for="transaction in snapshot.recent" :key="transaction.id">
             <div class="review-row__what">
               <strong>{{ transaction.merchant }}</strong>
-              <span>{{ transaction.category }} · {{ transaction.scope }}</span>
+              <span>
+                <template v-if="transaction.isTransfer">Moving money · not counted as spending</template>
+                <template v-else-if="transaction.isRefund">Money back into {{ transaction.category }} · {{ transaction.scope }}</template>
+                <template v-else>{{ transaction.category }} · {{ transaction.scope }}</template>
+              </span>
             </div>
-            <b>{{ exactMoney(transaction.amount) }}</b>
+            <!-- A card payment usually arrives already filed as spending, so
+                 correcting one has to be possible after the fact. -->
+            <button
+              v-if="transaction.editable"
+              type="button"
+              class="move-secondary-action"
+              :disabled="busyTransactionIds.has(transaction.id)"
+              @click="ledger.setTransfer(transaction.id, !transaction.isTransfer)"
+            >{{ transaction.isTransfer ? "Count it" : "Not spending" }}</button>
+            <b :class="{ 'review-row__amount--refund': transaction.isRefund, 'review-row__amount--transfer': transaction.isTransfer }">
+              {{ signedMoney(transaction.amount) }}
+            </b>
           </li>
         </ul>
       </section>

@@ -1,7 +1,7 @@
 import { HttpError } from "../auth/identity";
 import { ownsPersonalRecord } from "./authorization";
 import { requireMember } from "./membership";
-import { editableTransaction, prepareTransactionReviewStatements } from "./transaction-review.ts";
+import { editableTransaction, prepareTransactionReviewStatements, prepareTransferStatements } from "./transaction-review.ts";
 
 export async function reviewTransaction(request: Request, id: string, categoryId: string, createRule = false) {
   const { member, db } = await requireMember(request);
@@ -42,6 +42,13 @@ export async function splitTransaction(request: Request, id: string, splits: Arr
   }
   statements.push(db.prepare("UPDATE transactions SET spending_type = ?, personal_member_id = ?, category_id = NULL, review_status = 'split' WHERE id = ? AND household_id = ?")
     .bind(singleType, singleType === "personal" ? member.id : null, id, member.household_id));
+  const results = await db.batch(statements);
+  if (!results.at(-1)?.meta.changes) throw new HttpError(404, "Transaction not found.");
+}
+
+export async function setTransactionTransfer(request: Request, id: string, isTransfer: boolean) {
+  const { member, db } = await requireMember(request);
+  const statements = await prepareTransferStatements(db, member, id, isTransfer);
   const results = await db.batch(statements);
   if (!results.at(-1)?.meta.changes) throw new HttpError(404, "Transaction not found.");
 }

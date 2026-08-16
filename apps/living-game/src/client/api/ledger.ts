@@ -21,6 +21,10 @@ export type LedgerTransaction = {
   category: string;
   reviewStatus: string;
   editable: boolean;
+  /** Moving money between accounts, or paying a card: never spending. */
+  isTransfer: boolean;
+  /** Money coming back, which reduces its category rather than adding to it. */
+  isRefund: boolean;
 };
 
 export type LedgerMerchantRule = {
@@ -60,6 +64,7 @@ export interface LedgerApi {
   review(transactionId: string, categoryId: string, createRule: boolean): Promise<void>;
   split(transactionId: string, parts: LedgerSplitPart[]): Promise<void>;
   removeMerchantRule(ruleId: string): Promise<void>;
+  setTransfer(transactionId: string, isTransfer: boolean): Promise<void>;
   saveLimits(month: string, changes: LedgerLimitChange[]): Promise<void>;
   createCategory(month: string, category: LedgerNewCategory): Promise<void>;
 }
@@ -121,6 +126,8 @@ function transactionFrom(input: unknown): LedgerTransaction {
     category: str(row.category, "Needs review"),
     reviewStatus: str(row.reviewStatus, "ready"),
     editable: row.editable === true,
+    isTransfer: row.isTransfer === true,
+    isRefund: money(row.amount) < 0,
   };
 }
 
@@ -152,7 +159,7 @@ export function snapshotFrom(input: unknown): LedgerSnapshot {
     categoryChoices: (["ours", "mine"] as const).flatMap((scope) => budgets[scope]
       .filter((category) => category.editable)
       .map((category) => ({ id: category.id, name: category.name, scope }))),
-    needsReview: transactions.filter((entry) => entry.reviewStatus === "needs_review" && entry.editable),
+    needsReview: transactions.filter((entry) => entry.reviewStatus === "needs_review" && entry.editable && !entry.isTransfer),
     recent: transactions.slice(0, 8),
     connections: list(plaid.connections).map((entry) => {
       const row = plain(entry);
@@ -222,6 +229,14 @@ export function createHttpLedgerApi(): LedgerApi {
       });
       await readJson(response, "Unable to remove that rule.");
     },
+    async setTransfer(transactionId, isTransfer) {
+      const response = await fetch("/api/transactions/transfer", {
+        method: "POST",
+        headers: { "content-type": "application/json", accept: "application/json" },
+        body: JSON.stringify({ id: transactionId, isTransfer }),
+      });
+      await readJson(response, "Unable to update that transaction.");
+    },
     async saveLimits(month, changes) {
       const response = await fetch("/api/budgets/categories", {
         method: "POST",
@@ -267,6 +282,8 @@ export function createFixtureLedgerApi(): LedgerApi {
       category: "Needs review",
       reviewStatus: "needs_review",
       editable: true,
+      isTransfer: false,
+      isRefund: false,
     }],
     recent: [{
       id: "txn-whole-foods",
@@ -277,6 +294,30 @@ export function createFixtureLedgerApi(): LedgerApi {
       category: "Groceries",
       reviewStatus: "ready",
       editable: true,
+      isTransfer: false,
+      isRefund: false,
+    }, {
+      id: "txn-card-payment",
+      merchant: "Card payment",
+      detail: "2026-08-07 · Checking",
+      amount: 400,
+      scope: "Ours",
+      category: "Transfer",
+      reviewStatus: "ready",
+      editable: true,
+      isTransfer: true,
+      isRefund: false,
+    }, {
+      id: "txn-refund",
+      merchant: "Uniqlo refund",
+      detail: "2026-08-06 · Visa",
+      amount: -32.5,
+      scope: "Mine",
+      category: "Clothing",
+      reviewStatus: "ready",
+      editable: true,
+      isTransfer: false,
+      isRefund: true,
     }],
     connections: [{
       id: "connection-demo",
@@ -303,6 +344,11 @@ export function createFixtureLedgerApi(): LedgerApi {
     },
     async removeMerchantRule(ruleId) {
       snapshot.merchantRules = snapshot.merchantRules.filter((rule) => rule.id !== ruleId);
+    },
+    async setTransfer(transactionId, isTransfer) {
+      const entry = [...snapshot.needsReview, ...snapshot.recent].find((row) => row.id === transactionId);
+      if (entry) entry.isTransfer = isTransfer;
+      snapshot.needsReview = snapshot.needsReview.filter((row) => !row.isTransfer);
     },
     async saveLimits(_month, changes) {
       for (const change of changes) {
