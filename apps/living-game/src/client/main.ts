@@ -13,6 +13,8 @@ import { createHttpWorldApi } from "./api/world";
 import { createFixtureRewardsApi } from "./api/fixtureRewards";
 import { createHttpRewardsApi } from "./api/rewards";
 import { createFixtureSettingsApi, createHttpSettingsApi } from "./api/settings";
+import { createFixtureHouseholdApi, createHttpHouseholdApi } from "./api/household";
+import { createFixtureDisplayWorldApi, createHttpDisplayWorldApi } from "./api/displayWorld";
 import { router } from "./router";
 import { configureDailyMovesRuntime } from "./stores/dailyMoves";
 import { configureProgressRuntime } from "./stores/progress";
@@ -20,6 +22,8 @@ import { configurePersonaRuntime } from "./stores/persona";
 import { configureWorldRuntime } from "./stores/world";
 import { configureRewardsRuntime } from "./stores/rewards";
 import { configureSettingsRuntime } from "./stores/settings";
+import { configureHouseholdRuntime } from "./stores/household";
+import { configureDisplayWorldRuntime } from "./stores/displayWorld";
 import "./styles.css";
 
 const liveMoves = import.meta.env.VITE_LIVE_MOVES === "true";
@@ -42,5 +46,7 @@ configureWorldRuntime({
 });
 configureRewardsRuntime({ api: liveRewards ? createHttpRewardsApi() : createFixtureRewardsApi() });
 configureSettingsRuntime({ api: liveMoves ? createHttpSettingsApi() : createFixtureSettingsApi() });
+configureHouseholdRuntime({ api: liveWorld ? createHttpHouseholdApi() : createFixtureHouseholdApi() });
+configureDisplayWorldRuntime({ api: liveWorld ? createHttpDisplayWorldApi() : createFixtureDisplayWorldApi() });
 
 createApp(App).use(createPinia()).use(router).mount("#app");

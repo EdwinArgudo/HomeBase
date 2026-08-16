@@ -6,14 +6,17 @@ import DailyMoveCard from "../components/DailyMoveCard.vue";
 import RestModeToggle from "../components/RestModeToggle.vue";
 import WorldScene from "../components/WorldScene.vue";
 import { useDailyMovesStore } from "../stores/dailyMoves";
+import { useHouseholdStore } from "../stores/household";
 import { useProgressStore } from "../stores/progress";
 import { useWorldStore } from "../stores/world";
 
+const householdStore = useHouseholdStore();
 const movesStore = useDailyMovesStore();
 const progressStore = useProgressStore();
 const worldStore = useWorldStore();
 const { projection, selectedPersona, selectedPersonaId, loadState: worldLoadState, loadError: worldLoadError } = storeToRefs(worldStore);
 const { moves, remainingMoves, completedCount, loadState, loadError, feedback } = storeToRefs(movesStore);
+const { isAlone } = storeToRefs(householdStore);
 const {
   householdLevel,
   householdPoints,
@@ -21,9 +24,14 @@ const {
   loadError: progressLoadError,
 } = storeToRefs(progressStore);
 
-onMounted(() => void movesStore.ensureLoaded());
-onMounted(() => void progressStore.ensureLoaded());
-onMounted(() => void worldStore.ensureLoaded(true));
+// The household comes first: a member arriving here for the first time has no
+// household yet, and everything below is scoped to one.
+onMounted(async () => {
+  await householdStore.ensureLoaded();
+  void movesStore.ensureLoaded();
+  void progressStore.ensureLoaded();
+  void worldStore.ensureLoaded(true);
+});
 </script>
 
 <template>
@@ -63,6 +71,10 @@ onMounted(() => void worldStore.ensureLoaded(true));
     />
 
     <p v-if="selectedPersona" class="scene-caption" aria-live="polite">{{ selectedPersona.altDescription }}</p>
+
+    <p v-if="isAlone" class="alone-note">
+      It's just you here so far. <RouterLink to="/household">Invite your partner</RouterLink> whenever you're ready.
+    </p>
 
     <section class="today-panel" aria-labelledby="today-heading">
       <div class="section-heading-row">

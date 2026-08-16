@@ -1,4 +1,10 @@
 import { flushPromises, mount } from "@vue/test-utils";
+
+// Home resolves the household first, so a mount settles over two rounds.
+async function settle() {
+  await flushPromises();
+  await flushPromises();
+}
 import { parseProgressBalance, parseProgressSnapshot, type ProgressBalanceV1, type ProgressSnapshotV1 } from "@homebase/contracts";
 import { createPinia } from "pinia";
 import { createMemoryHistory, createRouter } from "vue-router";
@@ -9,12 +15,14 @@ import { createFixtureDailyMovesApi } from "./api/fixtureDailyMoves";
 import { createFixturePersonaApi } from "./api/fixturePersona";
 import { createFixtureRewardsApi } from "./api/fixtureRewards";
 import { createFixtureWorldApi } from "./api/fixtureWorld";
+import { createFixtureHouseholdApi } from "./api/household";
 import { routes } from "./router";
 import { configureDailyMovesRuntime } from "./stores/dailyMoves";
 import { configureProgressRuntime } from "./stores/progress";
 import { configurePersonaRuntime } from "./stores/persona";
 import { configureRewardsRuntime } from "./stores/rewards";
 import { configureWorldRuntime } from "./stores/world";
+import { configureHouseholdRuntime } from "./stores/household";
 
 function balance(overrides: Partial<ProgressBalanceV1> = {}) {
   return parseProgressBalance({
@@ -54,6 +62,7 @@ async function mountAt(path: string) {
   configurePersonaRuntime({ api: createFixturePersonaApi() });
   configureRewardsRuntime({ api: createFixtureRewardsApi() });
   configureWorldRuntime({ api: createFixtureWorldApi() });
+  configureHouseholdRuntime({ api: createFixtureHouseholdApi() });
   const router = createRouter({ history: createMemoryHistory(), routes: [...routes] });
   await router.push(path);
   await router.isReady();
@@ -69,13 +78,13 @@ describe("live progress views", () => {
     configureDailyMovesRuntime({ api: createFixtureDailyMovesApi(), now: () => new Date(2026, 7, 15) });
     const { wrapper } = await mountAt("/persona");
 
-    await flushPromises();
+    await settle();
     expect(wrapper.get('.progress-state[role="status"]').text()).toContain("Loading your progress");
     first.reject(new Error("Please sign in again."));
-    await flushPromises();
+    await settle();
     expect(wrapper.get('.progress-state[role="alert"]').text()).toContain("Please sign in again.");
     await wrapper.get('.progress-state[role="alert"] button').trigger("click");
-    await flushPromises();
+    await settle();
     expect(wrapper.text()).toContain("No progress recorded yet");
     expect(wrapper.text()).toContain("Edwin");
     expect(wrapper.text()).toContain("Level 1 · 0 total points");
@@ -91,7 +100,7 @@ describe("live progress views", () => {
     expect(wrapper.get(".world-level").attributes("role")).toBe("status");
     expect(wrapper.get(".world-level").text()).toContain("Loading household progress");
     pending.reject(new Error("Progress is temporarily unavailable."));
-    await flushPromises();
+    await settle();
     expect(wrapper.get(".world-level").attributes("role")).toBe("alert");
     expect(wrapper.get(".world-level").text()).toContain("Progress is temporarily unavailable.");
     wrapper.unmount();
@@ -118,16 +127,16 @@ describe("live progress views", () => {
     };
     configureDailyMovesRuntime({ api: dailyApi, now: () => new Date(2026, 7, 15) });
     const { wrapper, router } = await mountAt("/");
-    await flushPromises();
+    await settle();
 
     expect(wrapper.get(".world-level").text()).toContain("100 points");
     expect(wrapper.get(".world-level__badge").text()).toBe("2");
     await wrapper.get(".move-list .action-button").trigger("click");
-    await flushPromises();
+    await settle();
     expect(wrapper.get(".world-level").text()).toContain("104 points");
 
     await router.push("/persona");
-    await flushPromises();
+    await settle();
     expect(wrapper.text()).toContain("Edwin");
     expect(wrapper.text()).toContain("20 total points");
     expect(wrapper.text()).toContain("tendLife admin & home · 20 points");

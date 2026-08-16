@@ -1,4 +1,10 @@
 import { flushPromises, mount } from "@vue/test-utils";
+
+// Home resolves the household first, so a mount settles over two rounds.
+async function settle() {
+  await flushPromises();
+  await flushPromises();
+}
 import { createPinia } from "pinia";
 import { createMemoryHistory, createRouter } from "vue-router";
 import { beforeEach, describe, expect, it } from "vitest";
@@ -9,19 +15,24 @@ import { createFixtureProgressApi } from "./api/fixtureProgress";
 import { createFixtureRewardsApi } from "./api/fixtureRewards";
 import { createFixturePersonaApi } from "./api/fixturePersona";
 import { createFixtureWorldApi } from "./api/fixtureWorld";
+import { createFixtureDisplayWorldApi } from "./api/displayWorld";
+import { createFixtureHouseholdApi } from "./api/household";
 import { routes } from "./router";
 import { configureDailyMovesRuntime } from "./stores/dailyMoves";
 import { configureProgressRuntime } from "./stores/progress";
 import { configureRewardsRuntime } from "./stores/rewards";
 import { configurePersonaRuntime } from "./stores/persona";
 import { configureWorldRuntime } from "./stores/world";
+import { configureDisplayWorldRuntime } from "./stores/displayWorld";
+import { configureHouseholdRuntime } from "./stores/household";
 
 const expectedHeadings = [
   ["/", "Our World"],
   ["/adventures", "Adventures"],
+  ["/household", "Your household"],
   ["/persona", "My Persona"],
   ["/ledger", "The Ledger"],
-  ["/display", "Apartment Display"],
+  ["/display", "Edwin and Vienna are home"],
 ] as const;
 
 describe("client routes", () => {
@@ -31,6 +42,8 @@ describe("client routes", () => {
     configureRewardsRuntime({ api: createFixtureRewardsApi() });
     configurePersonaRuntime({ api: createFixturePersonaApi() });
     configureWorldRuntime({ api: createFixtureWorldApi() });
+    configureDisplayWorldRuntime({ api: createFixtureDisplayWorldApi() });
+    configureHouseholdRuntime({ api: createFixtureHouseholdApi() });
   });
 
   it.each(expectedHeadings)("renders %s with its accessible heading", async (path, heading) => {
@@ -48,6 +61,7 @@ describe("client routes", () => {
       },
     });
 
+    await settle();
     expect(wrapper.get("h1").text()).toBe(heading);
     wrapper.unmount();
   });
@@ -93,10 +107,10 @@ describe("client routes", () => {
     expect(wrapper.get('[role="status"]').text()).toContain("Loading");
     await testRouter.push("/persona");
     await testRouter.push("/");
-    await flushPromises();
+    await settle();
     expect(calls).toBe(1);
     resolveLoad([]);
-    await flushPromises();
+    await settle();
     expect(wrapper.text()).toContain("Nothing needs you today");
     wrapper.unmount();
   });

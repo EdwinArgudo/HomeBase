@@ -125,3 +125,69 @@ export async function loadMemberWorldProjection(
     adventures: [],
   });
 }
+
+type DisplayPersonaRow = {
+  id: string;
+  display_name: string;
+  base_style_version: string;
+  appearance_json: string;
+  last_celebrated_at: string | null;
+};
+
+/**
+ * The wall display is ambient and can be seen by anyone in the room, so it
+ * shows who lives here and nothing about what they have been doing. Only a
+ * companion whose owner shared it with the household appears at all, and the
+ * only state it can express is a celebration from a display-visible event.
+ */
+export async function loadDisplayWorldProjection(
+  context: HouseholdContext,
+  generatedAt: string,
+): Promise<WorldProjectionV1> {
+  const result = await context.db.prepare(`SELECT
+    p.id, p.display_name, p.base_style_version, p.appearance_json,
+    (SELECT ge.occurred_at FROM game_events ge
+      WHERE ge.household_id = p.household_id AND ge.member_id = p.member_id
+        AND ge.event_type = 'daily_move.completed' AND ge.visibility = 'display'
+      ORDER BY ge.occurred_at DESC, ge.id DESC
+      LIMIT 1) AS last_celebrated_at
+  FROM personas p
+  WHERE p.household_id = ? AND p.deleted_at IS NULL
+    AND p.status = 'ready' AND p.visibility = 'household'
+  ORDER BY p.id ASC
+  LIMIT 16`)
+    .bind(context.member.household_id)
+    .all<DisplayPersonaRow>();
+
+  const personas = result.results.map((row, index) => {
+    const celebrating = row.last_celebrated_at !== null
+      && companionActivityV1({ generatedAt, lastCompletion: { family: "tend", occurredAt: row.last_celebrated_at } }) === "celebrate";
+    return {
+      id: row.id,
+      displayName: row.display_name,
+      altDescription: `${row.display_name} is at home.`,
+      // Household-shared companions are what this household chose to show in
+      // their own home; private ones are excluded by the query above.
+      visibility: "display",
+      activity: celebrating ? "celebrate" : "idle",
+      appearance: parsePersonaAppearance(JSON.parse(row.appearance_json) as unknown),
+      equippedRewardKey: null,
+      x: POSITIONS[index]![0],
+      y: POSITIONS[index]![1],
+      manifest: createManualPersonaManifest(row.id, row.base_style_version),
+    };
+  });
+
+  return parseWorldProjection({
+    contractVersion: 1,
+    worldVersion: 1,
+    revision: 0,
+    householdId: context.member.household_id,
+    viewer: "display",
+    generatedAt,
+    scene: { key: "homebase-apartment", theme: "calm-morning" },
+    personas,
+    items: [],
+    adventures: [],
+  });
+}

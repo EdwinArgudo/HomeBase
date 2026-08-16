@@ -3,6 +3,7 @@ import { createRouter, createWebHistory } from "vue-router";
 import AdventuresView from "./views/AdventuresView.vue";
 import DisplayView from "./views/DisplayView.vue";
 import HomeView from "./views/HomeView.vue";
+import HouseholdView from "./views/HouseholdView.vue";
 import LedgerView from "./views/LedgerView.vue";
 import PersonaView from "./views/PersonaView.vue";
 
@@ -10,8 +11,10 @@ export const routes = [
   { path: "/", name: "home", component: HomeView },
   { path: "/adventures", name: "adventures", component: AdventuresView },
   { path: "/persona", name: "persona", component: PersonaView },
+  { path: "/household", name: "household", component: HouseholdView },
   { path: "/ledger", name: "ledger", component: LedgerView },
-  { path: "/display", name: "display", component: DisplayView },
+  // The wall display is a mode, not a page: it renders without app chrome.
+  { path: "/display", name: "display", component: DisplayView, meta: { bare: true } },
 ] as const;
 
 export const router = createRouter({

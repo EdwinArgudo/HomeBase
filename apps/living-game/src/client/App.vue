@@ -1,5 +1,13 @@
 <script setup lang="ts">
+import { computed } from "vue";
+import { useRoute } from "vue-router";
+
 import PrimaryNavigation from "./components/PrimaryNavigation.vue";
+
+// The wall display is read from across a room, so it drops the header, the
+// navigation and every tap target the phone shell provides.
+const route = useRoute();
+const bare = computed(() => route.meta.bare === true);
 
 const liveData = import.meta.env.VITE_LIVE_MOVES === "true" && import.meta.env.VITE_LIVE_PROGRESS === "true";
 const livePersona = import.meta.env.VITE_LIVE_PERSONA === "true";
@@ -8,6 +16,11 @@ const liveRewards = import.meta.env.VITE_LIVE_REWARDS === "true";
 </script>
 
 <template>
+  <main v-if="bare" class="display-shell">
+    <RouterView />
+  </main>
+
+  <template v-else>
   <a class="skip-link" href="#main-content">Skip to content</a>
   <div class="app-shell">
     <header class="app-header">
@@ -30,6 +43,7 @@ const liveRewards = import.meta.env.VITE_LIVE_REWARDS === "true";
             <span aria-hidden="true">▦</span>
             <span class="ledger-link__label">Ledger</span>
           </RouterLink>
+          <RouterLink class="household-link" to="/household">Household</RouterLink>
           <RouterLink class="display-link" to="/display">Display</RouterLink>
         </nav>
       </div>
@@ -42,4 +56,5 @@ const liveRewards = import.meta.env.VITE_LIVE_REWARDS === "true";
       </main>
     </div>
   </div>
+  </template>
 </template>

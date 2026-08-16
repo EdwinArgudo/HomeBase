@@ -9,6 +9,7 @@ import { createFixturePersonaApi } from "./api/fixturePersona";
 import { createFixtureProgressApi } from "./api/fixtureProgress";
 import { createFixtureRewardsApi } from "./api/fixtureRewards";
 import { createFixtureWorldApi } from "./api/fixtureWorld";
+import { createFixtureHouseholdApi } from "./api/household";
 import PersonaSprite from "./components/PersonaSprite.vue";
 import { worldFixture } from "./fixtures/game";
 import { routes } from "./router";
@@ -17,6 +18,7 @@ import { configurePersonaRuntime } from "./stores/persona";
 import { configureProgressRuntime } from "./stores/progress";
 import { configureRewardsRuntime } from "./stores/rewards";
 import { configureWorldRuntime } from "./stores/world";
+import { configureHouseholdRuntime } from "./stores/household";
 
 describe("manual persona flow", () => {
   it("renders allow-listed appearance through fixed classes", () => {
@@ -66,6 +68,7 @@ describe("manual persona flow", () => {
     configureRewardsRuntime({ api: createFixtureRewardsApi() });
     configurePersonaRuntime({ api: createFixturePersonaApi() });
     configureWorldRuntime({ api: createFixtureWorldApi() });
+  configureHouseholdRuntime({ api: createFixtureHouseholdApi() });
     const router = createRouter({ history: createMemoryHistory(), routes: [...routes] });
     await router.push("/persona");
     await router.isReady();

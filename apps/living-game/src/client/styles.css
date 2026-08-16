@@ -2343,3 +2343,169 @@ summary:focus-visible,
     transition: transform 200ms var(--ease-spring);
   }
 }
+
+/* Wall display: no chrome, no controls, read from across a room. */
+.display-shell {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  min-height: 100vh;
+  padding: clamp(1rem, 3vw, 2.5rem);
+}
+
+.display-mode {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(1rem, 2.5vw, 2rem);
+  width: min(100%, 80rem);
+}
+
+.display-mode__header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  text-align: center;
+}
+
+.display-mode__day {
+  color: var(--muted);
+  font-size: clamp(0.9rem, 1.6vw, 1.3rem);
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.display-mode h1 {
+  font-size: clamp(2rem, 5vw, 4rem);
+  text-wrap: balance;
+}
+
+.display-mode__state {
+  padding: 3rem 1rem;
+  color: var(--muted);
+  font-size: clamp(1.1rem, 2.4vw, 1.8rem);
+  text-align: center;
+}
+
+.display-mode .world-scene {
+  margin-top: 0;
+}
+
+.household-link {
+  color: var(--ink);
+}
+
+/* Household */
+.household-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  padding: clamp(1.1rem, 2.5vw, 1.6rem);
+  margin-top: 1.2rem;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  box-shadow: var(--lift-1);
+}
+
+.member-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.member-list li {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.member-initial {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 2.4rem;
+  height: 2.4rem;
+  color: var(--accent-deep);
+  background: var(--accent-soft);
+  border-radius: 50%;
+  font-weight: 800;
+}
+
+.member-list li > span:last-child {
+  display: grid;
+  gap: 0.1rem;
+}
+
+.member-list small {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.invite-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 0.75rem;
+}
+
+.invite-form label {
+  display: grid;
+  flex: 1 1 14rem;
+  gap: 0.3rem;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.invite-form input {
+  min-height: 2.9rem;
+  padding: 0.55rem 0.75rem;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  font-size: 0.95rem;
+}
+
+.invite-form .action-button {
+  flex: 0 0 auto;
+  width: auto;
+  min-height: 2.9rem;
+  padding-inline: 1.2rem;
+  margin-top: 0;
+}
+
+.invitation-state,
+.quiet-note-text {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.household-feedback {
+  min-height: 1.2rem;
+  color: var(--accent-deep);
+  font-size: 0.85rem;
+}
+
+.household-feedback--error {
+  color: var(--gap, #a94b40);
+}
+
+/* The display names who is home; it does not narrate their state. */
+.world-scene--display .persona-label span {
+  display: none;
+}
+
+.world-scene--display .persona-label {
+  font-size: 0.8rem;
+}
+
+.alone-note {
+  padding: 0.7rem 0.9rem;
+  background: var(--accent-soft);
+  border-radius: var(--radius-md);
+  color: var(--accent-deep);
+  font-size: 0.88rem;
+  text-align: center;
+}

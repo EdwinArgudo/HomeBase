@@ -1,4 +1,10 @@
 import { flushPromises, mount } from "@vue/test-utils";
+
+// Home resolves the household first, so a mount settles over two rounds.
+async function settle() {
+  await flushPromises();
+  await flushPromises();
+}
 import { createPinia } from "pinia";
 import { createMemoryHistory, createRouter } from "vue-router";
 import { describe, expect, it, vi } from "vitest";
@@ -9,6 +15,7 @@ import { createFixturePersonaApi } from "./api/fixturePersona";
 import { createFixtureProgressApi } from "./api/fixtureProgress";
 import { createFixtureRewardsApi } from "./api/fixtureRewards";
 import { createFixtureWorldApi } from "./api/fixtureWorld";
+import { createFixtureHouseholdApi } from "./api/household";
 import type { RewardsApi } from "./api/rewards";
 import type { WorldApi } from "./api/world";
 import { routes } from "./router";
@@ -17,12 +24,14 @@ import { configurePersonaRuntime } from "./stores/persona";
 import { configureProgressRuntime } from "./stores/progress";
 import { configureRewardsRuntime } from "./stores/rewards";
 import { configureWorldRuntime } from "./stores/world";
+import { configureHouseholdRuntime } from "./stores/household";
 
 async function mountPersona(api: RewardsApi, worldLoad: WorldApi["load"] = createFixtureWorldApi().load) {
   configureDailyMovesRuntime({ api: createFixtureDailyMovesApi(), now: () => new Date(2026, 7, 15) });
   configureProgressRuntime({ api: createFixtureProgressApi() });
   configurePersonaRuntime({ api: createFixturePersonaApi() });
   configureWorldRuntime({ api: { load: worldLoad } });
+    configureHouseholdRuntime({ api: createFixtureHouseholdApi() });
   configureRewardsRuntime({ api });
   const router = createRouter({ history: createMemoryHistory(), routes: [...routes] });
   await router.push("/persona");
@@ -35,10 +44,10 @@ describe("Persona reward shelf", () => {
     const fixture = await createFixtureRewardsApi().load();
     const load = vi.fn().mockRejectedValueOnce(new Error("Rewards are temporarily unavailable.")).mockResolvedValue(fixture);
     const { wrapper } = await mountPersona({ load, equip: vi.fn() });
-    await flushPromises();
+    await settle();
     expect(wrapper.get(".reward-state[role='alert']").text()).toContain("temporarily unavailable");
     await wrapper.get(".reward-state button").trigger("click");
-    await flushPromises();
+    await settle();
     expect(wrapper.get(".reward-shelf").text()).toContain("2/5 unlocked");
     expect(wrapper.get(".reward-shelf").text()).toContain("Steady Hands");
     expect(wrapper.get(".reward-shelf").text()).toContain("Equipped");
@@ -52,12 +61,12 @@ describe("Persona reward shelf", () => {
     const noPersona = { ...fixture, personaId: null, equippedRewardKey: null, rewards: fixture.rewards.map((entry) => ({ ...entry, currentPoints: 0, unlockedAt: null })) };
     const load = vi.fn().mockResolvedValue(noPersona);
     const { wrapper, router } = await mountPersona({ load, equip: vi.fn() });
-    await flushPromises();
+    await settle();
     expect(wrapper.get(".reward-state").text()).toContain("Create a persona");
     await router.push("/");
-    await flushPromises();
+    await settle();
     await router.push("/persona");
-    await flushPromises();
+    await settle();
     expect(load).toHaveBeenCalledTimes(2);
     wrapper.unmount();
   });
@@ -77,14 +86,14 @@ describe("Persona reward shelf", () => {
     });
     const load = vi.fn().mockResolvedValueOnce(initial).mockResolvedValue(householdEquipped);
     const { wrapper, router } = await mountPersona({ load, equip }, worldLoad);
-    await flushPromises();
+    await settle();
 
     expect(wrapper.get('button[aria-label="Gentle Motion emblem locked"]').attributes("disabled")).toBeDefined();
     await wrapper.get('button[aria-label="Equip Shared Spark emblem"]').trigger("click");
-    await flushPromises();
+    await settle();
     expect(wrapper.findAll(".reward-equip").every((button) => button.attributes("disabled") !== undefined)).toBe(true);
     resolveEquip(householdEquipped);
-    await flushPromises();
+    await settle();
     expect(equip).toHaveBeenCalledWith("first-household");
     expect(wrapper.get('button[aria-label="Remove Shared Spark emblem"]').text()).toContain("Equipped");
     expect(wrapper.find(".companion-emblem--first-household").exists()).toBe(true);
@@ -92,12 +101,12 @@ describe("Persona reward shelf", () => {
     expect(worldLoad).toHaveBeenCalledTimes(1);
 
     await router.push("/");
-    await flushPromises();
+    await settle();
     expect(wrapper.find(".world-scene .companion-emblem--first-household").exists()).toBe(true);
     await router.push("/persona");
-    await flushPromises();
+    await settle();
     await wrapper.get('button[aria-label="Remove Shared Spark emblem"]').trigger("click");
-    await flushPromises();
+    await settle();
     expect(equip).toHaveBeenLastCalledWith(null);
     expect(wrapper.find(".companion-emblem--first-household").exists()).toBe(false);
     wrapper.unmount();
@@ -112,15 +121,15 @@ describe("Persona reward shelf", () => {
       .mockResolvedValueOnce(removed);
     const worldLoad = vi.fn().mockImplementation(createFixtureWorldApi().load);
     const { wrapper } = await mountPersona({ load: vi.fn().mockResolvedValue(initial), equip }, worldLoad);
-    await flushPromises();
+    await settle();
     const remove = () => wrapper.get('button[aria-label="Remove Steady Hands emblem"]');
     await remove().trigger("click");
-    await flushPromises();
+    await settle();
     expect(wrapper.get(".reward-action-feedback[role='alert']").text()).toContain("temporarily unavailable");
     expect(wrapper.find(".companion-emblem--first-tend").exists()).toBe(true);
     expect(worldLoad).not.toHaveBeenCalled();
     await remove().trigger("click");
-    await flushPromises();
+    await settle();
     expect(wrapper.find(".companion-emblem--first-tend").exists()).toBe(false);
     expect(worldLoad).toHaveBeenCalledTimes(1);
     wrapper.unmount();

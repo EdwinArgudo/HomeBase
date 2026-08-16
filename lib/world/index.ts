@@ -1,2 +1,2 @@
-export { createWorldGetHandler } from "./http.ts";
-export { loadMemberWorldProjection } from "./service.ts";
+export { createDisplayWorldGetHandler, createWorldGetHandler } from "./http.ts";
+export { loadDisplayWorldProjection, loadMemberWorldProjection } from "./service.ts";

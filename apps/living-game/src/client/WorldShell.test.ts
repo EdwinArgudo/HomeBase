@@ -1,4 +1,10 @@
 import { flushPromises, mount } from "@vue/test-utils";
+
+// Home resolves the household first, so a mount settles over two rounds.
+async function settle() {
+  await flushPromises();
+  await flushPromises();
+}
 import { createPinia } from "pinia";
 import { createMemoryHistory, createRouter } from "vue-router";
 import { describe, expect, it } from "vitest";
@@ -9,6 +15,7 @@ import { createFixtureProgressApi } from "./api/fixtureProgress";
 import { createFixtureRewardsApi } from "./api/fixtureRewards";
 import { createFixturePersonaApi } from "./api/fixturePersona";
 import { createFixtureWorldApi } from "./api/fixtureWorld";
+import { createFixtureHouseholdApi } from "./api/household";
 import { displayWorldFixture } from "./fixtures/game";
 import { routes } from "./router";
 import { configureDailyMovesRuntime } from "./stores/dailyMoves";
@@ -16,6 +23,7 @@ import { configureProgressRuntime } from "./stores/progress";
 import { configureRewardsRuntime } from "./stores/rewards";
 import { configurePersonaRuntime } from "./stores/persona";
 import { configureWorldRuntime } from "./stores/world";
+import { configureHouseholdRuntime } from "./stores/household";
 
 async function mountAt(path: string) {
   configureDailyMovesRuntime({ api: createFixtureDailyMovesApi(), now: () => new Date(2026, 7, 15) });
@@ -23,6 +31,7 @@ async function mountAt(path: string) {
   configureRewardsRuntime({ api: createFixtureRewardsApi() });
   configurePersonaRuntime({ api: createFixturePersonaApi() });
   configureWorldRuntime({ api: createFixtureWorldApi() });
+  configureHouseholdRuntime({ api: createFixtureHouseholdApi() });
   const router = createRouter({
     history: createMemoryHistory(),
     routes: [...routes],
@@ -47,7 +56,7 @@ describe("Living Game world shell", () => {
       "◇Adventures",
       "●Persona",
     ]);
-    expect(utilityLinks.map((link) => link.text())).toEqual(["▦Ledger", "Display"]);
+    expect(utilityLinks.map((link) => link.text())).toEqual(["▦Ledger", "Household", "Display"]);
     expect(wrapper.get(".utility-nav .ledger-link").attributes("aria-label")).toBe("Ledger");
     expect(wrapper.get('.primary-nav a[href="/"]').attributes("aria-current")).toBe("page");
     expect(wrapper.find('.utility-nav a[aria-current="page"]').exists()).toBe(false);
@@ -57,12 +66,12 @@ describe("Living Game world shell", () => {
 
   it("lets a member complete a move without a confirmation flow", async () => {
     const wrapper = await mountAt("/");
-    await flushPromises();
+    await settle();
     const buttons = wrapper.findAll(".move-card .action-button");
 
     expect(wrapper.get(".count-bubble").text()).toContain("2 left");
     await buttons[0]?.trigger("click");
-    await flushPromises();
+    await settle();
     expect(wrapper.get(".count-bubble").text()).toContain("1 left");
     expect(wrapper.findAll(".move-status").some((status) => status.text().includes("Done for today"))).toBe(true);
 
@@ -71,7 +80,7 @@ describe("Living Game world shell", () => {
 
   it("selects labeled scene personas and updates the readable world state", async () => {
     const wrapper = await mountAt("/");
-    await flushPromises();
+    await settle();
     const scenePersonaButtons = wrapper.findAll(".world-scene .persona-control");
 
     expect(scenePersonaButtons).toHaveLength(2);
@@ -92,12 +101,12 @@ describe("Living Game world shell", () => {
 
   it("advances the accessible home summary after a move is completed", async () => {
     const wrapper = await mountAt("/");
-    await flushPromises();
+    await settle();
     const summary = wrapper.get(".world-text-equivalent");
 
     expect(summary.text()).toContain("2 moves remain and 1 are done");
     await wrapper.get(".move-list .action-button").trigger("click");
-    await flushPromises();
+    await settle();
     expect(summary.text()).toContain("1 move remains and 2 are done");
 
     wrapper.unmount();
@@ -105,7 +114,7 @@ describe("Living Game world shell", () => {
 
   it("makes the companion picker operable and stateful", async () => {
     const wrapper = await mountAt("/persona");
-    await flushPromises();
+    await settle();
     await wrapper.get('.character-option input[value="cat"]').setValue();
     expect(wrapper.get(".persona-stage .persona-anchor").classes()).toContain("persona-character--cat");
     expect(wrapper.text()).toContain("Unsaved changes");

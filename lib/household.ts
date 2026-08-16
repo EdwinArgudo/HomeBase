@@ -6,5 +6,6 @@ export { saveInvitation } from "./household/invitations";
 export { requireHouseholdMember } from "./household/membership";
 export { readMinimumMode, setMinimumMode } from "./household/settings";
 export { loadHousehold } from "./household/snapshot";
+export { loadHouseholdSummary } from "./household/summary";
 export { householdDatabase } from "./household/storage";
 export { deleteMerchantRule, reviewTransaction, splitTransaction } from "./household/transactions";
