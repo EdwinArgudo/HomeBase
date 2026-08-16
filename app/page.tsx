@@ -2,6 +2,11 @@
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 
+// These are the legacy dashboard's styles, not a design system. They are
+// imported here rather than in the root layout so they cannot reach the Living
+// Game route, where names like .app-shell and .brand mean something else.
+import "./globals.css";
+
 type Scope = "ours" | "mine" | "yours";
 type Tab = "today" | "money" | "home" | "goals";
 

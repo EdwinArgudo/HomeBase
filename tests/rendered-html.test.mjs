@@ -2,13 +2,13 @@ import assert from "node:assert/strict";
 import { readdir, readFile } from "node:fs/promises";
 import test from "node:test";
 
-async function render() {
+async function render(path = "/") {
   const workerUrl = new URL("../dist/server/index.js", import.meta.url);
   workerUrl.searchParams.set("test", `${process.pid}-${Date.now()}`);
   const { default: worker } = await import(workerUrl.href);
 
   return worker.fetch(
-    new Request("http://localhost/", { headers: { accept: "text/html" } }),
+    new Request(`http://localhost${path}`, { headers: { accept: "text/html" } }),
     { ASSETS: { fetch: async () => new Response("Not found", { status: 404 }) } },
     { waitUntil() {}, passThroughOnException() {} },
   );
@@ -37,6 +37,25 @@ test("server-renders the Homebase product shell", async () => {
   assert.match(html, /Open apartment display/);
   assert.match(html, /Money snapshot/);
   assert.doesNotMatch(html, /codex-preview|react-loading-skeleton|Your site is taking shape/i);
+});
+
+test("keeps legacy dashboard styles off the Living Game route", async () => {
+  // Both stylesheets define .app-shell, .brand, and .eyebrow. Loading the legacy
+  // sheet in the root layout let its grid rules break the Vue shell on wide
+  // screens, so it belongs to the legacy page alone.
+  const stylesheets = (html) => html.match(/<link rel="stylesheet"[^>]*>/g) ?? [];
+
+  // The bundled legacy sheet is content-hashed, so this asserts the shape:
+  // the legacy route carries app CSS, the Living Game route carries only its own.
+  assert.equal(stylesheets(await (await render("/")).text()).length, 1);
+  assert.deepEqual(
+    stylesheets(await (await render("/living-game")).text())
+      .map((link) => link.match(/href="([^"]+)"/)?.[1]),
+    ["/living-game-preview/assets/app.css"],
+  );
+
+  const layout = await readFile(new URL("../app/layout.tsx", import.meta.url), "utf8");
+  assert.doesNotMatch(layout, /globals\.css/);
 });
 
 test("publishes PWA and social metadata", async () => {
