@@ -411,3 +411,67 @@ describe("connecting a bank", () => {
     wrapper.unmount();
   });
 });
+
+describe("looking back at a closed month", () => {
+  beforeEach(() => {
+    setActivePinia(createPinia());
+  });
+
+  it("walks back a month and asks the server for that month", async () => {
+    const api = createFixtureLedgerApi();
+    const load = vi.spyOn(api, "load");
+    configureLedgerRuntime({ api, openPlaidLink: createFixturePlaidLinkLauncher() });
+
+    const wrapper = mount(LedgerView);
+    await flushPromises();
+    expect(load).toHaveBeenLastCalledWith(undefined);
+    expect(wrapper.get(".month-nav").text()).toContain("August 2026");
+    // There is no next month while you are in the current one.
+    expect(wrapper.get('[aria-label="Next month"]').attributes("disabled")).toBeDefined();
+
+    await wrapper.get('[aria-label="Previous month"]').trigger("click");
+    await flushPromises();
+
+    expect(load).toHaveBeenLastCalledWith("2026-07");
+    expect(wrapper.get(".month-nav").text()).toContain("July 2026");
+    expect(wrapper.get('[aria-label="Next month"]').attributes("disabled")).toBeUndefined();
+    wrapper.unmount();
+  });
+
+  it("reads a closed month as a record rather than a plan", async () => {
+    configureLedgerRuntime({ api: createFixtureLedgerApi(), openPlaidLink: createFixturePlaidLinkLauncher() });
+    const wrapper = mount(LedgerView);
+    await flushPromises();
+
+    expect(wrapper.text()).toContain("Left to spend");
+    expect(wrapper.text()).toContain("days to go");
+    expect(wrapper.findAll(".ledger-panel button").some((button) => button.text() === "Adjust limits")).toBe(true);
+
+    await wrapper.get('[aria-label="Previous month"]').trigger("click");
+    await flushPromises();
+
+    expect(wrapper.text()).toContain("Final balance");
+    // Limits are what a finished month fixes, not the record of what happened.
+    expect(wrapper.findAll(".ledger-panel button").some((button) => button.text() === "Adjust limits")).toBe(false);
+    expect(wrapper.text()).toContain("its limits are fixed");
+    expect(wrapper.findAll(".recent-list button").some((button) => button.text() === "Not spending")).toBe(true);
+    wrapper.unmount();
+  });
+
+  it("shows a pace for the current month and a total for a closed one", async () => {
+    configureLedgerRuntime({ api: createFixtureLedgerApi(), openPlaidLink: createFixturePlaidLinkLauncher() });
+    const wrapper = mount(LedgerView);
+    await flushPromises();
+
+    // 640 spent over 16 of 31 days projects to 1,240.
+    const figures = () => wrapper.get(".month-figures").text();
+    expect(figures()).toContain("On track for");
+    expect(figures()).toContain("$1,240.00");
+
+    await wrapper.get('[aria-label="Previous month"]').trigger("click");
+    await flushPromises();
+    expect(figures()).toContain("Total");
+    expect(figures()).toContain("$640.00");
+    wrapper.unmount();
+  });
+});

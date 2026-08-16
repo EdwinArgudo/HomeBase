@@ -2,7 +2,7 @@
 import { storeToRefs } from "pinia";
 import { onMounted, reactive, ref } from "vue";
 
-import { amountInCents, type LedgerCategory, type LedgerScope } from "../api/ledger";
+import { amountInCents, type LedgerCategory, type LedgerScope, type LedgerSnapshot } from "../api/ledger";
 import { useLedgerStore } from "../stores/ledger";
 
 const ledger = useLedgerStore();
@@ -124,6 +124,16 @@ function signedMoney(value: number) {
   return value < 0 ? `+${exactMoney(Math.abs(value))}` : exactMoney(value);
 }
 
+// The month at a glance, over what this member can see and plan: shared
+// spending and their own. A partner's is theirs to read.
+function monthTotals(current: LedgerSnapshot) {
+  const categories = [...current.budgets.ours, ...current.budgets.mine];
+  const spent = categories.reduce((sum, category) => sum + category.spent, 0);
+  const limit = categories.reduce((sum, category) => sum + category.limit, 0);
+  const pace = current.elapsedDays > 0 ? (spent / current.elapsedDays) * current.daysInMonth : spent;
+  return { spent, limit, left: limit - spent, projected: current.isCurrentMonth ? pace : spent };
+}
+
 function percent(spent: number, limit: number) {
   return limit > 0 ? Math.min(100, Math.round((spent / limit) * 100)) : 0;
 }
@@ -143,7 +153,23 @@ onMounted(() => void ledger.ensureLoaded());
         <p class="eyebrow">Exact detail, when you want it</p>
         <h1 id="ledger-heading">The Ledger</h1>
       </div>
-      <span v-if="snapshot" class="connection-pill">{{ snapshot.monthLabel }}</span>
+      <div v-if="snapshot" class="month-nav">
+        <button
+          type="button"
+          class="move-secondary-action"
+          aria-label="Previous month"
+          :disabled="loadState === 'loading'"
+          @click="ledger.viewMonth(snapshot.previousMonth)"
+        >‹</button>
+        <span class="connection-pill" aria-live="polite">{{ snapshot.monthLabel }}</span>
+        <button
+          type="button"
+          class="move-secondary-action"
+          aria-label="Next month"
+          :disabled="!snapshot.nextMonth || loadState === 'loading'"
+          @click="snapshot.nextMonth && ledger.viewMonth(snapshot.nextMonth)"
+        >›</button>
+      </div>
     </header>
     <p class="view-lede">Every number Homebase keeps, separate from the calm of your home.</p>
 
@@ -156,6 +182,38 @@ onMounted(() => void ledger.ensureLoaded());
     </div>
 
     <template v-else-if="snapshot">
+      <section class="ledger-panel month-summary" aria-labelledby="month-heading">
+        <div class="section-heading-row">
+          <div>
+            <p class="eyebrow">{{ snapshot.isCurrentMonth ? "So far this month" : "How it finished" }}</p>
+            <h2 id="month-heading">{{ snapshot.monthLabel }}</h2>
+          </div>
+          <span class="count-bubble">
+            {{ snapshot.isCurrentMonth ? `${snapshot.daysRemaining} days to go` : "Closed" }}
+          </span>
+        </div>
+        <div class="month-figures">
+          <div>
+            <span>{{ snapshot.isCurrentMonth ? "Left to spend" : "Final balance" }}</span>
+            <strong :class="{ 'month-figure--over': monthTotals(snapshot).left < 0 }">
+              {{ exactMoney(monthTotals(snapshot).left) }}
+            </strong>
+          </div>
+          <div>
+            <span>Spent</span>
+            <strong>{{ exactMoney(monthTotals(snapshot).spent) }} of {{ money(monthTotals(snapshot).limit) }}</strong>
+          </div>
+          <div>
+            <span>{{ snapshot.isCurrentMonth ? "On track for" : "Total" }}</span>
+            <strong>{{ exactMoney(monthTotals(snapshot).projected) }}</strong>
+          </div>
+        </div>
+        <p v-if="!snapshot.isCurrentMonth" class="ledger-empty">
+          Limits are set in the current month. A purchase can still be corrected here — noticing a
+          mis-filed card payment is exactly what looking back is for.
+        </p>
+      </section>
+
       <section class="ledger-panel" aria-labelledby="review-heading">
         <div class="section-heading-row">
           <div>
@@ -303,7 +361,7 @@ onMounted(() => void ledger.ensureLoaded());
           Your partner sets these. Anything they keep private arrives as a single total.
         </p>
         <p v-else-if="scope !== 'yours' && !snapshot.isCurrentMonth" class="ledger-empty">
-          {{ snapshot.monthLabel }} is closed. Limits can only be changed in the current month.
+          {{ snapshot.monthLabel }} has finished, so its limits are fixed.
         </p>
 
         <p v-if="snapshot.budgets[scope].length === 0" class="ledger-empty">No categories here yet.</p>

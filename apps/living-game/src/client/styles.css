@@ -2987,3 +2987,50 @@ summary:focus-visible,
   padding-inline: 1.2rem;
   margin-top: 0;
 }
+
+.month-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.month-nav button {
+  min-width: 2.4rem;
+  min-height: 2.4rem;
+  padding: 0;
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+.month-nav button:disabled {
+  opacity: 0.4;
+}
+
+.month-figures {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: 0.9rem;
+}
+
+.month-figures div {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.month-figures span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.month-figures strong {
+  font-size: 1.25rem;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+.month-figure--over {
+  color: var(--gap, #a94b40);
+}

@@ -26,6 +26,7 @@ export const useLedgerStore = defineStore("ledger", () => {
   const loadState = ref<"idle" | "loading" | "ready" | "error">("idle");
   const loadError = ref("");
   const busyTransactionIds = ref(new Set<string>());
+  const viewedMonth = ref<string | undefined>(undefined);
   const actionError = ref("");
   const feedback = ref("");
 
@@ -34,7 +35,7 @@ export const useLedgerStore = defineStore("ledger", () => {
     loadState.value = "loading";
     loadError.value = "";
     try {
-      snapshot.value = await configuredRuntime().api.load();
+      snapshot.value = await configuredRuntime().api.load(viewedMonth.value);
       loadState.value = "ready";
     } catch (error) {
       snapshot.value = null;
@@ -121,6 +122,14 @@ export const useLedgerStore = defineStore("ledger", () => {
     }
   }
 
+  /** Looking back at a closed month; every write still targets its own month. */
+  async function viewMonth(month: string) {
+    viewedMonth.value = month;
+    actionError.value = "";
+    feedback.value = "";
+    await ensureLoaded(true);
+  }
+
   const bankState = ref<"idle" | "linking">("idle");
 
   async function withLink(connectionId: string | undefined, finish: () => Promise<void>, done: string) {
@@ -204,7 +213,7 @@ export const useLedgerStore = defineStore("ledger", () => {
 
   return {
     snapshot, loadState, loadError, busyTransactionIds, actionError, feedback, needsReviewCount,
-    bankState,
+    bankState, viewedMonth, viewMonth,
     ensureLoaded, review, split, removeMerchantRule, setTransfer, saveLimits, createCategory,
     connectBank, repairConnection,
   };

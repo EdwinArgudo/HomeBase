@@ -48,6 +48,12 @@ export type LedgerSnapshot = {
   monthLabel: string;
   monthValue: string;
   isCurrentMonth: boolean;
+  previousMonth: string;
+  /** Null in the current month: there is no next month to look at yet. */
+  nextMonth: string | null;
+  daysInMonth: number;
+  elapsedDays: number;
+  daysRemaining: number;
   budgets: Record<LedgerScope, LedgerCategory[]>;
   categoryChoices: { id: string; name: string; scope: LedgerScope }[];
   needsReview: LedgerTransaction[];
@@ -62,7 +68,7 @@ export type LedgerLimitChange = { id: string; limitCents: number; rolloverEnable
 export type LedgerNewCategory = { scope: "ours" | "mine"; name: string; limitCents: number };
 
 export interface LedgerApi {
-  load(): Promise<LedgerSnapshot>;
+  load(month?: string): Promise<LedgerSnapshot>;
   review(transactionId: string, categoryId: string, createRule: boolean): Promise<void>;
   split(transactionId: string, parts: LedgerSplitPart[]): Promise<void>;
   removeMerchantRule(ruleId: string): Promise<void>;
@@ -108,6 +114,10 @@ function str(value: unknown, fallback = ""): string {
 
 function money(value: unknown): number {
   return typeof value === "number" && Number.isFinite(value) ? value : 0;
+}
+
+function count(value: unknown): number {
+  return Number.isInteger(value) && (value as number) >= 0 ? value as number : 0;
 }
 
 // A partner's private spending arrives as one aggregate row with a synthetic
@@ -168,6 +178,11 @@ export function snapshotFrom(input: unknown): LedgerSnapshot {
     monthLabel: str(budgetMonth.label, "This month"),
     monthValue: str(budgetMonth.value),
     isCurrentMonth: budgetMonth.isCurrent === true,
+    previousMonth: str(budgetMonth.previous),
+    nextMonth: typeof budgetMonth.next === "string" ? budgetMonth.next : null,
+    daysInMonth: count(budgetMonth.daysInMonth),
+    elapsedDays: count(budgetMonth.elapsedDays),
+    daysRemaining: count(budgetMonth.daysRemaining),
     budgets,
     // A partner's private categories are aggregated by the server and cannot be
     // chosen, so only your own and shared categories are offered.
@@ -217,8 +232,9 @@ async function readJson(response: Response, fallback: string) {
 
 export function createHttpLedgerApi(): LedgerApi {
   return {
-    async load() {
-      const response = await fetch("/api/household", { headers: { accept: "application/json" } });
+    async load(month) {
+      const query = month ? `?month=${encodeURIComponent(month)}` : "";
+      const response = await fetch(`/api/household${query}`, { headers: { accept: "application/json" } });
       return snapshotFrom(await readJson(response, FALLBACK));
     },
     async review(transactionId, categoryId, createRule) {
@@ -304,9 +320,14 @@ export function createHttpLedgerApi(): LedgerApi {
 
 export function createFixtureLedgerApi(): LedgerApi {
   const snapshot: LedgerSnapshot = {
-    monthLabel: "August",
+    monthLabel: "August 2026",
     monthValue: "2026-08",
     isCurrentMonth: true,
+    previousMonth: "2026-07",
+    nextMonth: null,
+    daysInMonth: 31,
+    elapsedDays: 16,
+    daysRemaining: 15,
     budgets: {
       ours: [
         { id: "cat-groceries", name: "Groceries", spent: 286, limit: 600, baseLimit: 600, rollover: 0, rolloverEnabled: false, editable: true },
@@ -380,8 +401,23 @@ export function createFixtureLedgerApi(): LedgerApi {
     ],
   };
   return {
-    async load() {
-      return JSON.parse(JSON.stringify(snapshot)) as LedgerSnapshot;
+    async load(month) {
+      const viewed = JSON.parse(JSON.stringify(snapshot)) as LedgerSnapshot;
+      if (month && month !== snapshot.monthValue) {
+        // A closed month has run its course and can no longer be edited.
+        return {
+          ...viewed,
+          monthValue: month,
+          monthLabel: "July 2026",
+          isCurrentMonth: false,
+          previousMonth: "2026-06",
+          nextMonth: "2026-08",
+          elapsedDays: 31,
+          daysRemaining: 0,
+          needsReview: [],
+        };
+      }
+      return viewed;
     },
     async review() {
       snapshot.needsReview = [];
