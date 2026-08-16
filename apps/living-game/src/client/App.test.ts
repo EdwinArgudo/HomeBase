@@ -5,8 +5,10 @@ import { beforeEach, describe, expect, it } from "vitest";
 
 import App from "./App.vue";
 import { createFixtureDailyMovesApi } from "./api/fixtureDailyMoves";
+import { createFixtureProgressApi } from "./api/fixtureProgress";
 import { routes } from "./router";
 import { configureDailyMovesRuntime } from "./stores/dailyMoves";
+import { configureProgressRuntime } from "./stores/progress";
 
 const expectedHeadings = [
   ["/", "Our World"],
@@ -20,6 +22,7 @@ const expectedHeadings = [
 describe("client routes", () => {
   beforeEach(() => {
     configureDailyMovesRuntime({ api: createFixtureDailyMovesApi(), now: () => new Date(2026, 7, 15) });
+    configureProgressRuntime({ api: createFixtureProgressApi() });
   });
 
   it.each(expectedHeadings)("renders %s with its accessible heading", async (path, heading) => {

@@ -1254,6 +1254,19 @@ summary:focus-visible,
   margin-top: 1.2rem;
 }
 
+.progress-state {
+  margin-top: 1rem;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.progress-state .inline-retry,
+.world-level .inline-retry {
+  min-height: 2rem;
+  margin-left: 0.4rem;
+  padding-block: 0.25rem;
+}
+
 .progress-panel li {
   display: grid;
   grid-template-columns: minmax(8rem, 0.9fr) minmax(6rem, 1fr) auto;

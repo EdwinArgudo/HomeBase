@@ -5,14 +5,23 @@ import { onMounted } from "vue";
 import DailyMoveCard from "../components/DailyMoveCard.vue";
 import WorldScene from "../components/WorldScene.vue";
 import { useDailyMovesStore } from "../stores/dailyMoves";
+import { useProgressStore } from "../stores/progress";
 import { useWorldStore } from "../stores/world";
 
 const worldStore = useWorldStore();
 const movesStore = useDailyMovesStore();
+const progressStore = useProgressStore();
 const { selectedPersona, selectedPersonaId } = storeToRefs(worldStore);
 const { recommendedMove, loadState, loadError, feedback } = storeToRefs(movesStore);
+const {
+  householdLevel,
+  householdPoints,
+  loadState: progressLoadState,
+  loadError: progressLoadError,
+} = storeToRefs(progressStore);
 
 onMounted(() => void movesStore.ensureLoaded());
+onMounted(() => void progressStore.ensureLoaded());
 
 function activityLabel(activity: string) {
   return activity.replace("_", " ");
@@ -23,10 +32,19 @@ function activityLabel(activity: string) {
   <section class="world-view" aria-labelledby="world-heading">
     <header class="view-intro view-intro--world">
       <div>
-        <p class="eyebrow">Saturday · soft morning</p>
+        <p class="eyebrow">Preview scene · Saturday · soft morning</p>
         <h1 id="world-heading">Our World</h1>
       </div>
-      <p class="world-level"><span>12</span> shared moments this week</p>
+      <p v-if="progressLoadState === 'ready'" class="world-level" aria-live="polite">
+        <span>{{ householdLevel }}</span> household level · {{ householdPoints }} points
+      </p>
+      <p v-else-if="progressLoadState === 'idle' || progressLoadState === 'loading'" class="world-level" role="status" aria-live="polite">
+        Loading household progress…
+      </p>
+      <p v-else class="world-level" role="alert">
+        {{ progressLoadError }}
+        <button type="button" class="inline-retry" @click="progressStore.ensureLoaded(true)">Retry</button>
+      </p>
     </header>
 
     <WorldScene
@@ -39,10 +57,10 @@ function activityLabel(activity: string) {
       <section class="world-readout" aria-labelledby="home-now-heading">
         <div class="section-heading-row">
           <div>
-            <p class="eyebrow">Live at home</p>
+            <p class="eyebrow">Preview at home</p>
             <h2 id="home-now-heading">Home now</h2>
           </div>
-          <span class="status-orb" aria-label="World is in sync" />
+          <span class="status-orb" aria-label="Preview world is ready" />
         </div>
         <ul>
           <li v-for="persona in worldStore.projection.personas" :key="persona.id">
@@ -98,6 +116,7 @@ function activityLabel(activity: string) {
     <p class="world-text-equivalent">
       World summary: Edwin is tending the home. Vienna is reading. Your available move is
       {{ loadState === "loading" || loadState === "idle" ? "loading" : recommendedMove?.title ?? "complete for today" }}.
+      Household progress is level {{ householdLevel }} with {{ householdPoints }} points. The scene remains a preview.
     </p>
   </section>
 </template>

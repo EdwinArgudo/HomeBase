@@ -8,6 +8,7 @@ import {
   parseGameEvent,
   parsePersonaManifest,
   parseProgressBalance,
+  parseProgressSnapshot,
   parseWorldProjection,
   safeParse,
 } from "../index.ts";
@@ -74,6 +75,19 @@ function validProgressBalance() {
     lifetimePoints: 42,
     level: 2,
     updatedAt: timestamp,
+  };
+}
+
+function validProgressSnapshot() {
+  return {
+    contractVersion: 1,
+    householdId: "household-1",
+    member: { id: "member-1", displayName: "Edwin" },
+    balances: [
+      validProgressBalance(),
+      { ...validProgressBalance(), id: "progress-household", memberId: null, dimension: "household" },
+    ],
+    generatedAt: timestamp,
   };
 }
 
@@ -266,6 +280,30 @@ test("MoveCompletionOptions validates closed, minimal source-specific responses"
     categories: [],
     createRuleDefault: true,
   }), ContractValidationError);
+});
+
+test("ProgressSnapshot is closed and rejects mismatched, partner, and duplicate balances", () => {
+  assert.equal(parseProgressSnapshot(validProgressSnapshot()).member.displayName, "Edwin");
+
+  const household = validProgressSnapshot();
+  household.balances[0].householdId = "household-other";
+  expectContractError(() => parseProgressSnapshot(household), "$.balances[0].householdId");
+
+  const partner = validProgressSnapshot();
+  partner.balances[0].memberId = "member-partner";
+  expectContractError(() => parseProgressSnapshot(partner), "$.balances[0].memberId");
+
+  const duplicate = validProgressSnapshot();
+  duplicate.balances.push({ ...validProgressBalance(), id: "progress-duplicate" });
+  expectContractError(() => parseProgressSnapshot(duplicate), "$.balances[2].dimension", "duplicate");
+
+  const extra = validProgressSnapshot();
+  extra.member.email = "private@example.com";
+  expectContractError(() => parseProgressSnapshot(extra), "$.member", "unknown_field");
+
+  const invalidNested = validProgressSnapshot();
+  invalidNested.balances[0].level = 0;
+  expectContractError(() => parseProgressSnapshot(invalidNested), "$.balances[0].level");
 });
 
 test("GameEvent rejects unsupported event boundaries and invalid privacy", () => {
@@ -486,6 +524,7 @@ test("closed public boundaries reject unknown fields without echoing their data"
     [{ contractVersion: 1, moveId: "move-1", kind: "none" }, parseMoveCompletionOptions],
     [validGameEvent(), parseGameEvent],
     [validProgressBalance(), parseProgressBalance],
+    [validProgressSnapshot(), parseProgressSnapshot],
     [validPersonaManifest(), parsePersonaManifest],
     [validWorldProjection(), parseWorldProjection],
   ];

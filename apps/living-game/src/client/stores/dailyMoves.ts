@@ -1,8 +1,9 @@
-import type { DailyMoveV1, MoveCompletionOptionsV1 } from "@homebase/contracts";
+import type { DailyMoveV1, MoveCompletionOptionsV1, ProgressBalanceV1 } from "@homebase/contracts";
 import { computed, reactive, ref } from "vue";
 import { defineStore } from "pinia";
 
 import type { CompleteMoveInput, DailyMovesApi } from "../api/dailyMoves";
+import { useProgressStore as getProgressStore } from "./progress";
 
 type DailyMovesRuntime = {
   api: DailyMovesApi;
@@ -96,13 +97,19 @@ export const useDailyMovesStore = defineStore("daily-moves", () => {
     moves.value[index] = move;
   }
 
-  async function runAction(moveId: string, action: () => Promise<DailyMoveV1>, success: string) {
+  async function runAction(
+    moveId: string,
+    action: () => Promise<{ move: DailyMoveV1; balances?: readonly ProgressBalanceV1[] }>,
+    success: string,
+  ) {
     if (busyMoveIds.has(moveId)) return;
     busyMoveIds.add(moveId);
     actionErrors.delete(moveId);
     feedback.value = "";
     try {
-      updateAuthoritativeMove(await action());
+      const result = await action();
+      updateAuthoritativeMove(result.move);
+      if (result.balances) getProgressStore().mergeAuthoritativeBalances(result.balances);
       feedback.value = success;
     } catch (error) {
       actionErrors.set(moveId, safeMessage(error, "That move could not be updated."));
@@ -116,11 +123,11 @@ export const useDailyMovesStore = defineStore("daily-moves", () => {
   }
 
   function deferMove(moveId: string) {
-    return runAction(moveId, () => configuredRuntime().api.defer(moveId), "Move deferred.");
+    return runAction(moveId, async () => ({ move: await configuredRuntime().api.defer(moveId) }), "Move deferred.");
   }
 
   function replaceMove(moveId: string) {
-    return runAction(moveId, () => configuredRuntime().api.replace(moveId), "Move replaced.");
+    return runAction(moveId, async () => ({ move: await configuredRuntime().api.replace(moveId) }), "Move replaced.");
   }
 
   async function ensureOptions(move: DailyMoveV1, force = false) {

@@ -5,12 +5,15 @@ import { describe, expect, it } from "vitest";
 
 import App from "./App.vue";
 import { createFixtureDailyMovesApi } from "./api/fixtureDailyMoves";
+import { createFixtureProgressApi } from "./api/fixtureProgress";
 import { displayWorldFixture } from "./fixtures/game";
 import { routes } from "./router";
 import { configureDailyMovesRuntime } from "./stores/dailyMoves";
+import { configureProgressRuntime } from "./stores/progress";
 
 async function mountAt(path: string) {
   configureDailyMovesRuntime({ api: createFixtureDailyMovesApi(), now: () => new Date(2026, 7, 15) });
+  configureProgressRuntime({ api: createFixtureProgressApi() });
   const router = createRouter({
     history: createMemoryHistory(),
     routes: [...routes],

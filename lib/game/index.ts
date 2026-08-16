@@ -8,6 +8,8 @@ export { completeDailyMove } from "./completion.ts";
 export { deferDailyMove, replaceDailyMove } from "./move-actions.ts";
 export { loadMoveCompletionOptions } from "./completion-options.ts";
 export { createMoveOptionsHandler } from "./options-http.ts";
+export { loadProgressSnapshot } from "./progress.ts";
+export { createProgressGetHandler } from "./progress-http.ts";
 export {
   createMoveCompleteHandler,
   createMoveDeferHandler,

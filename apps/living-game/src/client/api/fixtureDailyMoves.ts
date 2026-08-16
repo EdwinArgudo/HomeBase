@@ -31,11 +31,12 @@ export function createFixtureDailyMovesApi(
       return moves.map((move) => cloneMove(move));
     },
     async complete(moveId) {
-      return update(moveId, (move) => parseDailyMove({
-        ...move,
+      const move = update(moveId, (current) => parseDailyMove({
+        ...current,
         status: "complete",
         completedAt: new Date().toISOString(),
       }));
+      return { move, event: null, balances: [] };
     },
     async defer(moveId) {
       return update(moveId, (move) => parseDailyMove({

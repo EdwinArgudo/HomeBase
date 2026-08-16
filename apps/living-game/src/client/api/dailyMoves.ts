@@ -4,7 +4,9 @@ import {
   parseMoveCompletionOptions,
   parseProgressBalance,
   type DailyMoveV1,
+  type GameEventV1,
   type MoveCompletionOptionsV1,
+  type ProgressBalanceV1,
 } from "@homebase/contracts";
 
 export type CompleteMoveInput =
@@ -12,9 +14,15 @@ export type CompleteMoveInput =
   | { value: number }
   | { categoryId: string; createRule: boolean };
 
+export type CompleteMoveResult = {
+  move: DailyMoveV1;
+  event: GameEventV1 | null;
+  balances: ProgressBalanceV1[];
+};
+
 export interface DailyMovesApi {
   load(localDate: string): Promise<DailyMoveV1[]>;
-  complete(moveId: string, input: CompleteMoveInput): Promise<DailyMoveV1>;
+  complete(moveId: string, input: CompleteMoveInput): Promise<CompleteMoveResult>;
   defer(moveId: string): Promise<DailyMoveV1>;
   replace(moveId: string): Promise<DailyMoveV1>;
   options(moveId: string): Promise<MoveCompletionOptionsV1>;
@@ -79,10 +87,10 @@ function parseCompletionEnvelope(input: unknown) {
   }
   try {
     const move = parseDailyMove(record.move);
-    if (record.event !== null) parseGameEvent(record.event);
+    const event = record.event === null ? null : parseGameEvent(record.event);
     if (!Array.isArray(record.balances)) throw new Error("invalid balances");
-    record.balances.forEach(parseProgressBalance);
-    return move;
+    const balances = record.balances.map(parseProgressBalance);
+    return { move, event, balances };
   } catch {
     throw new DailyMovesApiError("The completion response could not be verified.");
   }

@@ -116,3 +116,10 @@ test("completion-options route remains a thin authenticated boundary", async () 
   assert.match(source, /requireHouseholdMember/);
   assert.doesNotMatch(source, /SELECT|categories|merchant|amount/i);
 });
+
+test("progress route remains a thin authenticated boundary", async () => {
+  const source = await readFile(new URL("../app/api/game/progress/route.ts", import.meta.url), "utf8");
+  assert.match(source, /createProgressGetHandler/);
+  assert.match(source, /requireHouseholdMember/);
+  assert.doesNotMatch(source, /SELECT|progress_balances|game_events|payload/i);
+});

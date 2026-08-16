@@ -1,10 +1,17 @@
-import { parseDailyMove, parseMoveCompletionOptions, type DailyMoveV1 } from "@homebase/contracts";
+import {
+  parseDailyMove,
+  parseMoveCompletionOptions,
+  parseProgressBalance,
+  parseProgressSnapshot,
+  type DailyMoveV1,
+} from "@homebase/contracts";
 import { createPinia, setActivePinia } from "pinia";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { dailyMoveFixtures } from "../fixtures/game";
 import type { DailyMovesApi } from "../api/dailyMoves";
 import { configureDailyMovesRuntime, localCalendarDate, useDailyMovesStore } from "./dailyMoves";
+import { configureProgressRuntime, useProgressStore } from "./progress";
 
 const testDate = new Date(2026, 7, 15, 23, 30);
 
@@ -30,7 +37,11 @@ function deferred<T>() {
 function mockApi(overrides: Partial<DailyMovesApi> = {}) {
   return {
     load: vi.fn().mockResolvedValue([move()]),
-    complete: vi.fn().mockResolvedValue(move({ status: "complete", completedAt: "2026-08-15T12:00:00.000Z" })),
+    complete: vi.fn().mockResolvedValue({
+      move: move({ status: "complete", completedAt: "2026-08-15T12:00:00.000Z" }),
+      event: null,
+      balances: [],
+    }),
     defer: vi.fn().mockResolvedValue(move({ status: "deferred", completedAt: null })),
     replace: vi.fn().mockResolvedValue(move({ title: "Authoritative replacement", shortLabel: "New move" })),
     options: vi.fn().mockResolvedValue(parseMoveCompletionOptions({ contractVersion: 1, moveId: "move-groceries", kind: "none" })),
@@ -101,7 +112,7 @@ describe("daily moves store", () => {
   });
 
   it("waits for authoritative completion and guards duplicate clicks", async () => {
-    const completion = deferred<DailyMoveV1>();
+    const completion = deferred<Awaited<ReturnType<DailyMovesApi["complete"]>>>();
     const api = mockApi({ complete: vi.fn().mockReturnValue(completion.promise) });
     configure(api);
     const store = useDailyMovesStore();
@@ -113,7 +124,11 @@ describe("daily moves store", () => {
     expect(store.busyMoveIds.has("move-groceries")).toBe(true);
     expect(api.complete).toHaveBeenCalledOnce();
 
-    completion.resolve(move({ status: "complete", completedAt: "2026-08-15T12:00:00.000Z" }));
+    completion.resolve({
+      move: move({ status: "complete", completedAt: "2026-08-15T12:00:00.000Z" }),
+      event: null,
+      balances: [],
+    });
     await Promise.all([first, duplicate]);
     expect(store.moves[0]?.status).toBe("complete");
     expect(store.busyMoveIds.has("move-groceries")).toBe(false);
@@ -156,5 +171,62 @@ describe("daily moves store", () => {
     await store.ensureOptions(move());
     expect(api.options).toHaveBeenCalledOnce();
     expect(store.options.get(transaction.id)).toEqual(options);
+  });
+
+  it("merges only authoritative completion balances and converges on duplicate responses", async () => {
+    const starting = parseProgressBalance({
+      contractVersion: 1,
+      id: "progress-tend",
+      householdId: "household-homebase",
+      memberId: "member-edwin",
+      dimension: "tend",
+      lifetimePoints: 10,
+      level: 1,
+      updatedAt: "2026-08-15T11:00:00.000Z",
+    });
+    const awarded = parseProgressBalance({
+      ...starting,
+      lifetimePoints: 20,
+      updatedAt: "2026-08-15T12:00:00.000Z",
+    });
+    configureProgressRuntime({
+      api: {
+        load: vi.fn().mockResolvedValue(parseProgressSnapshot({
+          contractVersion: 1,
+          householdId: "household-homebase",
+          member: { id: "member-edwin", displayName: "Edwin" },
+          balances: [starting],
+          generatedAt: "2026-08-15T11:00:00.000Z",
+        })),
+      },
+    });
+    const api = mockApi({
+      complete: vi.fn().mockResolvedValue({
+        move: move({ status: "complete", completedAt: "2026-08-15T12:00:00.000Z" }),
+        event: null,
+        balances: [awarded],
+      }),
+    });
+    configure(api);
+    const progress = useProgressStore();
+    const moves = useDailyMovesStore();
+    await Promise.all([progress.ensureLoaded(), moves.ensureLoaded()]);
+
+    await moves.completeMove("move-groceries", {});
+    await moves.completeMove("move-groceries", {});
+    expect(progress.personalTotalPoints).toBe(20);
+    expect(progress.snapshot?.balances).toHaveLength(1);
+
+    vi.mocked(api.complete).mockRejectedValueOnce(new Error("Completion failed."));
+    await moves.completeMove("move-groceries", {});
+    expect(progress.personalTotalPoints).toBe(20);
+
+    vi.mocked(api.load).mockResolvedValueOnce([move()]);
+    await moves.ensureLoaded(true);
+    await moves.deferMove("move-groceries");
+    vi.mocked(api.load).mockResolvedValueOnce([move()]);
+    await moves.ensureLoaded(true);
+    await moves.replaceMove("move-groceries");
+    expect(progress.personalTotalPoints).toBe(20);
   });
 });

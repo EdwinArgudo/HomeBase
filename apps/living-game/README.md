@@ -26,10 +26,11 @@ as a contract-backed visual preview.
 - Reduced-motion, keyboard-focus, screen-reader summary, and forced-colors
   accommodations
 
-In the embedded `/living-game` build, daily moves and their complete, defer, and
-replace actions are live authenticated household data. The surrounding world,
-persona progress, adventures, and Ledger balances remain fixture-driven preview
-data. The embedded client never falls back to move fixtures when authentication,
+In the embedded `/living-game` build, daily moves, their complete/defer/replace
+actions, and canonical current-member/household progress balances are live
+authenticated household data. The surrounding world scene, sprite cosmetics,
+adventures, and Ledger balances remain fixture-driven preview data. The embedded
+client never falls back to move or progress fixtures when authentication,
 storage, or networking fails. Access uses the existing private Sites project
 boundary; the client does not imitate authentication.
 
@@ -55,8 +56,8 @@ Vue Router uses `/living-game/` as its embedded base, so routes such as
 The generated browser assets live under `public/living-game-preview/`; they are
 ignored and must not be committed. The normal standalone Vue/Hono build remains
 available through this package's `npm run build` command.
-That standalone build explicitly installs the fixture move adapter so local UI
-development and tests do not depend on the root authenticated APIs.
+That standalone build explicitly installs fixture move and progress adapters so
+local UI development and tests do not depend on the root authenticated APIs.
 
 ## Local development
 

@@ -47,7 +47,7 @@ describe("daily moves HTTP API", () => {
     const api = createHttpDailyMovesApi(fetcher);
 
     await expect(api.complete(completed.id, { categoryId: "category-a", createRule: false }))
-      .resolves.toEqual(completed);
+      .resolves.toEqual({ move: completed, event, balances: [] });
     const [path, init] = fetcher.mock.calls[0] ?? [];
     expect(path).toBe(`/api/game/moves/${completed.id}/complete`);
     expect(JSON.parse(String(init?.body))).toEqual({ categoryId: "category-a", createRule: false });
