@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  companionActivityV1,
   completedMoveEventV1,
   completionAwardV1,
   levelForLifetimePointsV1,
@@ -241,4 +242,33 @@ test("level policy has deterministic monotonic boundaries and rejects negative p
     previous = level;
   }
   assert.throws(() => levelForLifetimePointsV1(-1), RangeError);
+});
+
+test("companion activity reads as care, never as punishment", () => {
+  const generatedAt = "2026-08-16T12:00:00.000Z";
+  const at = (minutesAgo, family = "tend") => ({
+    generatedAt,
+    lastCompletion: { family, occurredAt: new Date(Date.parse(generatedAt) - minutesAgo * 60_000).toISOString() },
+  });
+
+  assert.equal(companionActivityV1({ generatedAt, lastCompletion: null }), "rest");
+  assert.equal(companionActivityV1(at(5)), "celebrate");
+  assert.equal(companionActivityV1(at(89)), "celebrate");
+  assert.equal(companionActivityV1(at(120, "grow")), "grow");
+  assert.equal(companionActivityV1(at(120, "connect")), "connect");
+  assert.equal(companionActivityV1(at(60 * 25)), "idle");
+  assert.equal(companionActivityV1(at(60 * 24 * 9)), "rest");
+
+  // A clock skew that puts a completion slightly ahead must not break the state.
+  assert.equal(companionActivityV1(at(-3)), "celebrate");
+  assert.equal(companionActivityV1({ generatedAt, lastCompletion: { family: "tend", occurredAt: "not-a-date" } }), "idle");
+
+  // Every reachable state is a contentment state; none of them diminish anyone.
+  const states = new Set([
+    companionActivityV1({ generatedAt, lastCompletion: null }),
+    companionActivityV1(at(5)),
+    companionActivityV1(at(120)),
+    companionActivityV1(at(60 * 25)),
+  ]);
+  for (const state of states) assert.ok(["rest", "idle", "celebrate", "tend", "move", "grow", "connect"].includes(state));
 });

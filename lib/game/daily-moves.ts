@@ -7,8 +7,18 @@ import {
 import {
   insertDailyMoveSnapshot,
   readDailyMoveSnapshot,
+  readRecentSourceIds,
   type DailyMoveScope,
 } from "./daily-move-repository.ts";
+
+// How far back a source counts as "seen recently" for the repetition penalty.
+const REPETITION_WINDOW_DAYS = 3;
+
+function localDateDaysBefore(localDate: string, days: number) {
+  const parsed = Date.parse(`${localDate}T00:00:00.000Z`);
+  if (!Number.isFinite(parsed)) return localDate;
+  return new Date(parsed - days * 86_400_000).toISOString().slice(0, 10);
+}
 
 export type DailyMoveSnapshotPolicy = {
   candidateProvider: (scope: DailyMoveScope) => Promise<readonly MoveCandidate[]>;
@@ -28,9 +38,12 @@ export async function getOrCreateDailyMoveSnapshot(
   const existing = await readDailyMoveSnapshot(db, scope);
   if (existing.length > 0) return existing;
 
-  const [candidates, minimumMode] = await Promise.all([
+  const [candidates, minimumMode, recentSourceIds] = await Promise.all([
     policy.candidateProvider(scope),
     policy.minimumModeProvider ? policy.minimumModeProvider() : Promise.resolve(Boolean(policy.minimumMode)),
+    policy.recentSourceIds
+      ? Promise.resolve(policy.recentSourceIds)
+      : readRecentSourceIds(db, scope, localDateDaysBefore(scope.localDate, REPETITION_WINDOW_DAYS)),
   ]);
   const selected = selectDailyMovesV1({
     ...scope,
@@ -38,7 +51,7 @@ export async function getOrCreateDailyMoveSnapshot(
     createdAt: policy.createdAt(),
     createId: policy.createId,
     minimumMode,
-    recentSourceIds: policy.recentSourceIds,
+    recentSourceIds,
     cooldownSourceIds: policy.cooldownSourceIds,
   });
   await insertDailyMoveSnapshot(db, scope, selected);

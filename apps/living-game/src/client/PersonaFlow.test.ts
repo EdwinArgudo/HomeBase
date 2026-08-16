@@ -25,11 +25,11 @@ describe("manual persona flow", () => {
         persona: worldFixture.personas[0]!,
         variant: "sun",
         static: true,
-        appearance: { species: "bunny", palette: "mint", pattern: "belly", accessory: "bow" },
+        appearance: { character: "bunny" },
       },
     });
     expect(wrapper.get(".persona-anchor").classes()).toEqual(expect.arrayContaining([
-      "persona-species--bunny", "persona-palette--mint", "persona-pattern--belly", "persona-accessory--bow",
+      "persona-character--bunny", "persona-species--bunny",
     ]));
     expect(wrapper.get(".companion-emblem--first-tend").text()).toBe("✦");
     expect(wrapper.get(".persona-control--static").attributes("aria-label")).toContain("Steady Hands emblem");
@@ -41,7 +41,7 @@ describe("manual persona flow", () => {
         persona: worldFixture.personas[0]!,
         variant: "sun",
         static: true,
-        appearance: { species: "bunny", palette: "mint", pattern: "belly", accessory: "bow" },
+        appearance: { character: "bunny" },
       },
     });
 
@@ -73,8 +73,7 @@ describe("manual persona flow", () => {
     await flushPromises();
 
     await wrapper.get('input[required]').setValue("Pixel Edwin");
-    const colour = wrapper.findAll(".persona-builder label").find((label) => label.text().includes("Colour"))!.get("select");
-    await colour.setValue("blush");
+    await wrapper.get('.character-option input[value="cat"]').setValue();
     await wrapper.get('button[type="submit"]').trigger("submit");
     await flushPromises();
     expect(wrapper.text()).toContain("Persona saved as a draft");

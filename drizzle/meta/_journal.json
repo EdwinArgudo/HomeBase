@@ -78,6 +78,13 @@
       "when": 1786853286490,
       "tag": "0010_soft_companions",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "6",
+      "when": 1786855715707,
+      "tag": "0011_character_roster",
+      "breakpoints": true
     }
   ]
 }

@@ -784,12 +784,15 @@ summary:focus-visible,
   --feature: #4a3b32;
 }
 
-.persona-palette--cream { --coat: #f5e7d3; --coat-deep: #e3ceb1; --coat-soft: #fefaf2; --feature: #52413440; }
-.persona-palette--mint { --coat: #b7e3cf; --coat-deep: #92cdb3; --coat-soft: #e5f6ee; --feature: #2f5a4a; }
-.persona-palette--blush { --coat: #f6cdd2; --coat-deep: #e5abb4; --coat-soft: #fdeaec; --feature: #6b3c46; }
-.persona-palette--butter { --coat: #fbe0a6; --coat-deep: #eec97f; --coat-soft: #fef5dd; --feature: #6d5423; }
-.persona-palette--sky { --coat: #bcdcee; --coat-deep: #96c2da; --coat-soft: #e6f3fa; --feature: #2f4f63; }
-.persona-palette--lilac { --coat: #d9cdf0; --coat-deep: #bbaade; --coat-soft: #efe9fb; --feature: #4b3d68; }
+/* Each roster character owns its palette. Nothing here is composed at runtime. */
+.persona-character--marshmallow { --coat: #f5e7d3; --coat-deep: #e3ceb1; --coat-soft: #fefaf2; }
+.persona-character--bunny { --coat: #f6cdd2; --coat-deep: #e5abb4; --coat-soft: #fdeaec; }
+.persona-character--cat { --coat: #fbe0a6; --coat-deep: #eec97f; --coat-soft: #fef5dd; }
+.persona-character--pup { --coat: #e8d3b6; --coat-deep: #cdb08a; --coat-soft: #f8eede; }
+.persona-character--bear { --coat: #d9cdf0; --coat-deep: #bbaade; --coat-soft: #efe9fb; }
+.persona-character--chick { --coat: #fbe8a4; --coat-deep: #ecd071; --coat-soft: #fef7dc; }
+.persona-character--moss-bunny { --coat: #b7e3cf; --coat-deep: #92cdb3; --coat-soft: #e5f6ee; }
+.persona-character--dusk-cat { --coat: #bcdcee; --coat-deep: #96c2da; --coat-soft: #e6f3fa; }
 
 .companion__body,
 .ear--fill,
@@ -2144,4 +2147,95 @@ summary:focus-visible,
     forced-color-adjust: none;
     background: LinkText;
   }
+}
+
+/* Companion picker: the choice is a picture, so the drawings do the work. */
+.character-picker {
+  padding: 0;
+  margin: 0 0 1.4rem;
+  border: 0;
+}
+
+.character-picker legend {
+  padding: 0;
+  margin-bottom: 0.8rem;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.character-picker__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(6.5rem, 1fr));
+  gap: 0.7rem;
+}
+
+.character-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.7rem 0.4rem 0.55rem;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  text-align: center;
+}
+
+.character-option input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+.character-option .persona-anchor {
+  --sprite-width: 3.6rem;
+
+  position: static;
+}
+
+.character-option .persona-label {
+  display: none;
+}
+
+.character-option span {
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.character-option--chosen {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-soft), var(--lift-1);
+}
+
+.character-option--chosen span {
+  color: var(--accent-deep);
+}
+
+.character-option:has(input:focus-visible) {
+  outline: 3px solid #176c79;
+  outline-offset: 3px;
+}
+
+.move-reason {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.move-reason::before {
+  flex: 0 0 auto;
+  width: 0.35rem;
+  height: 0.35rem;
+  background: var(--move-tone);
+  border-radius: 50%;
+  content: "";
 }

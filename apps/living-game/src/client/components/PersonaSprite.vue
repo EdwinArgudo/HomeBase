@@ -2,6 +2,8 @@
 import type { PersonaAppearanceV1, WorldPersonaV1 } from "@homebase/contracts";
 import { computed } from "vue";
 
+import { characterLook } from "../characters";
+
 const props = defineProps<{
   persona: WorldPersonaV1;
   variant: "mint" | "berry" | "sun";
@@ -15,11 +17,12 @@ const emit = defineEmits<{
 }>();
 
 // Companions are drawn on a 64x64 field as soft overlapping forms. Colour never
-// comes from persona data directly: the appearance classes on the wrapper set
+// comes from persona data directly: the character class on the wrapper sets
 // custom properties, and every shape here paints from a fixed class.
-const species = computed(() => props.appearance?.species ?? "marshmallow");
-const pattern = computed(() => props.appearance?.pattern ?? "plain");
-const accessory = computed(() => props.appearance?.accessory ?? "none");
+const look = computed(() => characterLook(props.appearance?.character));
+const species = computed(() => look.value.body);
+const pattern = computed(() => look.value.pattern);
+const accessory = computed(() => look.value.accessory);
 
 const asleep = computed(() => props.persona.activity === "rest");
 const cheerful = computed(() => props.persona.activity === "celebrate");
@@ -43,10 +46,8 @@ const emblemSuffix = computed(() => {
     class="persona-anchor"
     :class="[
       `persona-anchor--${variant}`,
-      appearance ? `persona-species--${appearance.species}` : '',
-      appearance ? `persona-palette--${appearance.palette}` : '',
-      appearance ? `persona-pattern--${appearance.pattern}` : '',
-      appearance ? `persona-accessory--${appearance.accessory}` : '',
+      appearance ? `persona-character--${appearance.character}` : '',
+      `persona-species--${species}`,
     ]"
   >
     <component
@@ -54,7 +55,7 @@ const emblemSuffix = computed(() => {
       class="persona-control"
       :class="{ 'persona-control--static': static }"
       v-bind="static
-        ? { role: 'img', 'aria-label': `${persona.displayName}, a ${species} companion${emblemSuffix}` }
+        ? { role: 'img', 'aria-label': `${persona.displayName}, a ${look.name} companion${emblemSuffix}` }
         : {
           type: 'button',
           'aria-label': `Select ${persona.displayName}, currently ${persona.activity.replace('_', ' ')}${emblemSuffix}`,

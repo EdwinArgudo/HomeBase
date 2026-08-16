@@ -9,6 +9,7 @@ import {
   type MoveReasonCode,
   type MoveSourceType,
   type OwnershipType,
+  type PersonaActivityState,
   type ProgressDimension,
   type RewardDefinitionV1,
   type Visibility,
@@ -103,6 +104,35 @@ export function completedMoveEventV1(
     occurredAt,
     createdAt,
   });
+}
+
+export const COMPANION_CELEBRATE_MINUTES = 90 as const;
+export const COMPANION_ACTIVE_HOURS = 20 as const;
+export const COMPANION_RESTING_DAYS = 4 as const;
+
+export type CompanionActivityInputV1 = {
+  generatedAt: string;
+  lastCompletion: { family: MoveFamily; occurredAt: string } | null;
+};
+
+/**
+ * What a companion is doing, derived only from completed moves the viewer is
+ * allowed to see. Resting is the quiet state after time away — it is never a
+ * penalty, and nothing here can produce a distressed or diminished companion.
+ */
+export function companionActivityV1(input: CompanionActivityInputV1): PersonaActivityState {
+  if (!input.lastCompletion) return "rest";
+
+  const now = Date.parse(input.generatedAt);
+  const then = Date.parse(input.lastCompletion.occurredAt);
+  if (!Number.isFinite(now) || !Number.isFinite(then)) return "idle";
+
+  const minutes = (now - then) / 60_000;
+  // A completion recorded ahead of the projection clock still reads as fresh.
+  if (minutes < COMPANION_CELEBRATE_MINUTES) return "celebrate";
+  if (minutes < COMPANION_ACTIVE_HOURS * 60) return input.lastCompletion.family;
+  if (minutes < COMPANION_RESTING_DAYS * 24 * 60) return "idle";
+  return "rest";
 }
 
 export type MoveCandidateSignals = {

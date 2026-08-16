@@ -104,12 +104,11 @@ describe("Living Game world shell", () => {
     wrapper.unmount();
   });
 
-  it("makes the saved companion colour control operable and stateful", async () => {
+  it("makes the companion picker operable and stateful", async () => {
     const wrapper = await mountAt("/persona");
     await flushPromises();
-    const colour = wrapper.findAll(".persona-builder label").find((label) => label.text().includes("Colour"))!.get("select");
-    await colour.setValue("blush");
-    expect(wrapper.get(".persona-stage .persona-anchor").classes()).toContain("persona-palette--blush");
+    await wrapper.get('.character-option input[value="cat"]').setValue();
+    expect(wrapper.get(".persona-stage .persona-anchor").classes()).toContain("persona-character--cat");
     expect(wrapper.text()).toContain("Unsaved changes");
 
     wrapper.unmount();

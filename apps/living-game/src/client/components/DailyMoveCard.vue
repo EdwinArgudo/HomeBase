@@ -47,6 +47,18 @@ watch(
   { immediate: true },
 );
 
+// The selector records why each move was chosen; saying it out loud is what
+// makes the shortlist feel considered rather than arbitrary.
+const reasonCopy = {
+  urgent: "Needs attention today",
+  uncertainty: "Homebase wasn't sure about this one",
+  due_soon: "Coming up soon",
+  preference: "Because you care about this",
+  cooperative: "Something to do together",
+  minimum_mode: "Just the one, while things are quiet",
+  comeback: "An easy one to start back with",
+} as const;
+
 const familyLabels = {
   tend: "Tend",
   move: "Move",
@@ -105,8 +117,8 @@ function complete() {
       <span>{{ durationLabel(move.estimatedSeconds) }}</span>
     </div>
     <h2>{{ move.title }}</h2>
-    <p v-if="!compact">
-      {{ move.ownership === "shared" ? "A small win for both of you." : "A small step, just for you." }}
+    <p v-if="!compact" class="move-reason">
+      {{ reasonCopy[move.selectionReasonCode] }}
     </p>
 
     <div v-if="move.status === 'active' && move.source.type === 'goal'" class="completion-input">

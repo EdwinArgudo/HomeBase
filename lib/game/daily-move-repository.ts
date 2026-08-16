@@ -36,6 +36,22 @@ FROM daily_moves
 WHERE household_id = ? AND member_id = ? AND local_date = ?
 ORDER BY slot ASC`;
 
+// Sources shown on recent days, so the selector can prefer something new.
+const RECENT_SOURCES_SQL = `SELECT DISTINCT source_id
+FROM daily_moves
+WHERE household_id = ? AND member_id = ? AND local_date < ? AND local_date >= ?`;
+
+export async function readRecentSourceIds(
+  db: D1Database,
+  scope: DailyMoveScope,
+  sinceLocalDate: string,
+): Promise<readonly string[]> {
+  const result = await db.prepare(RECENT_SOURCES_SQL)
+    .bind(scope.householdId, scope.memberId, scope.localDate, sinceLocalDate)
+    .all<{ source_id: string }>();
+  return result.results.map((row) => row.source_id);
+}
+
 const INSERT_MOVE_SQL = `INSERT OR IGNORE INTO daily_moves (
   id, household_id, member_id, local_date, slot, family, ownership_type,
   visibility, source_type, source_id, title, short_label, estimated_seconds,

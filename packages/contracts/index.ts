@@ -28,10 +28,18 @@ export const WORLD_VIEWERS = ["member", "display"] as const;
 export const PERSONA_CREATION_METHODS = ["manual"] as const;
 export const PERSONA_STATUSES = ["draft", "ready"] as const;
 export const PERSONA_VISIBILITIES = ["private", "household"] as const;
-export const PERSONA_SPECIES = ["marshmallow", "bunny", "cat", "dog", "bear", "chick"] as const;
-export const PERSONA_PALETTES = ["cream", "mint", "blush", "butter", "sky", "lilac"] as const;
-export const PERSONA_PATTERNS = ["plain", "belly", "spots", "patch"] as const;
-export const PERSONA_ACCESSORIES = ["none", "bow", "scarf", "glasses", "cap"] as const;
+// A fixed roster: each character is a deliberately drawn look, not a point in a
+// combination space. Adding one is a contract change and a migration, on purpose.
+export const PERSONA_CHARACTERS = [
+  "marshmallow",
+  "bunny",
+  "cat",
+  "pup",
+  "bear",
+  "chick",
+  "moss-bunny",
+  "dusk-cat",
+] as const;
 export const REWARD_KINDS = ["emblem"] as const;
 export const REWARD_KEYS_V1 = ["first-tend", "first-move", "first-grow", "first-connect", "first-household"] as const;
 
@@ -57,10 +65,7 @@ export type RewardKind = typeof REWARD_KINDS[number];
 export type RewardKeyV1 = typeof REWARD_KEYS_V1[number];
 
 export type PersonaAppearanceV1 = {
-  species: typeof PERSONA_SPECIES[number];
-  palette: typeof PERSONA_PALETTES[number];
-  pattern: typeof PERSONA_PATTERNS[number];
-  accessory: typeof PERSONA_ACCESSORIES[number];
+  character: typeof PERSONA_CHARACTERS[number];
 };
 
 export type PersonaDraftInputV1 = {
@@ -820,12 +825,9 @@ export function parsePersonaManifest(input: unknown): PersonaManifestV1 {
 }
 
 function personaAppearanceAt(input: unknown, path: string): PersonaAppearanceV1 {
-  const record = objectAt(input, path, ["species", "palette", "pattern", "accessory"]);
+  const record = objectAt(input, path, ["character"]);
   return {
-    species: enumAt(required(record, "species", path), `${path}.species`, PERSONA_SPECIES),
-    palette: enumAt(required(record, "palette", path), `${path}.palette`, PERSONA_PALETTES),
-    pattern: enumAt(required(record, "pattern", path), `${path}.pattern`, PERSONA_PATTERNS),
-    accessory: enumAt(required(record, "accessory", path), `${path}.accessory`, PERSONA_ACCESSORIES),
+    character: enumAt(required(record, "character", path), `${path}.character`, PERSONA_CHARACTERS),
   };
 }
 

@@ -1,9 +1,6 @@
 <script setup lang="ts">
 import {
-  PERSONA_ACCESSORIES,
-  PERSONA_PALETTES,
-  PERSONA_PATTERNS,
-  PERSONA_SPECIES,
+  PERSONA_CHARACTERS,
   type PersonaAppearanceV1,
   type RewardKeyV1,
   type WorldPersonaV1,
@@ -12,6 +9,7 @@ import { storeToRefs } from "pinia";
 import { computed, onMounted, reactive, ref, watch } from "vue";
 
 import PersonaSprite from "../components/PersonaSprite.vue";
+import { CHARACTER_LOOKS } from "../characters";
 import { worldFixture } from "../fixtures/game";
 import { usePersonaStore } from "../stores/persona";
 import { useProgressStore } from "../stores/progress";
@@ -35,9 +33,12 @@ const {
 const form = reactive<{ displayName: string; visibility: "private" | "household"; appearance: PersonaAppearanceV1 }>({
   displayName: "",
   visibility: "private",
-  appearance: { species: "marshmallow", palette: "cream", pattern: "plain", accessory: "none" },
+  appearance: { character: "marshmallow" },
 });
 const dirty = ref(false);
+const characterNames = Object.fromEntries(
+  Object.entries(CHARACTER_LOOKS).map(([key, value]) => [key, value.name]),
+) as Record<string, string>;
 const dimensionCopy = {
   tend: "Life admin & home",
   move: "Energy & wellbeing",
@@ -183,13 +184,31 @@ onMounted(() => void rewardsStore.ensureLoaded(true));
         <div><p class="eyebrow">Persistent manual builder</p><h2 id="customize-heading">Make it yours</h2></div>
         <p>Approve when it is ready for your world. Approved appearance and name edits stay ready; visibility is then locked.</p>
       </div>
+      <fieldset class="character-picker">
+        <legend>Choose a companion</legend>
+        <div class="character-picker__grid">
+          <label v-for="value in PERSONA_CHARACTERS" :key="value" class="character-option" :class="{ 'character-option--chosen': form.appearance.character === value }">
+            <input
+              v-model="form.appearance.character"
+              type="radio"
+              name="companion-character"
+              :value="value"
+              @change="markDirty"
+            >
+            <PersonaSprite
+              :persona="{ ...previewPersona, id: `option-${value}`, equippedRewardKey: null }"
+              :appearance="{ character: value }"
+              variant="mint"
+              static
+            />
+            <span>{{ characterNames[value] }}</span>
+          </label>
+        </div>
+      </fieldset>
+
       <div class="persona-builder__controls">
-        <label>Display name<input v-model="form.displayName" maxlength="80" required @input="markDirty" /></label>
         <label>Visibility<select v-model="form.visibility" :disabled="persona?.status === 'ready'" @change="markDirty"><option value="private">Only me</option><option value="household">Household</option></select></label>
-        <label>Companion<select v-model="form.appearance.species" @change="markDirty"><option v-for="value in PERSONA_SPECIES" :key="value" :value="value">{{ value }}</option></select></label>
-        <label>Colour<select v-model="form.appearance.palette" @change="markDirty"><option v-for="value in PERSONA_PALETTES" :key="value" :value="value">{{ value }}</option></select></label>
-        <label>Markings<select v-model="form.appearance.pattern" @change="markDirty"><option v-for="value in PERSONA_PATTERNS" :key="value" :value="value">{{ value }}</option></select></label>
-        <label>Accessory<select v-model="form.appearance.accessory" @change="markDirty"><option v-for="value in PERSONA_ACCESSORIES" :key="value" :value="value">{{ value }}</option></select></label>
+        <label>Display name<input v-model="form.displayName" maxlength="80" required @input="markDirty" /></label>
       </div>
       <div class="persona-builder__actions">
         <button type="submit" class="action-button action-button--primary" :disabled="actionState !== 'idle' || !form.displayName.trim()">{{ actionState === "saving" ? "Saving…" : "Save draft" }}</button>

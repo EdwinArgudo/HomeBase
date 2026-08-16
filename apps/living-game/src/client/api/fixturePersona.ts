@@ -18,7 +18,7 @@ export function createFixturePersonaApi(): PersonaApi {
     creationMethod: "manual",
     status: "ready",
     baseStyleVersion: "homebase-pixel-v1",
-    appearance: { species: "bunny", palette: "mint", pattern: "belly", accessory: "bow" },
+    appearance: { character: "bunny" },
     visibility: "household",
     manifest: worldFixture.personas[0]!.manifest,
     approvedAt: "2026-08-15T12:00:00.000Z",
