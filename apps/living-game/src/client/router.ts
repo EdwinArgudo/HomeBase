@@ -2,14 +2,12 @@ import { createRouter, createWebHistory } from "vue-router";
 
 import AdventuresView from "./views/AdventuresView.vue";
 import DisplayView from "./views/DisplayView.vue";
+import HomeView from "./views/HomeView.vue";
 import LedgerView from "./views/LedgerView.vue";
 import PersonaView from "./views/PersonaView.vue";
-import TodayView from "./views/TodayView.vue";
-import WorldView from "./views/WorldView.vue";
 
 export const routes = [
-  { path: "/", name: "world", component: WorldView },
-  { path: "/today", name: "today", component: TodayView },
+  { path: "/", name: "home", component: HomeView },
   { path: "/adventures", name: "adventures", component: AdventuresView },
   { path: "/persona", name: "persona", component: PersonaView },
   { path: "/ledger", name: "ledger", component: LedgerView },
@@ -18,5 +16,6 @@ export const routes = [
 
 export const router = createRouter({
   history: createWebHistory(import.meta.env.VITE_ROUTER_BASE ?? import.meta.env.BASE_URL),
-  routes: [...routes],
+  // The world and today's moves are one page now; the old path still resolves.
+  routes: [...routes, { path: "/today", redirect: "/" }],
 });

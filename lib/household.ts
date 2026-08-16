@@ -4,7 +4,7 @@ export { createBudgetCategory, saveBudgetLimits } from "./household/budgets";
 export { updateGrocery, updateTask } from "./household/home";
 export { saveInvitation } from "./household/invitations";
 export { requireHouseholdMember } from "./household/membership";
-export { setMinimumMode } from "./household/settings";
+export { readMinimumMode, setMinimumMode } from "./household/settings";
 export { loadHousehold } from "./household/snapshot";
 export { householdDatabase } from "./household/storage";
 export { deleteMerchantRule, reviewTransaction, splitTransaction } from "./household/transactions";

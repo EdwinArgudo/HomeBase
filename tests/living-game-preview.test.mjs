@@ -59,7 +59,7 @@ test("the dev server builds and watches the preview bundle it serves", async () 
 });
 
 test("uses the living-game router base and identifies live member data inside the preview world", async () => {
-  const [router, previewConfig, app, api, progressApi, personaApi, worldApi, rewardsApi, worldView, displayView] = await Promise.all([
+  const [router, previewConfig, app, api, progressApi, personaApi, worldApi, rewardsApi, homeView, displayView] = await Promise.all([
     source("apps/living-game/src/client/router.ts"),
     source("apps/living-game/vite.preview.config.ts"),
     source("apps/living-game/src/client/App.vue"),
@@ -68,7 +68,7 @@ test("uses the living-game router base and identifies live member data inside th
     source("apps/living-game/src/client/api/persona.ts"),
     source("apps/living-game/src/client/api/world.ts"),
     source("apps/living-game/src/client/api/rewards.ts"),
-    source("apps/living-game/src/client/views/WorldView.vue"),
+    source("apps/living-game/src/client/views/HomeView.vue"),
     source("apps/living-game/src/client/views/DisplayView.vue"),
   ]);
 
@@ -92,7 +92,7 @@ test("uses the living-game router base and identifies live member data inside th
   assert.match(rewardsApi, /\/api\/game\/rewards/);
   assert.match(rewardsApi, /\/api\/game\/rewards\/equip/);
   assert.doesNotMatch(rewardsApi, /fixtureRewards/);
-  assert.doesNotMatch(worldView, /worldFixture|usePersonaStore/);
+  assert.doesNotMatch(homeView, /worldFixture|usePersonaStore/);
   assert.match(app, /href="\/"/);
   assert.match(app, />Current Homebase</);
   assert.match(displayView, /No personal or financial details are shown/);

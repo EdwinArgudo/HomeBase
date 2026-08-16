@@ -12,12 +12,14 @@ import { createFixtureWorldApi } from "./api/fixtureWorld";
 import { createHttpWorldApi } from "./api/world";
 import { createFixtureRewardsApi } from "./api/fixtureRewards";
 import { createHttpRewardsApi } from "./api/rewards";
+import { createFixtureSettingsApi, createHttpSettingsApi } from "./api/settings";
 import { router } from "./router";
 import { configureDailyMovesRuntime } from "./stores/dailyMoves";
 import { configureProgressRuntime } from "./stores/progress";
 import { configurePersonaRuntime } from "./stores/persona";
 import { configureWorldRuntime } from "./stores/world";
 import { configureRewardsRuntime } from "./stores/rewards";
+import { configureSettingsRuntime } from "./stores/settings";
 import "./styles.css";
 
 const liveMoves = import.meta.env.VITE_LIVE_MOVES === "true";
@@ -39,5 +41,6 @@ configureWorldRuntime({
   api: liveWorld ? createHttpWorldApi() : createFixtureWorldApi(),
 });
 configureRewardsRuntime({ api: liveRewards ? createHttpRewardsApi() : createFixtureRewardsApi() });
+configureSettingsRuntime({ api: liveMoves ? createHttpSettingsApi() : createFixtureSettingsApi() });
 
 createApp(App).use(createPinia()).use(router).mount("#app");

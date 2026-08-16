@@ -54,7 +54,7 @@ describe("Persona reward shelf", () => {
     const { wrapper, router } = await mountPersona({ load, equip: vi.fn() });
     await flushPromises();
     expect(wrapper.get(".reward-state").text()).toContain("Create a persona");
-    await router.push("/today");
+    await router.push("/");
     await flushPromises();
     await router.push("/persona");
     await flushPromises();

@@ -1093,9 +1093,23 @@ summary:focus-visible,
   --move-tone: var(--berry-vivid);
 }
 
-.move-card--done {
-  opacity: 0.67;
-  background: #f0f1eb;
+/* A finished move settles out of the way instead of holding a full card. */
+.move-card.move-card--done {
+  min-height: 0;
+  padding: 0.85rem 1rem;
+  opacity: 0.7;
+  background: var(--surface-sunk, #f0f1eb);
+  border-top-width: 1px;
+  box-shadow: none;
+}
+
+.move-card--done h2 {
+  margin-bottom: 0;
+  font-size: 1rem;
+}
+
+.move-card--done .move-reason {
+  display: none;
 }
 
 .move-card--compact {
@@ -2238,4 +2252,94 @@ summary:focus-visible,
   background: var(--move-tone);
   border-radius: 50%;
   content: "";
+}
+
+/* Home: the world and today's shortlist on one page. */
+.home-view {
+  display: flex;
+  flex-direction: column;
+  gap: 1.4rem;
+  width: min(100%, 71rem);
+}
+
+.scene-caption {
+  margin: -0.4rem 0 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.today-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-top: 1.4rem;
+}
+
+.rest-mode {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.rest-mode__switch {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.7rem 0.9rem;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  text-align: left;
+}
+
+.rest-mode__track {
+  flex: 0 0 auto;
+  display: block;
+  width: 2.6rem;
+  height: 1.5rem;
+  padding: 0.18rem;
+  background: var(--surface-sunk, #ece4d9);
+  border-radius: 999px;
+}
+
+.rest-mode__knob {
+  display: block;
+  width: 1.14rem;
+  height: 1.14rem;
+  background: var(--paper);
+  border-radius: 50%;
+  box-shadow: var(--lift-1);
+}
+
+.rest-mode__switch[aria-checked="true"] .rest-mode__track {
+  background: var(--accent);
+}
+
+.rest-mode__switch[aria-checked="true"] .rest-mode__knob {
+  transform: translateX(1.1rem);
+}
+
+.rest-mode__label {
+  display: grid;
+  gap: 0.1rem;
+  font-size: 0.86rem;
+}
+
+.rest-mode__label span {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.rest-mode__error {
+  color: var(--gap, #a94b40);
+  font-size: 0.82rem;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .rest-mode__knob {
+    transition: transform 200ms var(--ease-spring);
+  }
 }

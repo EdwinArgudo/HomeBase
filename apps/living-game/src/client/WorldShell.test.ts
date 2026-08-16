@@ -38,33 +38,32 @@ async function mountAt(path: string) {
 
 describe("Living Game world shell", () => {
   it("separates primary destinations from utilities and marks the current route", async () => {
-    const wrapper = await mountAt("/today");
+    const wrapper = await mountAt("/");
     const primaryLinks = wrapper.findAll(".primary-nav a");
     const utilityLinks = wrapper.findAll(".utility-nav a");
 
     expect(primaryLinks.map((link) => link.text())).toEqual([
-      "⌂World",
-      "✓Today",
+      "⌂Home",
       "◇Adventures",
       "●Persona",
     ]);
     expect(utilityLinks.map((link) => link.text())).toEqual(["▦Ledger", "Display"]);
     expect(wrapper.get(".utility-nav .ledger-link").attributes("aria-label")).toBe("Ledger");
-    expect(wrapper.get('.primary-nav a[href="/today"]').attributes("aria-current")).toBe("page");
+    expect(wrapper.get('.primary-nav a[href="/"]').attributes("aria-current")).toBe("page");
     expect(wrapper.find('.utility-nav a[aria-current="page"]').exists()).toBe(false);
 
     wrapper.unmount();
   });
 
   it("lets a member complete a move without a confirmation flow", async () => {
-    const wrapper = await mountAt("/today");
+    const wrapper = await mountAt("/");
     await flushPromises();
     const buttons = wrapper.findAll(".move-card .action-button");
 
-    expect(wrapper.get(".count-bubble").text()).toContain("2 remaining");
+    expect(wrapper.get(".count-bubble").text()).toContain("2 left");
     await buttons[0]?.trigger("click");
     await flushPromises();
-    expect(wrapper.get(".count-bubble").text()).toContain("1 remaining");
+    expect(wrapper.get(".count-bubble").text()).toContain("1 left");
     expect(wrapper.findAll(".move-status").some((status) => status.text().includes("Done for today"))).toBe(true);
 
     wrapper.unmount();
@@ -74,32 +73,32 @@ describe("Living Game world shell", () => {
     const wrapper = await mountAt("/");
     await flushPromises();
     const scenePersonaButtons = wrapper.findAll(".world-scene .persona-control");
-    const personaButtons = wrapper.findAll(".world-readout button");
 
     expect(scenePersonaButtons).toHaveLength(2);
     for (const button of scenePersonaButtons) {
       expect(button.element.tagName).toBe("BUTTON");
       expect(button.attributes("aria-label")).toMatch(/^Select .+, currently .+$/);
     }
-    expect(personaButtons).toHaveLength(2);
+    // The scene is the only place a companion is selected now, so it carries the
+    // pressed state and the caption that used to live in a duplicate list.
     await scenePersonaButtons[1]?.trigger("click");
-    expect(personaButtons[1]?.attributes("aria-pressed")).toBe("true");
-    expect(wrapper.get(".selected-persona-note").text()).toContain("Vienna");
-    expect(wrapper.get(".world-text-equivalent").text()).toContain("World summary");
+    expect(scenePersonaButtons[1]?.attributes("aria-pressed")).toBe("true");
+    expect(scenePersonaButtons[0]?.attributes("aria-pressed")).toBe("false");
+    expect(wrapper.get(".scene-caption").text()).toContain("Vienna");
+    expect(wrapper.get(".world-text-equivalent").text()).toContain("Home summary");
 
     wrapper.unmount();
   });
 
-  it("advances the accessible world summary after completing its recommended move", async () => {
+  it("advances the accessible home summary after a move is completed", async () => {
     const wrapper = await mountAt("/");
     await flushPromises();
     const summary = wrapper.get(".world-text-equivalent");
 
-    expect(summary.text()).toContain("Choose the weekend groceries");
-    await wrapper.get(".recommended-move .action-button").trigger("click");
+    expect(summary.text()).toContain("2 moves remain and 1 are done");
+    await wrapper.get(".move-list .action-button").trigger("click");
     await flushPromises();
-    expect(summary.text()).toContain("Practice five travel phrases");
-    expect(summary.text()).not.toContain("Choose the weekend groceries");
+    expect(summary.text()).toContain("1 move remains and 2 are done");
 
     wrapper.unmount();
   });

@@ -135,6 +135,31 @@ export function companionActivityV1(input: CompanionActivityInputV1): PersonaAct
   return "rest";
 }
 
+export const COMEBACK_AWAY_DAYS = 4 as const;
+export const COMEBACK_MAX_SECONDS = 120 as const;
+
+/**
+ * Marks the gentlest candidates so a returning member is offered one short way
+ * back in. Nothing is removed and nothing is owed: this only changes which
+ * single move rises to the top on the day someone comes back.
+ */
+export function comebackCandidatesV1(candidates: readonly MoveCandidate[]): readonly MoveCandidate[] {
+  const gentle = candidates.filter((candidate) => candidate.eligible
+    && candidate.estimatedSeconds <= COMEBACK_MAX_SECONDS);
+  const preferred = new Set(gentle.length > 0 ? gentle : candidates.filter((candidate) => candidate.eligible));
+  return candidates.map((candidate) => (preferred.has(candidate)
+    ? { ...candidate, signals: { ...candidate.signals, comeback: 1 } }
+    : candidate));
+}
+
+/** Whole days between two local calendar dates, or null if either is unusable. */
+export function localDaysBetweenV1(from: string, to: string): number | null {
+  const start = Date.parse(`${from}T00:00:00.000Z`);
+  const end = Date.parse(`${to}T00:00:00.000Z`);
+  if (!Number.isFinite(start) || !Number.isFinite(end)) return null;
+  return Math.round((end - start) / 86_400_000);
+}
+
 export type MoveCandidateSignals = {
   urgency: number;
   uncertainty: number;
@@ -175,6 +200,8 @@ export type SelectDailyMovesV1Input = {
   createdAt: string;
   candidates: readonly MoveCandidate[];
   minimumMode?: boolean;
+  /** A day someone returns after time away: one short move, named as such. */
+  comeback?: boolean;
   maxMoves?: number;
   recentSourceIds?: readonly string[];
   cooldownSourceIds?: readonly string[];
@@ -333,7 +360,7 @@ export function selectDailyMovesV1(input: SelectDailyMovesV1Input): DailyMoveV1[
   if (!isValidIdentifier(input.householdId) || !isValidIdentifier(input.memberId)) return [];
   if (!isValidLocalDate(input.localDate)) return [];
   const configuredMaximum = Number.isInteger(input.maxMoves) ? input.maxMoves! : 3;
-  const maximum = input.minimumMode ? 1 : Math.max(0, Math.min(3, configuredMaximum));
+  const maximum = input.minimumMode || input.comeback ? 1 : Math.max(0, Math.min(3, configuredMaximum));
   if (maximum === 0) return [];
 
   const recentSources = new Set(input.recentSourceIds ?? []);
@@ -367,7 +394,9 @@ export function selectDailyMovesV1(input: SelectDailyMovesV1Input): DailyMoveV1[
       shortLabel: entry.candidate.shortLabel,
       estimatedSeconds: entry.candidate.estimatedSeconds,
       status: "active",
-      selectionReasonCode: input.minimumMode ? "minimum_mode" : entry.reason,
+      selectionReasonCode: input.minimumMode
+        ? "minimum_mode"
+        : input.comeback ? "comeback" : entry.reason,
       movePolicyVersion: MOVE_POLICY_VERSION,
       completedAt: null,
       createdAt: input.createdAt,

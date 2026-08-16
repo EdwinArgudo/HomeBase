@@ -52,6 +52,32 @@ export async function readRecentSourceIds(
   return result.results.map((row) => row.source_id);
 }
 
+export async function readLastActiveLocalDate(
+  db: D1Database,
+  scope: DailyMoveScope,
+): Promise<string | null> {
+  const row = await db.prepare(`SELECT MAX(local_date) AS last_local_date
+    FROM daily_moves
+    WHERE household_id = ? AND member_id = ? AND local_date < ?`)
+    .bind(scope.householdId, scope.memberId, scope.localDate)
+    .first<{ last_local_date: string | null }>();
+  return row?.last_local_date ?? null;
+}
+
+/**
+ * Moves from earlier days stop being open work. Deferring never carried a
+ * penalty and neither does this: the rows are closed so nothing accumulates.
+ */
+export async function expireStaleDailyMoves(
+  db: D1Database,
+  scope: DailyMoveScope,
+): Promise<void> {
+  await db.prepare(`UPDATE daily_moves SET status = 'expired'
+    WHERE household_id = ? AND member_id = ? AND local_date < ? AND status IN ('active', 'deferred')`)
+    .bind(scope.householdId, scope.memberId, scope.localDate)
+    .run();
+}
+
 const INSERT_MOVE_SQL = `INSERT OR IGNORE INTO daily_moves (
   id, household_id, member_id, local_date, slot, family, ownership_type,
   visibility, source_type, source_id, title, short_label, estimated_seconds,

@@ -1,12 +1,17 @@
 import {
+  COMEBACK_AWAY_DAYS,
+  comebackCandidatesV1,
+  localDaysBetweenV1,
   selectDailyMovesV1,
   type DailyMoveIdContext,
   type MoveCandidate,
 } from "@homebase/domain-game";
 
 import {
+  expireStaleDailyMoves,
   insertDailyMoveSnapshot,
   readDailyMoveSnapshot,
+  readLastActiveLocalDate,
   readRecentSourceIds,
   type DailyMoveScope,
 } from "./daily-move-repository.ts";
@@ -38,22 +43,33 @@ export async function getOrCreateDailyMoveSnapshot(
   const existing = await readDailyMoveSnapshot(db, scope);
   if (existing.length > 0) return existing;
 
-  const [candidates, minimumMode, recentSourceIds] = await Promise.all([
+  const [candidates, minimumMode, recentSourceIds, lastActiveLocalDate] = await Promise.all([
     policy.candidateProvider(scope),
     policy.minimumModeProvider ? policy.minimumModeProvider() : Promise.resolve(Boolean(policy.minimumMode)),
     policy.recentSourceIds
       ? Promise.resolve(policy.recentSourceIds)
       : readRecentSourceIds(db, scope, localDateDaysBefore(scope.localDate, REPETITION_WINDOW_DAYS)),
+    readLastActiveLocalDate(db, scope),
   ]);
+
+  // Someone who has been away gets one short move rather than a full shortlist.
+  // A member who has never had one is starting out, not coming back.
+  const daysAway = lastActiveLocalDate ? localDaysBetweenV1(lastActiveLocalDate, scope.localDate) : null;
+  const returning = daysAway !== null && daysAway >= COMEBACK_AWAY_DAYS;
+
   const selected = selectDailyMovesV1({
     ...scope,
-    candidates,
+    candidates: returning ? comebackCandidatesV1(candidates) : candidates,
     createdAt: policy.createdAt(),
     createId: policy.createId,
     minimumMode,
+    comeback: returning,
     recentSourceIds,
     cooldownSourceIds: policy.cooldownSourceIds,
   });
+
+  // Yesterday's open moves are closed out so nothing reads as a backlog.
+  await expireStaleDailyMoves(db, scope);
   await insertDailyMoveSnapshot(db, scope, selected);
 
   // Re-read even after this request inserted. INSERT OR IGNORE plus the unique

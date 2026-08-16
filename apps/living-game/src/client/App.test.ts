@@ -18,7 +18,6 @@ import { configureWorldRuntime } from "./stores/world";
 
 const expectedHeadings = [
   ["/", "Our World"],
-  ["/today", "Today’s Moves"],
   ["/adventures", "Adventures"],
   ["/persona", "My Persona"],
   ["/ledger", "The Ledger"],
@@ -72,7 +71,7 @@ describe("client routes", () => {
     wrapper.unmount();
   });
 
-  it("shares one in-flight move load across World and Today route transitions", async () => {
+  it("shares one in-flight move load across route transitions", async () => {
     let resolveLoad!: (value: []) => void;
     const load = new Promise<[]>((resolve) => { resolveLoad = resolve; });
     let calls = 0;
@@ -92,12 +91,13 @@ describe("client routes", () => {
     const wrapper = mount(App, { global: { plugins: [createPinia(), testRouter] } });
 
     expect(wrapper.get('[role="status"]').text()).toContain("Loading");
-    await testRouter.push("/today");
+    await testRouter.push("/persona");
+    await testRouter.push("/");
     await flushPromises();
     expect(calls).toBe(1);
     resolveLoad([]);
     await flushPromises();
-    expect(wrapper.text()).toContain("No moves for today");
+    expect(wrapper.text()).toContain("Nothing needs you today");
     wrapper.unmount();
   });
 });

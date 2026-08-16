@@ -43,7 +43,7 @@ describe("live household World", () => {
     expect(wrapper.text()).toContain("Vienna");
     const buttons = wrapper.findAll(".world-scene .persona-control");
     await buttons[1]!.trigger("click");
-    expect(wrapper.get(".selected-persona-note").text()).toContain("Vienna");
+    expect(wrapper.get(".scene-caption").text()).toContain("Vienna");
     expect(load).toHaveBeenCalledTimes(2);
     wrapper.unmount();
   });
@@ -52,7 +52,7 @@ describe("live household World", () => {
     const fixture = await createFixtureWorldApi().load();
     const wrapper = await mountWorld(vi.fn().mockResolvedValue({ ...fixture, personas: [] }));
     await flushPromises();
-    expect(wrapper.text()).toContain("No household personas are visible yet");
+    expect(wrapper.text()).toContain("Nobody lives here yet");
     expect(wrapper.find(".world-scene").exists()).toBe(false);
     expect(wrapper.text()).not.toContain("Vienna");
     wrapper.unmount();
