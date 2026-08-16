@@ -18,6 +18,8 @@ import { createFixtureDisplayWorldApi, createHttpDisplayWorldApi } from "./api/d
 import { createFixtureLedgerApi, createHttpLedgerApi } from "./api/ledger";
 import { createBrowserPlaidLinkLauncher, createFixturePlaidLinkLauncher } from "./api/plaidLink";
 import { createFixtureAdventuresApi, createHttpAdventuresApi } from "./api/adventures";
+import { createFixturePlansApi } from "./api/fixturePlans";
+import { createHttpPlansApi } from "./api/plans";
 import { router } from "./router";
 import { configureDailyMovesRuntime } from "./stores/dailyMoves";
 import { configureProgressRuntime } from "./stores/progress";
@@ -29,6 +31,7 @@ import { configureHouseholdRuntime } from "./stores/household";
 import { configureDisplayWorldRuntime } from "./stores/displayWorld";
 import { configureLedgerRuntime } from "./stores/ledger";
 import { configureAdventuresRuntime } from "./stores/adventures";
+import { configurePlansRuntime } from "./stores/plans";
 import "./styles.css";
 
 const liveMoves = import.meta.env.VITE_LIVE_MOVES === "true";
@@ -36,6 +39,7 @@ const liveProgress = import.meta.env.VITE_LIVE_PROGRESS === "true";
 const livePersona = import.meta.env.VITE_LIVE_PERSONA === "true";
 const liveWorld = import.meta.env.VITE_LIVE_WORLD === "true";
 const liveRewards = import.meta.env.VITE_LIVE_REWARDS === "true";
+const livePlans = import.meta.env.VITE_LIVE_PLANS === "true";
 configureDailyMovesRuntime({
   api: liveMoves ? createHttpDailyMovesApi() : createFixtureDailyMovesApi(),
   now: () => new Date(),
@@ -54,6 +58,7 @@ configureSettingsRuntime({ api: liveMoves ? createHttpSettingsApi() : createFixt
 configureHouseholdRuntime({ api: liveWorld ? createHttpHouseholdApi() : createFixtureHouseholdApi() });
 configureDisplayWorldRuntime({ api: liveWorld ? createHttpDisplayWorldApi() : createFixtureDisplayWorldApi() });
 configureAdventuresRuntime({ api: liveMoves ? createHttpAdventuresApi() : createFixtureAdventuresApi() });
+configurePlansRuntime({ api: livePlans ? createHttpPlansApi() : createFixturePlansApi() });
 configureLedgerRuntime({
   api: liveWorld ? createHttpLedgerApi() : createFixtureLedgerApi(),
   openPlaidLink: liveWorld ? createBrowserPlaidLinkLauncher() : createFixturePlaidLinkLauncher(),

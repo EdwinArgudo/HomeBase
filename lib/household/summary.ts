@@ -4,9 +4,8 @@ type MemberRow = { id: string; display_name: string; role: string };
 type InvitationRow = { email: string; status: string };
 
 /**
- * Everything the Living Game needs to show a household without touching the
- * money surfaces. Bootstraps the owner on first visit, so a member can start in
- * the new app instead of having to open the legacy dashboard first.
+ * Everything the Vue shell needs to show a household without touching money.
+ * Bootstraps the owner on first visit, including a direct deep-link visit.
  */
 export async function loadHouseholdSummary(request: Request) {
   const { member, db } = await resolveMember(request, true);

@@ -17,6 +17,9 @@ import { createFixturePersonaApi } from "./api/fixturePersona";
 import { createFixtureWorldApi } from "./api/fixtureWorld";
 import { createFixtureAdventuresApi } from "./api/adventures";
 import { createFixtureHouseholdApi } from "./api/household";
+import { createFixtureLedgerApi } from "./api/ledger";
+import { createFixturePlansApi } from "./api/fixturePlans";
+import { createFixturePlaidLinkLauncher } from "./api/plaidLink";
 import { displayWorldFixture } from "./fixtures/game";
 import { routes } from "./router";
 import { configureDailyMovesRuntime } from "./stores/dailyMoves";
@@ -26,6 +29,8 @@ import { configurePersonaRuntime } from "./stores/persona";
 import { configureWorldRuntime } from "./stores/world";
 import { configureAdventuresRuntime } from "./stores/adventures";
 import { configureHouseholdRuntime } from "./stores/household";
+import { configureLedgerRuntime } from "./stores/ledger";
+import { configurePlansRuntime } from "./stores/plans";
 
 async function mountAt(path: string) {
   configureDailyMovesRuntime({ api: createFixtureDailyMovesApi(), now: () => new Date(2026, 7, 15) });
@@ -34,6 +39,8 @@ async function mountAt(path: string) {
   configurePersonaRuntime({ api: createFixturePersonaApi() });
   configureWorldRuntime({ api: createFixtureWorldApi() });
   configureHouseholdRuntime({ api: createFixtureHouseholdApi() });
+  configureLedgerRuntime({ api: createFixtureLedgerApi(), openPlaidLink: createFixturePlaidLinkLauncher() });
+  configurePlansRuntime({ api: createFixturePlansApi() });
   configureAdventuresRuntime({ api: createFixtureAdventuresApi() });
   const router = createRouter({
     history: createMemoryHistory(),
@@ -56,6 +63,7 @@ describe("Living Game world shell", () => {
 
     expect(primaryLinks.map((link) => link.text())).toEqual([
       "⌂Home",
+      "✓Plans",
       "◇Adventures",
       "●Persona",
     ]);

@@ -37,7 +37,7 @@ yarn-error.log*
 .vercel
 
 /dist/
-/public/living-game-preview/
+/public/homebase-app/
 /.wrangler/
 /outputs/
 /work/

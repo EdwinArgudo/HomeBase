@@ -43,8 +43,6 @@ export async function loadHousehold(request: Request) {
     budgets.yours.push({ id: "private-partner-budget", name: "Personal spending", ...privatePartnerBudget, tone: "sage" });
   }
 
-  const taskRows = (await db.prepare("SELECT * FROM tasks WHERE household_id = ? ORDER BY status, created_at").bind(member.household_id).all()).results as Array<{ id: string; owner_member_id: string | null; title: string; status: string }>;
-  const groceryRows = (await db.prepare("SELECT * FROM grocery_items WHERE household_id = ? ORDER BY checked, created_at").bind(member.household_id).all()).results as Array<{ id: string; name: string; checked: number }>;
   const transactionRows = (await db.prepare(`SELECT t.*, a.name AS account_name, a.owner_member_id AS account_owner_id,
       c.name AS category_name, m.display_name AS personal_owner_name, m.personal_detail_visibility
     FROM transactions t
@@ -113,8 +111,6 @@ export async function loadHousehold(request: Request) {
       }),
     },
     budgets,
-    tasks: taskRows.map((row) => ({ id: row.id, text: row.title, owner: row.owner_member_id ? (row.owner_member_id === member.id ? "You" : membersById.get(row.owner_member_id)?.display_name ?? "Partner") : "Together", done: row.status === "complete" })),
-    groceries: groceryRows.map((row) => ({ id: row.id, text: row.name, checked: Boolean(row.checked) })),
     merchantRules: ruleRows.map((row) => ({
       id: row.id,
       merchant: row.merchant_name,

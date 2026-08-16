@@ -10,6 +10,8 @@ import {
   parsePersonaDraftInput,
   parsePersonaProfile,
   parsePersonaSnapshot,
+  parsePlansAction,
+  parsePlansSnapshot,
   parseProgressBalance,
   parseProgressSnapshot,
   parseRewardDefinition,
@@ -576,6 +578,26 @@ test("reward contracts validate closed versions, keys, progress, and unlock inva
   const equippedWithoutPersona = validRewardSnapshot();
   equippedWithoutPersona.personaId = null;
   expectContractError(() => parseRewardSnapshot(equippedWithoutPersona), "$.equippedRewardKey");
+});
+
+test("plans snapshot and actions are closed, bounded, and privacy-minimal", () => {
+  const snapshot = {
+    contractVersion: 1,
+    tasks: [{ id: "task-1", title: "Take recycling out", status: "open", dueDate: "2026-08-16", owner: "you" }],
+    groceries: [{ id: "grocery-1", name: "Oats", checked: false }],
+    goals: [{ id: "goal-1", name: "Practice Spanish", ownership: "personal", trackingType: "sessions", targetValue: 12, minimumValue: 1, currentValue: 3 }],
+    generatedAt: timestamp,
+  };
+  assert.deepEqual(parsePlansSnapshot(snapshot), snapshot);
+  assert.deepEqual(parsePlansAction({ contractVersion: 1, action: "toggle_task", id: "task-1" }), { contractVersion: 1, action: "toggle_task", id: "task-1" });
+  assert.deepEqual(parsePlansAction({ contractVersion: 1, action: "add_grocery", text: "  Apples  " }), { contractVersion: 1, action: "add_grocery", text: "Apples" });
+  expectContractError(() => parsePlansSnapshot({ ...snapshot, memberId: "private" }), "$", "unknown_field");
+  expectContractError(() => parsePlansSnapshot({ ...snapshot, tasks: [{ ...snapshot.tasks[0], ownerMemberId: "private" }] }), "$.tasks[0]", "unknown_field");
+  expectContractError(() => parsePlansAction({ contractVersion: 1, action: "delete_goal", id: "goal-1" }), "$.action");
+  expectContractError(() => parsePlansAction({ contractVersion: 1, action: "toggle_task", id: "task-1", text: "extra" }), "$.text", "unknown_field");
+  expectContractError(() => parsePlansAction({ contractVersion: 1, action: "add_grocery", text: "x".repeat(121) }), "$.text");
+  expectContractError(() => parsePlansAction({ contractVersion: 1, action: "add_grocery", text: "  " }), "$.text");
+  expectContractError(() => parsePlansSnapshot({ ...snapshot, goals: [{ ...snapshot.goals[0], minimumValue: 13 }] }), "$.goals[0].minimumValue");
 });
 
 test("WorldProjection validates versions, ranges, relationships, and scene values", () => {

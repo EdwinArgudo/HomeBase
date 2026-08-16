@@ -1,7 +1,7 @@
 import { spawn } from "node:child_process";
 
-// The Living Game route serves a built bundle out of public/, so the dev server
-// alone is not enough: without the preview watcher the route 404s on a fresh
+// The Homebase shell serves a built Vue bundle out of public/, so the dev server
+// alone is not enough: without the client watcher the route 404s on a fresh
 // checkout and serves stale assets after every edit. Run both, and treat either
 // one exiting as the end of the session.
 const NPM = process.platform === "win32" ? "npm.cmd" : "npm";
@@ -57,5 +57,5 @@ for (const signal of ["SIGINT", "SIGTERM"]) {
   process.on(signal, () => shutdown(0));
 }
 
-start("living-game", "dev:living-game", { prefix: true });
+start("homebase-client", "dev:homebase-client", { prefix: true });
 start("homebase", "dev:app");

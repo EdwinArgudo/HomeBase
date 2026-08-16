@@ -34,7 +34,7 @@ The pivot will use TypeScript end to end with the following target stack:
 - **Private assets:** Cloudflare R2.
 - **External systems:** Plaid and a provider-independent persona-generation adapter.
 
-The existing React/Vinext application remains the working reference implementation during migration. It will not receive new Living Game UI development and will not be removed until the Vue application reaches verified functional parity.
+The Vue client reached verified functional parity and now owns every product route. Vinext remains only as its thin root host and API runtime; the former React dashboard was removed during CUT-001.
 
 ## 2. Product decision
 
@@ -313,9 +313,7 @@ packages/
     sprites/
 ```
 
-During the transition, the current React/Vinext project remains at the repository root and `apps/living-game` is developed alongside it. Shared packages are introduced only as legacy behavior is extracted and covered by tests. After cutover, the Vue application becomes the repository's primary application and the legacy shell is archived or removed in a dedicated cleanup package.
-
-The existing `app/page.tsx` is a large React client component. It is a visual and behavioral reference, not a component migration target. Luna should reimplement approved flows as focused Vue views and components rather than translate the file line by line. The migration must avoid combining gameplay, image processing, schema changes, and visual redesign in one diff.
+The Vue application in `apps/living-game` is the repository's primary client. Vinext serves its deterministic embedded bundle from a root optional catch-all while exact API routes keep their dedicated handlers. The former React dashboard was removed after its real Plans and Plaid lifecycle behavior was ported and covered by tests.
 
 ### 7.5 Schema ownership cleanup
 
@@ -863,7 +861,7 @@ Audit records contain IDs and safe action metadata, not images or financial deta
 - Tune move-selection policy using aggregate outcomes.
 - Profile animation, asset delivery, and mobile performance.
 - Cut traffic over only after parity, migration, rollback, and smoke checks pass.
-- Remove legacy dashboard entry points in a later cleanup after the rollback window closes.
+- Retain Git and Sites version history as the rollback path; no parallel legacy dashboard route remains.
 
 ## 18. Luna-ready work packages
 

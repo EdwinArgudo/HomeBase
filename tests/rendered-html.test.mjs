@@ -25,34 +25,34 @@ async function sourceFiles(relativeDirectory) {
   return files.flat();
 }
 
-test("server-renders the Homebase product shell", async () => {
+test("server-renders the Vue Homebase host at root and every direct product route", async () => {
   const response = await render();
   assert.equal(response.status, 200);
   assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
 
   const html = await response.text();
   assert.match(html, /<title>Homebase — Your shared household rhythm<\/title>/i);
-  assert.match(html, /Good morning,[\s\S]{0,40}Edwin/);
-  assert.match(html, /On track/);
-  assert.match(html, /Open apartment display/);
-  assert.match(html, /Money snapshot/);
+  assert.match(html, /Loading Homebase/);
+  assert.match(html, /\/homebase-app\/assets\/app\.css/);
+  assert.match(html, /\/homebase-app\/assets\/app\.js/);
+  assert.doesNotMatch(html, /Good morning,[\s\S]{0,40}Edwin|Money snapshot|Preview|Current Homebase/);
   assert.doesNotMatch(html, /codex-preview|react-loading-skeleton|Your site is taking shape/i);
+
+  for (const path of ["/plans", "/ledger", "/adventures", "/persona", "/household", "/display", "/living-game/ledger"]) {
+    const deepLink = await render(path);
+    assert.equal(deepLink.status, 200, path);
+    assert.match(await deepLink.text(), /\/homebase-app\/assets\/app\.js/, path);
+  }
 });
 
-test("keeps legacy dashboard styles off the Living Game route", async () => {
-  // Both stylesheets define .app-shell, .brand, and .eyebrow. Loading the legacy
-  // sheet in the root layout let its grid rules break the Vue shell on wide
-  // screens, so it belongs to the legacy page alone.
+test("uses only the Vue stylesheet across root and direct routes", async () => {
   const stylesheets = (html) => html.match(/<link rel="stylesheet"[^>]*>/g) ?? [];
-
-  // The bundled legacy sheet is content-hashed, so this asserts the shape:
-  // the legacy route carries app CSS, the Living Game route carries only its own.
-  assert.equal(stylesheets(await (await render("/")).text()).length, 1);
-  assert.deepEqual(
-    stylesheets(await (await render("/living-game")).text())
-      .map((link) => link.match(/href="([^"]+)"/)?.[1]),
-    ["/living-game-preview/assets/app.css"],
-  );
+  for (const path of ["/", "/plans", "/living-game"]) {
+    assert.deepEqual(
+      stylesheets(await (await render(path)).text()).map((link) => link.match(/href="([^"]+)"/)?.[1]),
+      ["/homebase-app/assets/app.css"],
+    );
+  }
 
   const layout = await readFile(new URL("../app/layout.tsx", import.meta.url), "utf8");
   assert.doesNotMatch(layout, /globals\.css/);
@@ -87,38 +87,13 @@ test("authenticates before touching household storage", async () => {
   assert.match(membershipSource, /identityBeforeStorage\(request, readyHouseholdDatabase\)/);
 });
 
-test("denies cross-household task mutation at the query boundary", async () => {
-  const queryUrl = new URL("../lib/household/home-queries.ts", import.meta.url);
-  queryUrl.searchParams.set("test", `${process.pid}-${Date.now()}`);
-  const { toggleTaskForHousehold } = await import(queryUrl.href);
-  const task = { id: "task-partner", householdId: "household-partner", status: "open" };
-  let boundValues = [];
-  const db = {
-    prepare(statement) {
-      assert.match(statement, /WHERE id = \? AND household_id = \?/);
-      return {
-        bind(...values) {
-          boundValues = values;
-          return {
-            async run() {
-              const [id, householdId] = values;
-              const changes = id === task.id && householdId === task.householdId ? 1 : 0;
-              if (changes) task.status = task.status === "open" ? "complete" : "open";
-              return { meta: { changes } };
-            },
-          };
-        },
-      };
-    },
-  };
-
-  const changed = await toggleTaskForHousehold(db, "household-current", task.id);
-  assert.equal(changed, false);
-  assert.deepEqual(boundValues, [task.id, "household-current"]);
-  assert.equal(task.status, "open");
-
-  const homeService = await readFile(new URL("../lib/household/home.ts", import.meta.url), "utf8");
-  assert.match(homeService, /if \(!updated\) throw new HttpError\(404, "Task not found\."\)/);
+test("moves task and grocery access to the scoped Plans boundary", async () => {
+  const plansService = await readFile(new URL("../lib/plans/service.ts", import.meta.url), "utf8");
+  assert.match(plansService, /household_id = \? AND \(owner_member_id IS NULL OR owner_member_id = \?\)/);
+  assert.match(plansService, /UPDATE tasks[\s\S]*household_id = \?[\s\S]*owner_member_id = \?/);
+  assert.match(plansService, /UPDATE grocery_items[\s\S]*household_id = \?/);
+  await assert.rejects(readFile(new URL("../app/api/tasks/route.ts", import.meta.url), "utf8"));
+  await assert.rejects(readFile(new URL("../app/api/groceries/route.ts", import.meta.url), "utf8"));
 });
 
 test("denies cross-household and partner-private ownership in shared authorization", async () => {
@@ -192,14 +167,14 @@ test("protects personal budgets while allowing exact categorization", async () =
 
 test("keeps Plaid credentials server-side and encrypts saved access tokens", async () => {
   const plaidSource = await readFile(new URL("../lib/plaid.ts", import.meta.url), "utf8");
-  const pageSource = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
+  const plaidClientSource = await readFile(new URL("../apps/living-game/src/client/api/plaidLink.ts", import.meta.url), "utf8");
   const migration = await readFile(new URL("../drizzle/0002_light_nightshade.sql", import.meta.url), "utf8");
 
   assert.match(plaidSource, /AES-GCM/);
   assert.match(plaidSource, /PLAID-SECRET/);
   assert.match(plaidSource, /access_token_ciphertext/);
-  assert.doesNotMatch(pageSource, /PLAID_SECRET|BANK_TOKEN_ENCRYPTION_KEY/);
-  assert.match(pageSource, /https:\/\/cdn\.plaid\.com\/link\/v2\/stable\/link-initialize\.js/);
+  assert.doesNotMatch(plaidClientSource, /PLAID_SECRET|BANK_TOKEN_ENCRYPTION_KEY/);
+  assert.match(plaidClientSource, /https:\/\/cdn\.plaid\.com\/link\/v2\/stable\/link-initialize\.js/);
   assert.match(migration, /CREATE TABLE `bank_connections`/);
   assert.doesNotMatch(migration, /`access_token` text/);
 });
@@ -208,7 +183,7 @@ test("persists merchant rules and exact transaction splits", async () => {
   const budgetSource = await readFile(new URL("../lib/household/spending.ts", import.meta.url), "utf8");
   const transactionsSource = await readFile(new URL("../lib/household/transactions.ts", import.meta.url), "utf8");
   const plaidSource = await readFile(new URL("../lib/plaid.ts", import.meta.url), "utf8");
-  const pageSource = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
+  const ledgerView = await readFile(new URL("../apps/living-game/src/client/views/LedgerView.vue", import.meta.url), "utf8");
   const migration = await readFile(new URL("../drizzle/0003_moaning_puppet_master.sql", import.meta.url), "utf8");
 
   assert.match(migration, /CREATE TABLE `merchant_rules`/);
@@ -217,9 +192,9 @@ test("persists merchant rules and exact transaction splits", async () => {
   assert.match(transactionsSource, /Split amounts must add up to the transaction total/);
   assert.match(transactionsSource, /created_by_member_id = \?/);
   assert.match(plaidSource, /merchantRules\.get\(normalizeMerchantName\(merchantName\)\)/);
-  assert.match(pageSource, /Remember this merchant/);
-  assert.match(pageSource, /Save split/);
-  assert.doesNotMatch(pageSource, /localStorage|sessionStorage/);
+  assert.match(ledgerView, /Remember this merchant/);
+  assert.match(ledgerView, /Save split/);
+  assert.doesNotMatch(ledgerView, /localStorage|sessionStorage/);
 });
 
 test("scopes budgets to durable calendar months with optional rollover", async () => {
@@ -227,7 +202,7 @@ test("scopes budgets to durable calendar months with optional rollover", async (
     await readFile(new URL("../lib/household/budgets.ts", import.meta.url), "utf8"),
     await readFile(new URL("../lib/household/spending.ts", import.meta.url), "utf8"),
   ].join("\n");
-  const pageSource = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
+  const ledgerView = await readFile(new URL("../apps/living-game/src/client/views/LedgerView.vue", import.meta.url), "utf8");
   const migration = await readFile(new URL("../drizzle/0004_flimsy_wither.sql", import.meta.url), "utf8");
 
   assert.match(migration, /CREATE TABLE `monthly_category_budgets`/);
@@ -235,15 +210,16 @@ test("scopes budgets to durable calendar months with optional rollover", async (
   assert.match(budgetSource, /transaction_date >= \? AND transaction_date < \?/);
   assert.match(budgetSource, /rolloverCents = category\.rollover_enabled \? Math\.max/);
   assert.match(budgetSource, /Past budget months are read-only/);
-  assert.match(pageSource, /Previous budget month/);
-  assert.match(pageSource, /Roll over unused funds next month/);
-  assert.match(pageSource, /daysRemaining/);
+  assert.match(ledgerView, /aria-label="Previous month"/);
+  assert.match(ledgerView, /Carry over what is left/);
+  assert.match(ledgerView, /daysRemaining/);
 });
 
 test("automatically refreshes Plaid connections and surfaces repairable health", async () => {
   const snapshotSource = await readFile(new URL("../lib/household/snapshot.ts", import.meta.url), "utf8");
   const plaidSource = await readFile(new URL("../lib/plaid.ts", import.meta.url), "utf8");
-  const pageSource = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
+  const ledgerStore = await readFile(new URL("../apps/living-game/src/client/stores/ledger.ts", import.meta.url), "utf8");
+  const appSource = await readFile(new URL("../apps/living-game/src/client/App.vue", import.meta.url), "utf8");
   const autoSyncRoute = await readFile(new URL("../app/api/plaid/auto-sync/route.ts", import.meta.url), "utf8");
   const migration = await readFile(new URL("../drizzle/0005_lonely_shiva.sql", import.meta.url), "utf8");
 
@@ -254,6 +230,7 @@ test("automatically refreshes Plaid connections and surfaces repairable health",
   assert.match(plaidSource, /body\.access_token = await decryptAccessToken/);
   assert.match(autoSyncRoute, /autoSyncPlaidConnections/);
   assert.match(snapshotSource, /healthLabel/);
-  assert.match(pageSource, /refresh automatically/);
-  assert.match(pageSource, /Repair connection/);
+  assert.match(ledgerStore, /\/api\/plaid\/auto-sync|autoSync/);
+  assert.match(ledgerStore, /visibilitychange/);
+  assert.match(appSource, /startAutoSync/);
 });

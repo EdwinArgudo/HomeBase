@@ -1,18 +1,22 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, onMounted, onUnmounted } from "vue";
 import { useRoute } from "vue-router";
 
 import PrimaryNavigation from "./components/PrimaryNavigation.vue";
+import { useLedgerStore } from "./stores/ledger";
+import { useHouseholdStore } from "./stores/household";
 
 // The wall display is read from across a room, so it drops the header, the
 // navigation and every tap target the phone shell provides.
 const route = useRoute();
 const bare = computed(() => route.meta.bare === true);
-
-const liveData = import.meta.env.VITE_LIVE_MOVES === "true" && import.meta.env.VITE_LIVE_PROGRESS === "true";
-const livePersona = import.meta.env.VITE_LIVE_PERSONA === "true";
-const liveWorld = import.meta.env.VITE_LIVE_WORLD === "true";
-const liveRewards = import.meta.env.VITE_LIVE_REWARDS === "true";
+const ledgerStore = useLedgerStore();
+const householdStore = useHouseholdStore();
+onMounted(async () => {
+  await householdStore.ensureLoaded();
+  if (householdStore.loadState === "ready") ledgerStore.startAutoSync();
+});
+onUnmounted(() => ledgerStore.stopAutoSync());
 </script>
 
 <template>
@@ -24,7 +28,7 @@ const liveRewards = import.meta.env.VITE_LIVE_REWARDS === "true";
   <a class="skip-link" href="#main-content">Skip to content</a>
   <div class="app-shell">
     <header class="app-header">
-      <RouterLink class="brand" to="/" aria-label="Homebase Living Game home">
+      <RouterLink class="brand" to="/" aria-label="Homebase home">
         <span class="brand__pet" aria-hidden="true"><span>•</span><span>•</span></span>
         <span>Homebase</span>
       </RouterLink>
@@ -32,12 +36,6 @@ const liveRewards = import.meta.env.VITE_LIVE_REWARDS === "true";
       <p class="home-status"><span aria-hidden="true" /> Home feels calm</p>
 
       <div class="header-actions">
-        <div class="preview-context" aria-label="Living Game data disclosure">
-          <span class="preview-badge">Preview</span>
-          <span class="preview-fixture">{{ liveData && livePersona && liveWorld && liveRewards ? "Live moves + progress + rewards + household personas · Preview scene" : "Fixture data · Preview world" }}</span>
-          <a class="back-to-homebase" href="/">Current Homebase</a>
-        </div>
-
         <nav class="utility-nav" aria-label="Utilities">
           <RouterLink class="ledger-link" to="/ledger" aria-label="Ledger">
             <span aria-hidden="true">▦</span>

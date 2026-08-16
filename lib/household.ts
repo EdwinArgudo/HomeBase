@@ -1,7 +1,6 @@
 export { HttpError } from "./auth/identity";
 export { normalizeMerchantName } from "./household/authorization";
 export { createBudgetCategory, saveBudgetLimits } from "./household/budgets";
-export { updateGrocery, updateTask } from "./household/home";
 export { saveInvitation } from "./household/invitations";
 export { requireHouseholdMember } from "./household/membership";
 export { readMinimumMode, setMinimumMode } from "./household/settings";

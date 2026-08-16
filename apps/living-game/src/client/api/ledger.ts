@@ -66,6 +66,7 @@ export type LedgerSnapshot = {
 export type LedgerSplitPart = { categoryId: string; amountCents: number };
 export type LedgerLimitChange = { id: string; limitCents: number; rolloverEnabled: boolean };
 export type LedgerNewCategory = { scope: "ours" | "mine"; name: string; limitCents: number };
+export type LedgerAutoSyncResult = { refreshed: number; needsAttention: number };
 
 export interface LedgerApi {
   load(month?: string): Promise<LedgerSnapshot>;
@@ -78,6 +79,7 @@ export interface LedgerApi {
   syncBankConnection(connectionId: string): Promise<void>;
   saveLimits(month: string, changes: LedgerLimitChange[]): Promise<void>;
   createCategory(month: string, category: LedgerNewCategory): Promise<void>;
+  autoSync(): Promise<LedgerAutoSyncResult>;
 }
 
 export class LedgerApiError extends Error {
@@ -161,8 +163,8 @@ export function amountInCents(amount: number): number {
   return Math.round(amount * 100);
 }
 
-// The household payload is the legacy dashboard's shape. Reading it defensively
-// keeps the Ledger from breaking on fields it does not care about.
+// The household payload is a transitional Ledger boundary. Reading it
+// defensively keeps the focused Ledger from depending on unrelated fields.
 export function snapshotFrom(input: unknown): LedgerSnapshot {
   const data = plain(input);
   const budgetsRaw = plain(data.budgets ?? {});
@@ -314,6 +316,13 @@ export function createHttpLedgerApi(): LedgerApi {
         body: JSON.stringify({ action: "create", month, ...category }),
       });
       await readJson(response, "Unable to add that category.");
+    },
+    async autoSync() {
+      const response = await fetch("/api/plaid/auto-sync", {
+        method: "POST", headers: { "content-type": "application/json", accept: "application/json" }, body: "{}",
+      });
+      const data = record(await readJson(response, "Unable to refresh bank connections."), "Unable to refresh bank connections.");
+      return { refreshed: count(data.refreshed), needsAttention: count(data.needsAttention) };
     },
   };
 }
@@ -473,5 +482,6 @@ export function createFixtureLedgerApi(): LedgerApi {
         editable: true,
       });
     },
+    async autoSync() { return { refreshed: 0, needsAttention: 0 }; },
   };
 }

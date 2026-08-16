@@ -5,7 +5,7 @@ export async function POST(request: Request) {
   try {
     return Response.json({ ok: true, ...(await autoSyncPlaidConnections(request)) });
   } catch (error) {
-    const status = error instanceof HttpError ? error.status : 500;
-    return Response.json({ error: error instanceof Error ? error.message : "Unable to refresh bank connections." }, { status });
+    const safe = error instanceof HttpError;
+    return Response.json({ error: safe ? error.message : "Unable to refresh bank connections." }, { status: safe ? error.status : 500 });
   }
 }

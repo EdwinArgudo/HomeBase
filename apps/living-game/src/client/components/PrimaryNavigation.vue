@@ -1,6 +1,7 @@
 <script setup lang="ts">
 const primaryLinks = [
   { to: "/", label: "Home", mark: "⌂" },
+  { to: "/plans", label: "Plans", mark: "✓" },
   { to: "/adventures", label: "Adventures", mark: "◇" },
   { to: "/persona", label: "Persona", mark: "●" },
 ] as const;

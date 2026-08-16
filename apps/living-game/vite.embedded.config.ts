@@ -2,18 +2,19 @@ import vue from "@vitejs/plugin-vue";
 import { defineConfig } from "vite";
 
 export default defineConfig({
-  base: "/living-game-preview/",
+  base: "/homebase-app/",
   define: {
-    "import.meta.env.VITE_ROUTER_BASE": JSON.stringify("/living-game/"),
+    "import.meta.env.VITE_ROUTER_BASE": JSON.stringify("/"),
     "import.meta.env.VITE_LIVE_MOVES": JSON.stringify("true"),
     "import.meta.env.VITE_LIVE_PROGRESS": JSON.stringify("true"),
     "import.meta.env.VITE_LIVE_PERSONA": JSON.stringify("true"),
     "import.meta.env.VITE_LIVE_WORLD": JSON.stringify("true"),
     "import.meta.env.VITE_LIVE_REWARDS": JSON.stringify("true"),
+    "import.meta.env.VITE_LIVE_PLANS": JSON.stringify("true"),
   },
   plugins: [vue()],
   build: {
-    outDir: "../../public/living-game-preview",
+    outDir: "../../public/homebase-app",
     emptyOutDir: true,
     rollupOptions: {
       output: {

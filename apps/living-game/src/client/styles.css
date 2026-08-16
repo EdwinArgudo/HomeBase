@@ -218,8 +218,7 @@ summary:focus-visible,
   gap: 0.6rem;
 }
 
-.header-actions,
-.preview-context {
+.header-actions {
   display: flex;
   align-items: center;
 }
@@ -227,29 +226,6 @@ summary:focus-visible,
 .header-actions {
   justify-self: end;
   gap: 0.8rem;
-}
-
-.preview-context {
-  gap: 0.45rem;
-  color: var(--muted);
-  font-size: 0.72rem;
-  font-weight: 800;
-}
-
-.preview-badge {
-  padding: 0.3rem 0.5rem;
-  color: var(--ink);
-  background: var(--sun-pale);
-  border: 1px solid #c79535;
-  border-radius: 999px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-.back-to-homebase {
-  padding: 0.35rem 0.45rem;
-  color: var(--mint-dark);
-  text-underline-offset: 0.2rem;
 }
 
 .utility-nav a {
@@ -1671,6 +1647,41 @@ summary:focus-visible,
 .reward-action-feedback { min-height: 1.25rem; margin-top: 0.75rem; color: var(--muted); font-size: 0.75rem; }
 .reward-action-feedback--error { color: #8a3240; }
 
+.plans-state,
+.plans-feedback,
+.plans-note,
+.plans-empty { color: var(--muted); font-size: 0.78rem; }
+.plans-state { padding: 1rem; }
+.plans-feedback { min-height: 1.25rem; margin-bottom: 0.75rem; }
+.plans-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+.plans-panel { padding: 1.15rem; background: var(--paper); border: 1px solid var(--line); border-radius: 1rem; }
+.plans-panel--goals { grid-column: 1 / -1; }
+.plans-list,
+.goal-list { display: grid; gap: 0.55rem; margin-top: 0.8rem; }
+.plans-list button { display: flex; align-items: center; gap: 0.65rem; width: 100%; min-height: 3rem; padding: 0.55rem; text-align: left; background: var(--canvas); border: 1px solid var(--line); border-radius: 0.65rem; }
+.plans-list button > span:first-child { display: grid; width: 1.35rem; height: 1.35rem; place-items: center; border: 1px solid var(--mint-dark); border-radius: 0.35rem; }
+.plans-list button > span:nth-child(2) { display: grid; gap: 0.12rem; }
+.plans-list small,
+.goal-list small { color: var(--muted); font-size: 0.7rem; }
+.grocery-quick-add { margin-top: 0.8rem; }
+.grocery-quick-add > label { color: var(--muted); font-size: 0.7rem; font-weight: 800; }
+.grocery-quick-add > div { display: grid; grid-template-columns: 1fr auto; gap: 0.5rem; margin-top: 0.25rem; }
+.grocery-quick-add input,
+.grocery-quick-add button { min-height: 2.55rem; padding: 0.5rem 0.65rem; border: 1px solid var(--line); border-radius: 0.6rem; font: inherit; }
+.grocery-quick-add button { background: var(--mint); font-weight: 800; }
+.goal-list { grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); }
+.goal-list li { display: grid; gap: 0.55rem; padding: 0.75rem; background: var(--canvas); border-radius: 0.75rem; }
+.goal-list li > div:first-child { display: grid; gap: 0.15rem; }
+.goal-progress { display: grid; gap: 0.3rem; }
+.goal-progress > span { height: 0.45rem; overflow: hidden; background: var(--line); border-radius: 99px; }
+.goal-progress i { display: block; height: 100%; background: var(--mint-dark); }
+.goal-progress b { font-size: 0.72rem; }
+
+@media (max-width: 46rem) {
+  .plans-grid { grid-template-columns: 1fr; }
+  .plans-panel--goals { grid-column: auto; }
+}
+
 .persona-unsaved,
 .persona-action-feedback {
   color: var(--muted);
@@ -1992,10 +2003,6 @@ summary:focus-visible,
   .header-actions {
     flex-wrap: wrap;
     justify-content: flex-end;
-  }
-
-  .preview-fixture {
-    display: none;
   }
 
   .world-dashboard,

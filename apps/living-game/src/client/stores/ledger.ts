@@ -29,6 +29,9 @@ export const useLedgerStore = defineStore("ledger", () => {
   const viewedMonth = ref<string | undefined>(undefined);
   const actionError = ref("");
   const feedback = ref("");
+  const autoSyncError = ref("");
+  let pendingAutoSync: Promise<void> | null = null;
+  let autoSyncCleanup: (() => void) | null = null;
 
   async function ensureLoaded(force = false) {
     if (!force && loadState.value === "ready") return;
@@ -211,10 +214,38 @@ export const useLedgerStore = defineStore("ledger", () => {
 
   const needsReviewCount = computed(() => snapshot.value?.needsReview.length ?? 0);
 
+  async function autoSync() {
+    if (pendingAutoSync) return pendingAutoSync;
+    pendingAutoSync = configuredRuntime().api.autoSync().then(async (result) => {
+      autoSyncError.value = result.needsAttention > 0 ? "A bank connection needs attention." : "";
+      if ((result.refreshed > 0 || result.needsAttention > 0) && loadState.value === "ready") await ensureLoaded(true);
+    }).catch((error: unknown) => {
+      autoSyncError.value = safeMessage(error, "Unable to refresh bank connections.");
+    }).finally(() => { pendingAutoSync = null; });
+    return pendingAutoSync;
+  }
+
+  function startAutoSync() {
+    if (!runtime || autoSyncCleanup || typeof window === "undefined" || typeof document === "undefined") return;
+    const resume = () => { if (document.visibilityState === "visible") void autoSync(); };
+    window.addEventListener("focus", resume);
+    document.addEventListener("visibilitychange", resume);
+    const interval = window.setInterval(resume, 4 * 60 * 60 * 1000);
+    void autoSync();
+    autoSyncCleanup = () => {
+      window.removeEventListener("focus", resume);
+      document.removeEventListener("visibilitychange", resume);
+      window.clearInterval(interval);
+      autoSyncCleanup = null;
+    };
+  }
+
+  function stopAutoSync() { autoSyncCleanup?.(); }
+
   return {
-    snapshot, loadState, loadError, busyTransactionIds, actionError, feedback, needsReviewCount,
+    snapshot, loadState, loadError, busyTransactionIds, actionError, feedback, needsReviewCount, autoSyncError,
     bankState, viewedMonth, viewMonth,
     ensureLoaded, review, split, removeMerchantRule, setTransfer, saveLimits, createCategory,
-    connectBank, repairConnection,
+    connectBank, repairConnection, autoSync, startAutoSync, stopAutoSync,
   };
 });

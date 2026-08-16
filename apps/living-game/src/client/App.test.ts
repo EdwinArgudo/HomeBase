@@ -7,7 +7,7 @@ async function settle() {
 }
 import { createPinia } from "pinia";
 import { createMemoryHistory, createRouter } from "vue-router";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import App from "./App.vue";
 import { createFixtureDailyMovesApi } from "./api/fixtureDailyMoves";
@@ -20,7 +20,8 @@ import { createFixtureDisplayWorldApi } from "./api/displayWorld";
 import { createFixturePlaidLinkLauncher } from "./api/plaidLink";
 import { createFixtureLedgerApi } from "./api/ledger";
 import { createFixtureHouseholdApi } from "./api/household";
-import { routes } from "./router";
+import { createFixturePlansApi } from "./api/fixturePlans";
+import { compatibilityTarget, routes } from "./router";
 import { configureDailyMovesRuntime } from "./stores/dailyMoves";
 import { configureProgressRuntime } from "./stores/progress";
 import { configureRewardsRuntime } from "./stores/rewards";
@@ -30,6 +31,7 @@ import { configureAdventuresRuntime } from "./stores/adventures";
 import { configureDisplayWorldRuntime } from "./stores/displayWorld";
 import { configureLedgerRuntime } from "./stores/ledger";
 import { configureHouseholdRuntime } from "./stores/household";
+import { configurePlansRuntime } from "./stores/plans";
 
 const expectedHeadings = [
   ["/", "Our World"],
@@ -37,6 +39,7 @@ const expectedHeadings = [
   ["/household", "Your household"],
   ["/persona", "My Persona"],
   ["/ledger", "The Ledger"],
+  ["/plans", "Plans"],
   ["/display", "Edwin and Vienna are home"],
 ] as const;
 
@@ -51,6 +54,33 @@ describe("client routes", () => {
     configureLedgerRuntime({ api: createFixtureLedgerApi(), openPlaidLink: createFixturePlaidLinkLauncher() });
     configureHouseholdRuntime({ api: createFixtureHouseholdApi() });
     configureAdventuresRuntime({ api: createFixtureAdventuresApi() });
+    configurePlansRuntime({ api: createFixturePlansApi() });
+  });
+
+  it("normalizes repeatable compatibility paths and resolves unknown routes safely", () => {
+    expect(compatibilityTarget(["ledger"])).toBe("/ledger");
+    expect(compatibilityTarget(["ledger", "history"])).toBe("/");
+    expect(compatibilityTarget("plans")).toBe("/plans");
+    expect(compatibilityTarget(["not", "a", "route"])).toBe("/");
+  });
+
+  it("waits for first-member household bootstrap before automatic Plaid refresh", async () => {
+    const householdFixture = createFixtureHouseholdApi();
+    let resolveHousehold!: (value: Awaited<ReturnType<typeof householdFixture.load>>) => void;
+    const household = new Promise<Awaited<ReturnType<typeof householdFixture.load>>>((resolve) => { resolveHousehold = resolve; });
+    configureHouseholdRuntime({ api: { ...householdFixture, load: () => household } });
+    const ledgerFixture = createFixtureLedgerApi();
+    const autoSync = vi.fn().mockResolvedValue({ refreshed: 0, needsAttention: 0 });
+    configureLedgerRuntime({ api: { ...ledgerFixture, autoSync }, openPlaidLink: createFixturePlaidLinkLauncher() });
+    const testRouter = createRouter({ history: createMemoryHistory(), routes: [...routes] });
+    await testRouter.push("/persona"); await testRouter.isReady();
+    const wrapper = mount(App, { global: { plugins: [createPinia(), testRouter] } });
+    await flushPromises();
+    expect(autoSync).not.toHaveBeenCalled();
+    resolveHousehold(await householdFixture.load());
+    await settle();
+    expect(autoSync).toHaveBeenCalledTimes(1);
+    wrapper.unmount();
   });
 
   it.each(expectedHeadings)("renders %s with its accessible heading", async (path, heading) => {
@@ -73,7 +103,7 @@ describe("client routes", () => {
     wrapper.unmount();
   });
 
-  it("keeps the fixture preview disclosure and legacy Homebase exit visible across routes", async () => {
+  it("uses Homebase as the sole product shell without preview or legacy-exit copy", async () => {
     const testRouter = createRouter({
       history: createMemoryHistory(),
       routes: [...routes],
@@ -85,10 +115,10 @@ describe("client routes", () => {
       global: { plugins: [createPinia(), testRouter] },
     });
 
-    expect(wrapper.get(".preview-badge").text()).toBe("Preview");
-    expect(wrapper.get(".preview-context").text()).toContain("Fixture data");
-    expect(wrapper.get("a.back-to-homebase").attributes("href")).toBe("/");
-    expect(wrapper.get("a.back-to-homebase").text()).toBe("Current Homebase");
+    expect(wrapper.get(".brand").attributes("aria-label")).toBe("Homebase home");
+    expect(wrapper.text()).not.toContain("Preview");
+    expect(wrapper.text()).not.toContain("Current Homebase");
+    expect(wrapper.find(".preview-context").exists()).toBe(false);
     wrapper.unmount();
   });
 

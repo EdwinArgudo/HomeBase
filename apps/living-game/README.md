@@ -1,12 +1,10 @@
-# Homebase Living Game
+# Homebase Vue Client
 
 This directory contains the Vue/Hono implementation of the Homebase Living
-Game. The current React/Vinext application remains the rollback-safe Homebase
-experience at `/`. The embedded preview uses authenticated daily moves,
+Game. It is embedded as the sole Homebase product shell at `/` and uses authenticated daily moves,
 progress, the current member's persistent manual persona, and a privacy-filtered
 household persona projection. It also materializes permanent, deterministic
-emblem rewards from canonical completion progress while keeping the apartment
-itself as a visual preview.
+emblem rewards from canonical completion progress.
 
 ## Stack
 
@@ -28,7 +26,7 @@ itself as a visual preview.
 - Reduced-motion, keyboard-focus, screen-reader summary, and forced-colors
   accommodations
 
-In the embedded `/living-game` build, daily moves, their complete/defer/replace
+In the embedded root build, daily moves, their complete/defer/replace
 actions, canonical current-member/household progress balances, and the current
 member's allow-listed manual persona appearance are live authenticated data.
 The Persona Reward Shelf is also live: it shows five permanent v1 emblems and
@@ -37,32 +35,32 @@ The current member can equip one unlocked emblem or remove it; that verified
 loadout appears on their Persona and on every household-authorized World
 projection. Emblems do not create World items or decorations.
 World includes the current member's saved persona and only approved,
-household-visible partner personas. The apartment scene, items, adventures,
-Display projection, and Ledger balances remain preview-only. The embedded
-client never falls back to move, progress, persona, world, or reward fixtures when
+household-visible partner personas. Plans and Ledger use their focused live
+boundaries. The embedded client never falls back to live-domain fixtures when
 authentication, storage, or networking fails. Access uses the existing private
 Sites project boundary; the client does not imitate authentication.
 
-## Embedded private preview
+## Embedded private application
 
 The root project stages a Vue-only browser build and serves it from the same
 Vinext/Sites deployment at:
 
 ```text
-http://localhost:3000/living-game
+http://localhost:3000
 ```
 
-From the repository root, stage the preview assets before starting the local
+From the repository root, stage the embedded assets before starting the local
 root server:
 
 ```sh
-npm run build:living-game-preview
+npm run build:homebase-client
 npm run dev
 ```
 
-Vue Router uses `/living-game/` as its embedded base, so routes such as
-`http://localhost:3000/living-game/persona` refresh through the root catch-all.
-The generated browser assets live under `public/living-game-preview/`; they are
+Vue Router uses `/` as its embedded base, so routes such as
+`http://localhost:3000/persona` refresh through the root catch-all. Old
+`/living-game/*` bookmarks redirect through Vue compatibility routes. The
+generated browser assets live under `public/homebase-app/`; they are
 ignored and must not be committed. The normal standalone Vue/Hono build remains
 available through this package's `npm run build` command.
 That standalone build explicitly installs fixture move, progress, persona,
@@ -90,6 +88,7 @@ npm run lint
 npm run build
 ```
 
-The standalone generated build is local-only. The embedded browser preview is
-published only as part of the existing private root Sites deployment; it is not
-a second application or a production-data cutover.
+The standalone generated build is local-only. The embedded browser application
+is published as part of the existing private root Sites deployment; it is not a
+second application. Rollback uses Git and Sites version history rather than a
+parallel legacy route.

@@ -7,4 +7,5 @@ interface ImportMetaEnv {
   readonly VITE_LIVE_PERSONA?: string;
   readonly VITE_LIVE_WORLD?: string;
   readonly VITE_LIVE_REWARDS?: string;
+  readonly VITE_LIVE_PLANS?: string;
 }

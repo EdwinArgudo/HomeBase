@@ -14,7 +14,7 @@ const eslintConfig = defineConfig([
     "apps/**/dist/**",
     "apps/**/.wrangler/**",
     "apps/**/node_modules/**",
-    "public/living-game-preview/**",
+    "public/homebase-app/**",
     "out/**",
     "build/**",
     "next-env.d.ts",
