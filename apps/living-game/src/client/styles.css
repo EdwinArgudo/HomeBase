@@ -2680,3 +2680,148 @@ summary:focus-visible,
   color: var(--muted);
   font-size: 0.8rem;
 }
+
+/* Ledger: exact numbers, plainly laid out. */
+.ledger-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  padding: clamp(1.1rem, 2.5vw, 1.6rem);
+  margin-top: 1.2rem;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  box-shadow: var(--lift-1);
+}
+
+.ledger-empty {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.review-list,
+.recent-list,
+.connection-list,
+.budget-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.review-list li {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 0.85rem;
+  background: var(--accent-warm-soft);
+  border-radius: var(--radius-sm);
+}
+
+.review-row,
+.recent-list li,
+.connection-list li {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  justify-content: space-between;
+}
+
+.review-row__what {
+  display: grid;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.review-row__what strong {
+  font-size: 0.95rem;
+}
+
+.review-row__what span {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.review-row__amount,
+.recent-list b,
+.connection-list b {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.review-row__controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.review-row__controls select {
+  min-height: 2.7rem;
+  padding: 0.4rem 0.6rem;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+}
+
+.review-row__controls .action-button {
+  width: auto;
+  min-height: 2.7rem;
+  padding-inline: 1.1rem;
+  margin-top: 0;
+}
+
+.budget-list li {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.budget-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.8rem;
+}
+
+.budget-row span {
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.recent-list li,
+.connection-list li {
+  padding-bottom: 0.7rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.recent-list li:last-child,
+.connection-list li:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.connection-list b {
+  color: var(--accent-deep);
+  font-size: 0.8rem;
+}
+
+.connection--attention b,
+.connection--warning b {
+  color: var(--gap, #a94b40);
+}
+
+.connection--stale b {
+  color: var(--partial, #a8761f);
+}
+
+.ledger-feedback {
+  min-height: 1.2rem;
+  color: var(--accent-deep);
+  font-size: 0.85rem;
+}
+
+.ledger-feedback--error {
+  color: var(--gap, #a94b40);
+}

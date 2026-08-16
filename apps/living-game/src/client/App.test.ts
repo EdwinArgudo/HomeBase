@@ -16,6 +16,7 @@ import { createFixtureRewardsApi } from "./api/fixtureRewards";
 import { createFixturePersonaApi } from "./api/fixturePersona";
 import { createFixtureWorldApi } from "./api/fixtureWorld";
 import { createFixtureDisplayWorldApi } from "./api/displayWorld";
+import { createFixtureLedgerApi } from "./api/ledger";
 import { createFixtureHouseholdApi } from "./api/household";
 import { routes } from "./router";
 import { configureDailyMovesRuntime } from "./stores/dailyMoves";
@@ -24,6 +25,7 @@ import { configureRewardsRuntime } from "./stores/rewards";
 import { configurePersonaRuntime } from "./stores/persona";
 import { configureWorldRuntime } from "./stores/world";
 import { configureDisplayWorldRuntime } from "./stores/displayWorld";
+import { configureLedgerRuntime } from "./stores/ledger";
 import { configureHouseholdRuntime } from "./stores/household";
 
 const expectedHeadings = [
@@ -43,6 +45,7 @@ describe("client routes", () => {
     configurePersonaRuntime({ api: createFixturePersonaApi() });
     configureWorldRuntime({ api: createFixtureWorldApi() });
     configureDisplayWorldRuntime({ api: createFixtureDisplayWorldApi() });
+    configureLedgerRuntime({ api: createFixtureLedgerApi() });
     configureHouseholdRuntime({ api: createFixtureHouseholdApi() });
   });
 

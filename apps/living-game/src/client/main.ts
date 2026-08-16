@@ -15,6 +15,7 @@ import { createHttpRewardsApi } from "./api/rewards";
 import { createFixtureSettingsApi, createHttpSettingsApi } from "./api/settings";
 import { createFixtureHouseholdApi, createHttpHouseholdApi } from "./api/household";
 import { createFixtureDisplayWorldApi, createHttpDisplayWorldApi } from "./api/displayWorld";
+import { createFixtureLedgerApi, createHttpLedgerApi } from "./api/ledger";
 import { router } from "./router";
 import { configureDailyMovesRuntime } from "./stores/dailyMoves";
 import { configureProgressRuntime } from "./stores/progress";
@@ -24,6 +25,7 @@ import { configureRewardsRuntime } from "./stores/rewards";
 import { configureSettingsRuntime } from "./stores/settings";
 import { configureHouseholdRuntime } from "./stores/household";
 import { configureDisplayWorldRuntime } from "./stores/displayWorld";
+import { configureLedgerRuntime } from "./stores/ledger";
 import "./styles.css";
 
 const liveMoves = import.meta.env.VITE_LIVE_MOVES === "true";
@@ -48,5 +50,6 @@ configureRewardsRuntime({ api: liveRewards ? createHttpRewardsApi() : createFixt
 configureSettingsRuntime({ api: liveMoves ? createHttpSettingsApi() : createFixtureSettingsApi() });
 configureHouseholdRuntime({ api: liveWorld ? createHttpHouseholdApi() : createFixtureHouseholdApi() });
 configureDisplayWorldRuntime({ api: liveWorld ? createHttpDisplayWorldApi() : createFixtureDisplayWorldApi() });
+configureLedgerRuntime({ api: liveWorld ? createHttpLedgerApi() : createFixtureLedgerApi() });
 
 createApp(App).use(createPinia()).use(router).mount("#app");
