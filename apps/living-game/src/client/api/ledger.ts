@@ -18,6 +18,13 @@ export type LedgerTransaction = {
   editable: boolean;
 };
 
+export type LedgerMerchantRule = {
+  id: string;
+  merchant: string;
+  category: string;
+  scope: string;
+};
+
 export type LedgerConnection = {
   id: string;
   institutionName: string;
@@ -34,12 +41,16 @@ export type LedgerSnapshot = {
   recent: LedgerTransaction[];
   connections: LedgerConnection[];
   plaidConfigured: boolean;
-  merchantRuleCount: number;
+  merchantRules: LedgerMerchantRule[];
 };
+
+export type LedgerSplitPart = { categoryId: string; amountCents: number };
 
 export interface LedgerApi {
   load(): Promise<LedgerSnapshot>;
   review(transactionId: string, categoryId: string, createRule: boolean): Promise<void>;
+  split(transactionId: string, parts: LedgerSplitPart[]): Promise<void>;
+  removeMerchantRule(ruleId: string): Promise<void>;
 }
 
 export class LedgerApiError extends Error {
@@ -92,6 +103,11 @@ function transactionFrom(input: unknown): LedgerTransaction {
   };
 }
 
+/** Whole cents, so a split can be checked against the server's exact rule. */
+export function amountInCents(amount: number): number {
+  return Math.round(amount * 100);
+}
+
 // The household payload is the legacy dashboard's shape. Reading it defensively
 // keeps the Ledger from breaking on fields it does not care about.
 export function snapshotFrom(input: unknown): LedgerSnapshot {
@@ -125,7 +141,15 @@ export function snapshotFrom(input: unknown): LedgerSnapshot {
       };
     }),
     plaidConfigured: plaid.configured === true,
-    merchantRuleCount: list(data.merchantRules).length,
+    merchantRules: list(data.merchantRules).map((entry) => {
+      const row = plain(entry);
+      return {
+        id: str(row.id),
+        merchant: str(row.merchant, "Merchant"),
+        category: str(row.category, "Category"),
+        scope: str(row.scope, "Ours"),
+      };
+    }),
   };
 }
 
@@ -157,6 +181,22 @@ export function createHttpLedgerApi(): LedgerApi {
         body: JSON.stringify({ id: transactionId, categoryId, createRule }),
       });
       await readJson(response, "Unable to file that purchase.");
+    },
+    async split(transactionId, parts) {
+      const response = await fetch("/api/transactions/split", {
+        method: "POST",
+        headers: { "content-type": "application/json", accept: "application/json" },
+        body: JSON.stringify({ id: transactionId, splits: parts }),
+      });
+      await readJson(response, "Unable to split that purchase.");
+    },
+    async removeMerchantRule(ruleId) {
+      const response = await fetch("/api/merchant-rules", {
+        method: "POST",
+        headers: { "content-type": "application/json", accept: "application/json" },
+        body: JSON.stringify({ action: "delete", id: ruleId }),
+      });
+      await readJson(response, "Unable to remove that rule.");
     },
   };
 }
@@ -204,7 +244,10 @@ export function createFixtureLedgerApi(): LedgerApi {
       healthMessage: "Automatic refresh is working.",
     }],
     plaidConfigured: false,
-    merchantRuleCount: 2,
+    merchantRules: [
+      { id: "rule-costco", merchant: "Costco", category: "Groceries", scope: "Ours" },
+      { id: "rule-mta", merchant: "MTA", category: "Transportation", scope: "Ours" },
+    ],
   };
   return {
     async load() {
@@ -212,6 +255,12 @@ export function createFixtureLedgerApi(): LedgerApi {
     },
     async review() {
       snapshot.needsReview = [];
+    },
+    async split() {
+      snapshot.needsReview = [];
+    },
+    async removeMerchantRule(ruleId) {
+      snapshot.merchantRules = snapshot.merchantRules.filter((rule) => rule.id !== ruleId);
     },
   };
 }

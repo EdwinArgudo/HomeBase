@@ -2,7 +2,7 @@
 import { storeToRefs } from "pinia";
 import { onMounted, reactive } from "vue";
 
-import type { LedgerScope } from "../api/ledger";
+import { amountInCents, type LedgerScope } from "../api/ledger";
 import { useLedgerStore } from "../stores/ledger";
 
 const ledger = useLedgerStore();
@@ -10,14 +10,56 @@ const { snapshot, loadState, loadError, busyTransactionIds, actionError, feedbac
 
 const scopeLabels: Record<LedgerScope, string> = { ours: "Ours", mine: "Mine", yours: "Yours" };
 const drafts = reactive<Record<string, { categoryId: string; createRule: boolean }>>({});
+const splitDrafts = reactive<Record<string, { categoryId: string; amount: string | number }[]>>({});
 
 function draftFor(transactionId: string) {
   if (!drafts[transactionId]) drafts[transactionId] = { categoryId: "", createRule: false };
   return drafts[transactionId]!;
 }
 
+function splitRowsFor(transactionId: string) {
+  return splitDrafts[transactionId];
+}
+
+function beginSplit(transactionId: string) {
+  splitDrafts[transactionId] = [{ categoryId: "", amount: "" }, { categoryId: "", amount: "" }];
+}
+
+function cancelSplit(transactionId: string) {
+  delete splitDrafts[transactionId];
+}
+
+function splitParts(transactionId: string) {
+  return (splitDrafts[transactionId] ?? [])
+    .filter((row) => row.categoryId.length > 0 && String(row.amount).trim().length > 0)
+    .map((row) => ({ categoryId: row.categoryId, amountCents: amountInCents(Number(row.amount)) }))
+    .filter((part) => Number.isInteger(part.amountCents) && part.amountCents > 0);
+}
+
+// The server requires the parts to add up exactly, so the remainder is shown
+// here and the button stays closed until it reaches zero.
+function remainderCents(transactionId: string, total: number) {
+  return amountInCents(total) - splitParts(transactionId).reduce((sum, part) => sum + part.amountCents, 0);
+}
+
+function splitReady(transactionId: string, total: number) {
+  const parts = splitParts(transactionId);
+  const uniqueCategories = new Set(parts.map((part) => part.categoryId));
+  return parts.length >= 2 && uniqueCategories.size === parts.length && remainderCents(transactionId, total) === 0;
+}
+
+async function saveSplit(transactionId: string) {
+  if (await ledger.split(transactionId, splitParts(transactionId))) cancelSplit(transactionId);
+}
+
+// Budget bars read better in whole dollars; anything a person has to reconcile
+// against a receipt shows its cents.
 function money(value: number) {
   return value.toLocaleString(undefined, { style: "currency", currency: "USD", maximumFractionDigits: 0 });
+}
+
+function exactMoney(value: number) {
+  return value.toLocaleString(undefined, { style: "currency", currency: "USD", minimumFractionDigits: 2 });
 }
 
 function percent(spent: number, limit: number) {
@@ -71,7 +113,7 @@ onMounted(() => void ledger.ensureLoaded());
                 <strong>{{ transaction.merchant }}</strong>
                 <span>{{ transaction.detail }}</span>
               </div>
-              <b class="review-row__amount">{{ money(transaction.amount) }}</b>
+              <b class="review-row__amount">{{ exactMoney(transaction.amount) }}</b>
             </div>
             <div class="review-row__controls">
               <label>
@@ -97,6 +139,67 @@ onMounted(() => void ledger.ensureLoaded());
                 :disabled="busyTransactionIds.has(transaction.id) || draftFor(transaction.id).categoryId === ''"
                 @click="file(transaction.id)"
               >{{ busyTransactionIds.has(transaction.id) ? "Filing…" : "File it" }}</button>
+              <button
+                v-if="!splitRowsFor(transaction.id)"
+                type="button"
+                class="move-secondary-action"
+                @click="beginSplit(transaction.id)"
+              >Split it</button>
+            </div>
+
+            <div v-if="splitRowsFor(transaction.id)" class="split-editor">
+              <p class="split-editor__lede">Divide {{ exactMoney(transaction.amount) }} between categories. The parts have to add up exactly.</p>
+              <div v-for="(row, index) in splitRowsFor(transaction.id)" :key="index" class="split-row">
+                <label>
+                  <span class="visually-hidden">Split {{ index + 1 }} category</span>
+                  <select v-model="row.categoryId" :disabled="busyTransactionIds.has(transaction.id)">
+                    <option value="">Choose a category</option>
+                    <option v-for="choice in snapshot.categoryChoices" :key="choice.id" :value="choice.id">
+                      {{ choice.name }} · {{ scopeLabels[choice.scope] }}
+                    </option>
+                  </select>
+                </label>
+                <label>
+                  <span class="visually-hidden">Split {{ index + 1 }} amount</span>
+                  <input
+                    v-model="row.amount"
+                    type="number"
+                    min="0.01"
+                    step="0.01"
+                    inputmode="decimal"
+                    placeholder="0.00"
+                    :disabled="busyTransactionIds.has(transaction.id)"
+                  >
+                </label>
+                <button
+                  v-if="splitRowsFor(transaction.id)!.length > 2"
+                  type="button"
+                  class="move-secondary-action"
+                  :aria-label="`Remove split ${index + 1}`"
+                  @click="splitRowsFor(transaction.id)!.splice(index, 1)"
+                >Remove</button>
+              </div>
+
+              <div class="split-editor__actions">
+                <button
+                  type="button"
+                  class="move-secondary-action"
+                  :disabled="splitRowsFor(transaction.id)!.length >= 10"
+                  @click="splitRowsFor(transaction.id)!.push({ categoryId: '', amount: '' })"
+                >Add a part</button>
+                <p class="split-remainder" :class="{ 'split-remainder--settled': remainderCents(transaction.id, transaction.amount) === 0 }" aria-live="polite">
+                  {{ remainderCents(transaction.id, transaction.amount) === 0
+                    ? "Adds up exactly"
+                    : `${exactMoney(remainderCents(transaction.id, transaction.amount) / 100)} left to place` }}
+                </p>
+                <button
+                  type="button"
+                  class="action-button"
+                  :disabled="busyTransactionIds.has(transaction.id) || !splitReady(transaction.id, transaction.amount)"
+                  @click="saveSplit(transaction.id)"
+                >{{ busyTransactionIds.has(transaction.id) ? "Saving…" : "Save split" }}</button>
+                <button type="button" class="move-secondary-action" @click="cancelSplit(transaction.id)">Cancel</button>
+              </div>
             </div>
           </li>
         </ul>
@@ -148,7 +251,7 @@ onMounted(() => void ledger.ensureLoaded());
               <strong>{{ transaction.merchant }}</strong>
               <span>{{ transaction.category }} · {{ transaction.scope }}</span>
             </div>
-            <b>{{ money(transaction.amount) }}</b>
+            <b>{{ exactMoney(transaction.amount) }}</b>
           </li>
         </ul>
       </section>
@@ -159,7 +262,7 @@ onMounted(() => void ledger.ensureLoaded());
             <p class="eyebrow">Where the numbers come from</p>
             <h2 id="connections-heading">Connections</h2>
           </div>
-          <span class="connection-pill">{{ snapshot.merchantRuleCount }} merchant rules</span>
+          <span class="connection-pill">{{ snapshot.merchantRules.length }} merchant rules</span>
         </div>
         <p v-if="!snapshot.plaidConfigured" class="ledger-empty">
           No bank is connected yet, so these figures come from Homebase's demonstration data.
@@ -172,6 +275,31 @@ onMounted(() => void ledger.ensureLoaded());
               <span>{{ connection.healthMessage }}</span>
             </div>
             <b>{{ connection.healthLabel }}</b>
+          </li>
+        </ul>
+      </section>
+      <section class="ledger-panel" aria-labelledby="rules-heading">
+        <div class="section-heading-row">
+          <div>
+            <p class="eyebrow">Quiet work</p>
+            <h2 id="rules-heading">Merchant rules</h2>
+          </div>
+        </div>
+        <p v-if="snapshot.merchantRules.length === 0" class="ledger-empty">
+          No rules yet. Tick "remember this merchant" when filing and Homebase will do it for you next time.
+        </p>
+        <ul v-else class="rule-list">
+          <li v-for="rule in snapshot.merchantRules" :key="rule.id">
+            <div class="review-row__what">
+              <strong>{{ rule.merchant }}</strong>
+              <span>Files to {{ rule.category }} · {{ rule.scope }}</span>
+            </div>
+            <button
+              type="button"
+              class="move-secondary-action"
+              :aria-label="`Remove the rule for ${rule.merchant}`"
+              @click="ledger.removeMerchantRule(rule.id)"
+            >Remove</button>
           </li>
         </ul>
       </section>

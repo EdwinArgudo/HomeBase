@@ -25,7 +25,7 @@ describe("the ledger", () => {
         { id: "t3", merchant: "Filed", reviewStatus: "ready", editable: true, amount: 4 },
       ],
       plaid: { configured: true, connections: [{ id: "c1", institutionName: "Bank", health: "stale" }] },
-      merchantRules: [{ id: "r1" }, { id: "r2" }],
+      merchantRules: [{ id: "r1", merchant: "Costco", category: "Groceries", scope: "Ours" }, { id: "r2" }],
       unexpectedField: { nested: true },
     });
 
@@ -33,7 +33,7 @@ describe("the ledger", () => {
     // budget is not a category anyone can choose.
     expect(snapshot.needsReview.map((entry) => entry.id)).toEqual(["t1"]);
     expect(snapshot.categoryChoices.map((choice) => choice.id)).toEqual(["cat-a", "cat-b"]);
-    expect(snapshot.merchantRuleCount).toBe(2);
+    expect(snapshot.merchantRules.map((rule) => rule.id)).toEqual(["r1", "r2"]);
     expect(snapshot.connections[0]?.health).toBe("stale");
     expect(snapshot.monthLabel).toBe("August");
   });
@@ -79,6 +79,91 @@ describe("the ledger", () => {
 
     expect(wrapper.get('[role="alert"]').text()).toContain("Choose a budget category");
     expect(useLedgerStore().needsReviewCount).toBe(1);
+    wrapper.unmount();
+  });
+});
+
+describe("splitting a purchase", () => {
+  beforeEach(() => {
+    setActivePinia(createPinia());
+  });
+
+  it("stays closed until the parts add up exactly, then sends whole cents", async () => {
+    const api = createFixtureLedgerApi();
+    const split = vi.spyOn(api, "split");
+    configureLedgerRuntime({ api });
+
+    const wrapper = mount(LedgerView);
+    await flushPromises();
+    await wrapper.get(".review-list .move-secondary-action").trigger("click");
+
+    const selects = () => wrapper.findAll(".split-row select");
+    const amounts = () => wrapper.findAll(".split-row input");
+    const saveButton = () => wrapper.findAll(".split-editor__actions button")
+      .find((button) => button.text().startsWith("Save split"))!;
+
+    expect(saveButton().attributes("disabled")).toBeDefined();
+
+    await selects()[0]!.setValue("cat-groceries");
+    await amounts()[0]!.setValue("100");
+    await selects()[1]!.setValue("cat-hobbies");
+    await amounts()[1]!.setValue("20");
+
+    // 126.42 total, so 120 is still short and the button stays closed.
+    expect(wrapper.get(".split-remainder").text()).toContain("left to place");
+    expect(saveButton().attributes("disabled")).toBeDefined();
+
+    await amounts()[1]!.setValue("26.42");
+    expect(wrapper.get(".split-remainder").text()).toContain("Adds up exactly");
+    await saveButton().trigger("click");
+    await flushPromises();
+
+    expect(split).toHaveBeenCalledWith("txn-costco", [
+      { categoryId: "cat-groceries", amountCents: 10000 },
+      { categoryId: "cat-hobbies", amountCents: 2642 },
+    ]);
+    wrapper.unmount();
+  });
+
+  it("refuses to send the same category twice", async () => {
+    configureLedgerRuntime({ api: createFixtureLedgerApi() });
+    const wrapper = mount(LedgerView);
+    await flushPromises();
+    await wrapper.get(".review-list .move-secondary-action").trigger("click");
+
+    const selects = wrapper.findAll(".split-row select");
+    const amounts = wrapper.findAll(".split-row input");
+    await selects[0]!.setValue("cat-groceries");
+    await amounts[0]!.setValue("100");
+    await selects[1]!.setValue("cat-groceries");
+    await amounts[1]!.setValue("26.42");
+
+    const saveButton = wrapper.findAll(".split-editor__actions button")
+      .find((button) => button.text().startsWith("Save split"))!;
+    expect(saveButton.attributes("disabled")).toBeDefined();
+    wrapper.unmount();
+  });
+});
+
+describe("merchant rules", () => {
+  beforeEach(() => {
+    setActivePinia(createPinia());
+  });
+
+  it("removes a rule and re-reads the ledger", async () => {
+    const api = createFixtureLedgerApi();
+    const remove = vi.spyOn(api, "removeMerchantRule");
+    configureLedgerRuntime({ api });
+
+    const wrapper = mount(LedgerView);
+    await flushPromises();
+    expect(wrapper.findAll(".rule-list li")).toHaveLength(2);
+
+    await wrapper.get(".rule-list .move-secondary-action").trigger("click");
+    await flushPromises();
+
+    expect(remove).toHaveBeenCalledWith("rule-costco");
+    expect(wrapper.findAll(".rule-list li")).toHaveLength(1);
     wrapper.unmount();
   });
 });

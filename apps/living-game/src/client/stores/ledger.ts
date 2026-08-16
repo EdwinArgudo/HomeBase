@@ -1,7 +1,7 @@
 import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 
-import type { LedgerApi, LedgerSnapshot } from "../api/ledger";
+import type { LedgerApi, LedgerSnapshot, LedgerSplitPart } from "../api/ledger";
 
 let runtime: { api: LedgerApi } | null = null;
 
@@ -64,7 +64,44 @@ export const useLedgerStore = defineStore("ledger", () => {
     }
   }
 
+  async function split(transactionId: string, parts: LedgerSplitPart[]) {
+    if (busyTransactionIds.value.has(transactionId) || parts.length < 2) return false;
+    busyTransactionIds.value = new Set(busyTransactionIds.value).add(transactionId);
+    actionError.value = "";
+    feedback.value = "";
+    try {
+      await configuredRuntime().api.split(transactionId, parts);
+      await ensureLoaded(true);
+      feedback.value = `Split across ${parts.length} categories.`;
+      return true;
+    } catch (error) {
+      actionError.value = safeMessage(error, "Unable to split that purchase.");
+      return false;
+    } finally {
+      const next = new Set(busyTransactionIds.value);
+      next.delete(transactionId);
+      busyTransactionIds.value = next;
+    }
+  }
+
+  async function removeMerchantRule(ruleId: string) {
+    actionError.value = "";
+    feedback.value = "";
+    try {
+      await configuredRuntime().api.removeMerchantRule(ruleId);
+      await ensureLoaded(true);
+      feedback.value = "Rule removed. Purchases from that merchant will ask again.";
+      return true;
+    } catch (error) {
+      actionError.value = safeMessage(error, "Unable to remove that rule.");
+      return false;
+    }
+  }
+
   const needsReviewCount = computed(() => snapshot.value?.needsReview.length ?? 0);
 
-  return { snapshot, loadState, loadError, busyTransactionIds, actionError, feedback, needsReviewCount, ensureLoaded, review };
+  return {
+    snapshot, loadState, loadError, busyTransactionIds, actionError, feedback, needsReviewCount,
+    ensureLoaded, review, split, removeMerchantRule,
+  };
 });

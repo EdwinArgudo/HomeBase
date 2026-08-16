@@ -2825,3 +2825,91 @@ summary:focus-visible,
 .ledger-feedback--error {
   color: var(--gap, #a94b40);
 }
+
+/* Splitting a purchase: the parts have to add up, so the remainder is visible
+   the whole time. */
+.split-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding-top: 0.7rem;
+  border-top: 1px solid rgb(74 59 50 / 12%);
+}
+
+.split-editor__lede {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.split-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.split-row select,
+.split-row input {
+  min-height: 2.6rem;
+  padding: 0.4rem 0.6rem;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+}
+
+.split-row select {
+  flex: 1 1 12rem;
+}
+
+.split-row input {
+  flex: 0 0 7rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.split-editor__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.split-editor__actions .action-button {
+  width: auto;
+  min-height: 2.6rem;
+  padding-inline: 1.1rem;
+  margin-top: 0;
+}
+
+.split-remainder {
+  margin-right: auto;
+  color: var(--gap, #a94b40);
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.split-remainder--settled {
+  color: var(--accent-deep);
+}
+
+.rule-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.rule-list li {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  justify-content: space-between;
+  padding-bottom: 0.6rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.rule-list li:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
