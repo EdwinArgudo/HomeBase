@@ -31,6 +31,8 @@ describe("manual persona flow", () => {
     expect(wrapper.get(".persona-anchor").classes()).toEqual(expect.arrayContaining([
       "persona-skin--deep", "persona-hair--curls", "persona-hair-color--midnight", "persona-outfit--sun", "persona-accent--glasses",
     ]));
+    expect(wrapper.get(".pixel-emblem--first-tend").text()).toBe("✦");
+    expect(wrapper.get(".persona-control--static").attributes("aria-label")).toContain("Steady Hands emblem");
   });
 
   it("saves and approves the current persona through its dedicated API", async () => {

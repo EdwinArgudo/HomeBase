@@ -33,7 +33,9 @@ actions, canonical current-member/household progress balances, and the current
 member's allow-listed manual persona appearance are live authenticated data.
 The Persona Reward Shelf is also live: it shows five permanent v1 emblems and
 only unlocks them when canonical completion events support the stored progress.
-Rewards cannot be equipped and do not affect the World yet.
+The current member can equip one unlocked emblem or remove it; that verified
+loadout appears on their Persona and on every household-authorized World
+projection. Emblems do not create World items or decorations.
 World includes the current member's saved persona and only approved,
 household-visible partner personas. The apartment scene, items, adventures,
 Display projection, and Ledger balances remain preview-only. The embedded

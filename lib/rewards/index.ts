@@ -1,2 +1,2 @@
-export { createRewardsGetHandler } from "./http.ts";
-export { loadAndMaterializeRewards } from "./service.ts";
+export { createRewardsEquipHandler, createRewardsGetHandler } from "./http.ts";
+export { equipCurrentPersonaReward, loadAndMaterializeRewards } from "./service.ts";

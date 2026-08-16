@@ -72,6 +72,7 @@ test("uses the living-game router base and identifies live member data inside th
   assert.match(worldApi, /\/api\/world/);
   assert.doesNotMatch(worldApi, /worldFixture|fixtureWorld/);
   assert.match(rewardsApi, /\/api\/game\/rewards/);
+  assert.match(rewardsApi, /\/api\/game\/rewards\/equip/);
   assert.doesNotMatch(rewardsApi, /fixtureRewards/);
   assert.doesNotMatch(worldView, /worldFixture|usePersonaStore/);
   assert.match(app, /href="\/"/);

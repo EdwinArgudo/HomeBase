@@ -795,6 +795,28 @@ summary:focus-visible,
   box-shadow: 1.15rem 0 0 -2px #586574, 1.15rem 0 0 0 var(--ink);
 }
 
+.pixel-emblem {
+  position: absolute;
+  z-index: 4;
+  top: 2.62rem;
+  right: 0.1rem;
+  display: grid;
+  width: 1rem;
+  height: 1rem;
+  place-items: center;
+  color: var(--ink);
+  background: var(--mint);
+  border: 2px solid var(--ink);
+  font-size: 0.58rem;
+  line-height: 1;
+  transform: rotate(8deg);
+}
+
+.pixel-emblem--first-move { background: var(--sky); }
+.pixel-emblem--first-grow { background: var(--sun); }
+.pixel-emblem--first-connect { background: var(--berry); }
+.pixel-emblem--first-household { background: #e9d79f; }
+
 .persona-label {
   display: grid;
   gap: 0.12rem;
@@ -1472,6 +1494,25 @@ summary:focus-visible,
 .reward-list strong { font-size: 0.78rem; }
 .reward-list div span { color: var(--muted); font-size: 0.66rem; line-height: 1.35; }
 .reward-list b { grid-column: 2; color: var(--mint-dark); font-size: 0.68rem; }
+
+.reward-equip {
+  grid-column: 2;
+  justify-self: start;
+  min-height: 2rem;
+  padding: 0.35rem 0.6rem;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--mint-dark);
+  border-radius: 0.5rem;
+  font: inherit;
+  font-size: 0.68rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.reward-equip:disabled { cursor: wait; opacity: 0.6; }
+.reward-action-feedback { min-height: 1.25rem; margin-top: 0.75rem; color: var(--muted); font-size: 0.75rem; }
+.reward-action-feedback--error { color: #8a3240; }
 
 .persona-unsaved,
 .persona-action-feedback {

@@ -1,4 +1,4 @@
-import type { RewardSnapshotV1 } from "@homebase/contracts";
+import type { RewardKeyV1, RewardSnapshotV1 } from "@homebase/contracts";
 import { ref } from "vue";
 import { defineStore } from "pinia";
 
@@ -12,6 +12,9 @@ export const useRewardsStore = defineStore("rewards", () => {
   const snapshot = ref<RewardSnapshotV1 | null>(null);
   const loadState = ref<"idle" | "loading" | "ready" | "error">("idle");
   const loadError = ref("");
+  const actionState = ref<"idle" | "equipping">("idle");
+  const actionError = ref("");
+  const feedback = ref("");
   let pending: Promise<void> | null = null;
   let sequence = 0;
 
@@ -31,5 +34,25 @@ export const useRewardsStore = defineStore("rewards", () => {
     pending = request;
     return request;
   }
-  return { snapshot, loadState, loadError, ensureLoaded };
+
+  async function equip(rewardKey: RewardKeyV1 | null) {
+    if (actionState.value !== "idle") return false;
+    actionState.value = "equipping";
+    actionError.value = "";
+    feedback.value = "";
+    try {
+      snapshot.value = await api().equip(rewardKey);
+      loadState.value = "ready";
+      feedback.value = rewardKey === null ? "Emblem removed." : "Emblem equipped.";
+      return true;
+    } catch (error) {
+      actionError.value = error instanceof Error && error.message.length <= 200
+        ? error.message
+        : "Unable to update the equipped reward.";
+      return false;
+    } finally {
+      actionState.value = "idle";
+    }
+  }
+  return { snapshot, loadState, loadError, actionState, actionError, feedback, ensureLoaded, equip };
 });

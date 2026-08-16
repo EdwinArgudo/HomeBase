@@ -170,9 +170,15 @@ test("generated reward migration stores permanent canonical unlock facts", async
 });
 
 test("rewards route remains a thin authenticated boundary", async () => {
-  const source = await readFile(new URL("../app/api/game/rewards/route.ts", import.meta.url), "utf8");
+  const [source, equip] = await Promise.all([
+    readFile(new URL("../app/api/game/rewards/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/game/rewards/equip/route.ts", import.meta.url), "utf8"),
+  ]);
   assert.match(source, /createRewardsGetHandler/);
-  assert.match(source, /requireHouseholdMember/);
-  assert.match(source, /dynamic = "force-dynamic"/);
-  assert.doesNotMatch(source, /SELECT|persona_unlocks|progress_balances|game_events|fixture|demo/i);
+  assert.match(equip, /createRewardsEquipHandler/);
+  for (const route of [source, equip]) {
+    assert.match(route, /requireHouseholdMember/);
+    assert.match(route, /dynamic = "force-dynamic"/);
+    assert.doesNotMatch(route, /SELECT|persona_unlocks|progress_balances|game_events|fixture|demo/i);
+  }
 });

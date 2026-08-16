@@ -34,6 +34,7 @@ export const PERSONA_HAIR_COLORS = ["espresso", "chestnut", "gold", "midnight"] 
 export const PERSONA_OUTFITS = ["mint", "berry", "sun"] as const;
 export const PERSONA_ACCENTS = ["none", "glasses", "headband"] as const;
 export const REWARD_KINDS = ["emblem"] as const;
+export const REWARD_KEYS_V1 = ["first-tend", "first-move", "first-grow", "first-connect", "first-household"] as const;
 
 export type OwnershipType = typeof OWNERSHIP_TYPES[number];
 export type Visibility = typeof VISIBILITIES[number];
@@ -54,6 +55,7 @@ export type WorldViewer = typeof WORLD_VIEWERS[number];
 export type PersonaStatus = typeof PERSONA_STATUSES[number];
 export type PersonaVisibility = typeof PERSONA_VISIBILITIES[number];
 export type RewardKind = typeof REWARD_KINDS[number];
+export type RewardKeyV1 = typeof REWARD_KEYS_V1[number];
 
 export type PersonaAppearanceV1 = {
   skinPalette: typeof PERSONA_SKIN_PALETTES[number];
@@ -157,7 +159,7 @@ export type ProgressSnapshotV1 = {
 
 export type RewardDefinitionV1 = {
   catalogVersion: 1;
-  key: string;
+  key: RewardKeyV1;
   kind: RewardKind;
   title: string;
   description: string;
@@ -180,8 +182,14 @@ export type RewardSnapshotV1 = {
   householdId: string;
   memberId: string;
   personaId: string | null;
+  equippedRewardKey: RewardKeyV1 | null;
   generatedAt: string;
   rewards: RewardProgressV1[];
+};
+
+export type RewardEquipInputV1 = {
+  contractVersion: 1;
+  rewardKey: RewardKeyV1 | null;
 };
 
 export type SpriteAssetV1 = {
@@ -259,6 +267,7 @@ export type WorldPersonaV1 = {
   visibility: Visibility;
   activity: PersonaActivityState;
   appearance: PersonaAppearanceV1 | null;
+  equippedRewardKey: RewardKeyV1 | null;
   x: number;
   y: number;
   manifest: PersonaManifestV1;
@@ -637,7 +646,7 @@ function rewardDefinitionAt(input: unknown, path: string): RewardDefinitionV1 {
   versionAt(required(record, "catalogVersion", path), `${path}.catalogVersion`, 1);
   return {
     catalogVersion: 1,
-    key: idAt(required(record, "key", path), `${path}.key`),
+    key: enumAt(required(record, "key", path), `${path}.key`, REWARD_KEYS_V1),
     kind: enumAt(required(record, "kind", path), `${path}.kind`, REWARD_KINDS),
     title: stringAt(required(record, "title", path), `${path}.title`, 1, 80),
     description: stringAt(required(record, "description", path), `${path}.description`, 1, 180),
@@ -669,7 +678,7 @@ export function parseRewardProgress(input: unknown): RewardProgressV1 {
 
 export function parseRewardSnapshot(input: unknown): RewardSnapshotV1 {
   const path = "$";
-  const record = objectAt(input, path, ["contractVersion", "catalogVersion", "policyVersion", "householdId", "memberId", "personaId", "generatedAt", "rewards"]);
+  const record = objectAt(input, path, ["contractVersion", "catalogVersion", "policyVersion", "householdId", "memberId", "personaId", "equippedRewardKey", "generatedAt", "rewards"]);
   versionAt(required(record, "contractVersion", path), "$.contractVersion", 1);
   versionAt(required(record, "catalogVersion", path), "$.catalogVersion", 1);
   versionAt(required(record, "policyVersion", path), "$.policyVersion", 1);
@@ -680,15 +689,38 @@ export function parseRewardSnapshot(input: unknown): RewardSnapshotV1 {
     if (entry.reward.catalogVersion !== 1) fail(`$.rewards[${index}].reward.catalogVersion`, "must match the snapshot catalog version");
     if (entry.policyVersion !== 1) fail(`$.rewards[${index}].policyVersion`, "must match the snapshot policy version");
   });
+  const personaId = nullableIdAt(required(record, "personaId", path), "$.personaId");
+  const rawEquippedRewardKey = required(record, "equippedRewardKey", path);
+  const equippedRewardKey = rawEquippedRewardKey === null
+    ? null
+    : enumAt(rawEquippedRewardKey, "$.equippedRewardKey", REWARD_KEYS_V1);
+  if (personaId === null && equippedRewardKey !== null) fail("$.equippedRewardKey", "requires a current persona");
+  if (equippedRewardKey !== null) {
+    const equipped = rewards.find((entry) => entry.reward.key === equippedRewardKey);
+    if (!equipped) fail("$.equippedRewardKey", "must be present in the reward catalog");
+    if (equipped.unlockedAt === null) fail("$.equippedRewardKey", "must reference an unlocked reward");
+  }
   return {
     contractVersion: 1,
     catalogVersion: 1,
     policyVersion: 1,
     householdId: idAt(required(record, "householdId", path), "$.householdId"),
     memberId: idAt(required(record, "memberId", path), "$.memberId"),
-    personaId: nullableIdAt(required(record, "personaId", path), "$.personaId"),
+    personaId,
+    equippedRewardKey,
     generatedAt: timestampAt(required(record, "generatedAt", path), "$.generatedAt"),
     rewards,
+  };
+}
+
+export function parseRewardEquipInput(input: unknown): RewardEquipInputV1 {
+  const path = "$";
+  const record = objectAt(input, path, ["contractVersion", "rewardKey"]);
+  versionAt(required(record, "contractVersion", path), "$.contractVersion", 1);
+  const value = required(record, "rewardKey", path);
+  return {
+    contractVersion: 1,
+    rewardKey: value === null ? null : enumAt(value, "$.rewardKey", REWARD_KEYS_V1),
   };
 }
 
@@ -888,7 +920,7 @@ export function parsePersonaApprovalResult(input: unknown): PersonaApprovalResul
 }
 
 function worldPersonaAt(input: unknown, path: string): WorldPersonaV1 {
-  const record = objectAt(input, path, ["id", "displayName", "altDescription", "visibility", "activity", "appearance", "x", "y", "manifest"]);
+  const record = objectAt(input, path, ["id", "displayName", "altDescription", "visibility", "activity", "appearance", "equippedRewardKey", "x", "y", "manifest"]);
   const id = idAt(required(record, "id", path), `${path}.id`);
   const manifest = personaManifestAt(required(record, "manifest", path), `${path}.manifest`);
   if (manifest.personaId !== id) fail(`${path}.manifest.personaId`, "must match the world persona id");
@@ -901,6 +933,9 @@ function worldPersonaAt(input: unknown, path: string): WorldPersonaV1 {
     appearance: required(record, "appearance", path) === null
       ? null
       : personaAppearanceAt(required(record, "appearance", path), `${path}.appearance`),
+    equippedRewardKey: required(record, "equippedRewardKey", path) === null
+      ? null
+      : enumAt(required(record, "equippedRewardKey", path), `${path}.equippedRewardKey`, REWARD_KEYS_V1),
     x: integerAt(required(record, "x", path), `${path}.x`, 0, 100),
     y: integerAt(required(record, "y", path), `${path}.y`, 0, 100),
     manifest,

@@ -6,6 +6,7 @@ import {
   PERSONA_OUTFITS,
   PERSONA_SKIN_PALETTES,
   type PersonaAppearanceV1,
+  type RewardKeyV1,
   type WorldPersonaV1,
 } from "@homebase/contracts";
 import { storeToRefs } from "pinia";
@@ -16,13 +17,22 @@ import { worldFixture } from "../fixtures/game";
 import { usePersonaStore } from "../stores/persona";
 import { useProgressStore } from "../stores/progress";
 import { useRewardsStore } from "../stores/rewards";
+import { useWorldStore } from "../stores/world";
 
 const personaStore = usePersonaStore();
 const progressStore = useProgressStore();
 const rewardsStore = useRewardsStore();
+const worldStore = useWorldStore();
 const { persona, loadState: personaLoadState, loadError: personaLoadError, actionState, actionError, feedback } = storeToRefs(personaStore);
 const { personaLevel, personalBalances, personalTotalPoints, loadState, loadError } = storeToRefs(progressStore);
-const { snapshot: rewardSnapshot, loadState: rewardLoadState, loadError: rewardLoadError } = storeToRefs(rewardsStore);
+const {
+  snapshot: rewardSnapshot,
+  loadState: rewardLoadState,
+  loadError: rewardLoadError,
+  actionState: rewardActionState,
+  actionError: rewardActionError,
+  feedback: rewardFeedback,
+} = storeToRefs(rewardsStore);
 const form = reactive<{ displayName: string; visibility: "private" | "household"; appearance: PersonaAppearanceV1 }>({
   displayName: "",
   visibility: "private",
@@ -50,6 +60,7 @@ const previewPersona = computed<WorldPersonaV1>(() => ({
   visibility: form.visibility,
   activity: "idle",
   appearance: { ...form.appearance },
+  equippedRewardKey: rewardSnapshot.value?.equippedRewardKey ?? null,
   x: 50,
   y: 60,
   manifest: persona.value?.manifest ?? { ...worldFixture.personas[0]!.manifest, personaId: "persona-manual-preview" },
@@ -67,6 +78,10 @@ async function save() {
     appearance: { ...form.appearance },
   });
   if (saved) dirty.value = false;
+}
+
+async function equipReward(rewardKey: RewardKeyV1 | null) {
+  if (await rewardsStore.equip(rewardKey)) await worldStore.ensureLoaded(true);
 }
 
 onMounted(() => void personaStore.ensureLoaded());
@@ -139,9 +154,29 @@ onMounted(() => void rewardsStore.ensureLoaded(true));
         <li v-for="entry in rewardSnapshot?.rewards ?? []" :key="entry.reward.key" :class="{ 'reward-entry--unlocked': entry.unlockedAt }">
           <span class="reward-emblem" aria-hidden="true">✦</span>
           <div><strong>{{ entry.reward.title }}</strong><span>{{ entry.reward.description }}</span></div>
-          <b>{{ entry.unlockedAt ? "Unlocked" : `${Math.min(entry.currentPoints, entry.reward.thresholdPoints)}/${entry.reward.thresholdPoints}` }}</b>
+          <template v-if="!entry.unlockedAt">
+            <b>{{ `${Math.min(entry.currentPoints, entry.reward.thresholdPoints)}/${entry.reward.thresholdPoints}` }}</b>
+            <button type="button" class="reward-equip" disabled :aria-label="`${entry.reward.title} emblem locked`">Locked</button>
+          </template>
+          <button
+            v-else-if="rewardSnapshot?.equippedRewardKey === entry.reward.key"
+            type="button"
+            class="reward-equip"
+            :disabled="rewardActionState !== 'idle'"
+            :aria-label="`Remove ${entry.reward.title} emblem`"
+            @click="equipReward(null)"
+          >{{ rewardActionState === "equipping" ? "Updating…" : "Equipped · Remove" }}</button>
+          <button
+            v-else
+            type="button"
+            class="reward-equip"
+            :disabled="rewardActionState !== 'idle'"
+            :aria-label="`Equip ${entry.reward.title} emblem`"
+            @click="equipReward(entry.reward.key)"
+          >{{ rewardActionState === "equipping" ? "Updating…" : "Equip" }}</button>
         </li>
       </ul>
+      <p class="reward-action-feedback" :class="{ 'reward-action-feedback--error': rewardActionError }" :role="rewardActionError ? 'alert' : 'status'" aria-live="polite">{{ rewardActionError || rewardFeedback }}</p>
     </section>
 
     <form v-if="personaLoadState === 'ready'" class="persona-builder" aria-labelledby="customize-heading" @submit.prevent="save">

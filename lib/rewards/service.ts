@@ -1,4 +1,12 @@
-import { parseRewardSnapshot, type ProgressDimension, type RewardSnapshotV1 } from "@homebase/contracts";
+import {
+  REWARD_KEYS_V1,
+  parseRewardEquipInput,
+  parseRewardSnapshot,
+  type ProgressDimension,
+  type RewardEquipInputV1,
+  type RewardKeyV1,
+  type RewardSnapshotV1,
+} from "@homebase/contracts";
 import {
   REWARD_CATALOG_V1,
   REWARD_CATALOG_VERSION,
@@ -8,10 +16,27 @@ import {
 } from "@homebase/domain-game";
 
 import type { HouseholdContext } from "../household/types.ts";
+import { HttpError } from "../auth/identity.ts";
 
 type ProgressRow = { member_id: string | null; dimension: string; lifetime_points: number };
 type EventRow = { id: string; member_id: string | null; payload_json: string; occurred_at: string };
 type UnlockRow = { reward_key: string; unlocked_at: string };
+type PersonaLoadoutRow = { id: string; active_loadout_json: string };
+
+export function parseStoredActiveLoadout(input: string): RewardKeyV1 | null {
+  let value: unknown;
+  try {
+    value = JSON.parse(input);
+  } catch {
+    return null;
+  }
+  if (value === null || typeof value !== "object" || Array.isArray(value)) return null;
+  const record = value as Record<string, unknown>;
+  const keys = Object.keys(record);
+  if (keys.length === 0) return null;
+  if (keys.length !== 1 || keys[0] !== "emblem") return null;
+  return REWARD_KEYS_V1.includes(record.emblem as RewardKeyV1) ? record.emblem as RewardKeyV1 : null;
+}
 
 function zeroTotals(): RewardPointTotalsV1 {
   return { tend: 0, move: 0, grow: 0, connect: 0, household: 0 };
@@ -20,6 +45,7 @@ function zeroTotals(): RewardPointTotalsV1 {
 function rewardSnapshot(
   context: HouseholdContext,
   personaId: string | null,
+  equippedRewardKey: RewardKeyV1 | null,
   totals: RewardPointTotalsV1,
   unlocks: ReadonlyMap<string, string>,
   generatedAt: string,
@@ -31,6 +57,7 @@ function rewardSnapshot(
     householdId: context.member.household_id,
     memberId: context.member.id,
     personaId,
+    equippedRewardKey,
     generatedAt,
     rewards: REWARD_CATALOG_V1.map((reward) => ({
       contractVersion: 1,
@@ -76,14 +103,14 @@ export async function loadAndMaterializeRewards(
   context: HouseholdContext,
   generatedAt: string,
 ): Promise<RewardSnapshotV1> {
-  const persona = await context.db.prepare(`SELECT id
+  const persona = await context.db.prepare(`SELECT id, active_loadout_json
     FROM personas
     WHERE household_id = ? AND member_id = ? AND deleted_at IS NULL
     LIMIT 1`)
     .bind(context.member.household_id, context.member.id)
-    .first<{ id: string }>();
+    .first<PersonaLoadoutRow>();
 
-  if (!persona) return rewardSnapshot(context, null, zeroTotals(), new Map(), generatedAt);
+  if (!persona) return rewardSnapshot(context, null, null, zeroTotals(), new Map(), generatedAt);
 
   const progress = await context.db.prepare(`SELECT member_id, dimension, lifetime_points
     FROM progress_balances
@@ -129,5 +156,47 @@ export async function loadAndMaterializeRewards(
     .bind(context.member.household_id, context.member.id, persona.id)
     .all<UnlockRow>();
   const unlocks = new Map(unlockResult.results.map((row) => [row.reward_key, row.unlocked_at]));
-  return rewardSnapshot(context, persona.id, totals, unlocks, generatedAt);
+  const storedEquipped = parseStoredActiveLoadout(persona.active_loadout_json);
+  const equippedRewardKey = storedEquipped && unlocks.has(storedEquipped) ? storedEquipped : null;
+  return rewardSnapshot(context, persona.id, equippedRewardKey, totals, unlocks, generatedAt);
+}
+
+export async function equipCurrentPersonaReward(
+  context: HouseholdContext,
+  input: RewardEquipInputV1,
+  options: { updatedAt: string },
+): Promise<RewardSnapshotV1> {
+  const request = parseRewardEquipInput(input);
+  const persona = await context.db.prepare(`SELECT id, active_loadout_json
+    FROM personas
+    WHERE household_id = ? AND member_id = ? AND deleted_at IS NULL
+    LIMIT 1`)
+    .bind(context.member.household_id, context.member.id)
+    .first<PersonaLoadoutRow>();
+  if (!persona) throw new HttpError(404, "Create your persona before equipping a reward.");
+
+  if (request.rewardKey !== null) {
+    const unlock = await context.db.prepare(`SELECT reward_key
+      FROM persona_unlocks
+      WHERE household_id = ? AND member_id = ? AND persona_id = ? AND reward_key = ?
+        AND catalog_version = 1 AND policy_version = 1
+      LIMIT 1`)
+      .bind(context.member.household_id, context.member.id, persona.id, request.rewardKey)
+      .first<{ reward_key: string }>();
+    if (!unlock) throw new HttpError(409, "Unlock this emblem before equipping it.");
+  }
+
+  const loadoutJson = JSON.stringify(request.rewardKey === null ? {} : { emblem: request.rewardKey });
+  await context.db.prepare(`UPDATE personas
+    SET active_loadout_json = ?, updated_at = ?
+    WHERE id = ? AND household_id = ? AND member_id = ? AND deleted_at IS NULL
+      AND active_loadout_json <> ?`)
+    .bind(loadoutJson, options.updatedAt, persona.id, context.member.household_id, context.member.id, loadoutJson)
+    .run();
+
+  const snapshot = await loadAndMaterializeRewards(context, options.updatedAt);
+  if (snapshot.personaId !== persona.id || snapshot.equippedRewardKey !== request.rewardKey) {
+    throw new Error("Reward loadout update did not produce an authoritative result.");
+  }
+  return snapshot;
 }

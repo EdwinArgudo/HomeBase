@@ -13,6 +13,7 @@ import {
   parseProgressBalance,
   parseProgressSnapshot,
   parseRewardDefinition,
+  parseRewardEquipInput,
   parseRewardProgress,
   parseRewardSnapshot,
   parseWorldProjection,
@@ -141,6 +142,7 @@ function validWorldProjection() {
         visibility: "household",
         activity: "tend",
         appearance: { skinPalette: "warm", hairStyle: "short", hairColor: "espresso", outfit: "mint", accent: "none" },
+        equippedRewardKey: null,
         x: 35,
         y: 60,
         manifest: validPersonaManifest(),
@@ -194,6 +196,7 @@ function validRewardSnapshot() {
     householdId: "household-1",
     memberId: "member-1",
     personaId: "persona-1",
+    equippedRewardKey: "first-tend",
     generatedAt: timestamp,
     rewards: [{ contractVersion: 1, policyVersion: 1, reward: validRewardDefinition(), currentPoints: 10, unlockedAt: timestamp }],
   };
@@ -537,7 +540,7 @@ test("reward contracts validate closed versions, keys, progress, and unlock inva
   assert.deepEqual(parseRewardDefinition(validRewardDefinition()), validRewardDefinition());
   assert.deepEqual(parseRewardProgress(validRewardSnapshot().rewards[0]), validRewardSnapshot().rewards[0]);
   assert.deepEqual(parseRewardSnapshot(validRewardSnapshot()), validRewardSnapshot());
-  const noPersona = { ...validRewardSnapshot(), personaId: null, rewards: [{ ...validRewardSnapshot().rewards[0], currentPoints: 0, unlockedAt: null }] };
+  const noPersona = { ...validRewardSnapshot(), personaId: null, equippedRewardKey: null, rewards: [{ ...validRewardSnapshot().rewards[0], currentPoints: 0, unlockedAt: null }] };
   assert.equal(parseRewardSnapshot(noPersona).personaId, null);
 
   for (const [field, value, path] of [
@@ -546,6 +549,7 @@ test("reward contracts validate closed versions, keys, progress, and unlock inva
   ]) expectContractError(() => parseRewardSnapshot({ ...validRewardSnapshot(), [field]: value }), path);
 
   expectContractError(() => parseRewardDefinition({ ...validRewardDefinition(), kind: "loot" }), "$.kind");
+  expectContractError(() => parseRewardDefinition({ ...validRewardDefinition(), key: "secret-reward" }), "$.key");
   expectContractError(() => parseRewardDefinition({ ...validRewardDefinition(), thresholdPoints: -1 }), "$.thresholdPoints");
   expectContractError(() => parseRewardDefinition({ ...validRewardDefinition(), sourceEventId: "private" }), "$", "unknown_field");
   const premature = { ...validRewardSnapshot().rewards[0], currentPoints: 9 };
@@ -555,6 +559,23 @@ test("reward contracts validate closed versions, keys, progress, and unlock inva
   expectContractError(() => parseRewardSnapshot(duplicate), "$.rewards[1].reward.key", "duplicate");
   const leaked = { ...validRewardSnapshot(), partnerMemberId: "member-2" };
   expectContractError(() => parseRewardSnapshot(leaked), "$", "unknown_field");
+
+  assert.deepEqual(parseRewardEquipInput({ contractVersion: 1, rewardKey: "first-tend" }), { contractVersion: 1, rewardKey: "first-tend" });
+  assert.deepEqual(parseRewardEquipInput({ contractVersion: 1, rewardKey: null }), { contractVersion: 1, rewardKey: null });
+  expectContractError(() => parseRewardEquipInput({ contractVersion: 1, rewardKey: "secret-reward" }), "$.rewardKey");
+  expectContractError(() => parseRewardEquipInput({ contractVersion: 1, rewardKey: ["first-tend", "first-move"] }), "$.rewardKey");
+  expectContractError(() => parseRewardEquipInput({ contractVersion: 1, rewardKey: null, extra: true }), "$", "unknown_field");
+
+  const equippedMissing = validRewardSnapshot();
+  equippedMissing.equippedRewardKey = "first-grow";
+  expectContractError(() => parseRewardSnapshot(equippedMissing), "$.equippedRewardKey");
+  const equippedLocked = validRewardSnapshot();
+  equippedLocked.rewards.push({ ...structuredClone(equippedLocked.rewards[0]), reward: { ...validRewardDefinition(), key: "first-grow", dimension: "grow" }, unlockedAt: null });
+  equippedLocked.equippedRewardKey = "first-grow";
+  expectContractError(() => parseRewardSnapshot(equippedLocked), "$.equippedRewardKey");
+  const equippedWithoutPersona = validRewardSnapshot();
+  equippedWithoutPersona.personaId = null;
+  expectContractError(() => parseRewardSnapshot(equippedWithoutPersona), "$.equippedRewardKey");
 });
 
 test("WorldProjection validates versions, ranges, relationships, and scene values", () => {
@@ -601,7 +622,7 @@ test("WorldProjection rejects duplicate record IDs", () => {
   expectContractError(() => parseWorldProjection(duplicateAdventure), "$.adventures[1].id", "duplicate");
 });
 
-test("WorldPersona appearance is allow-listed, nullable, and closed", () => {
+test("WorldPersona appearance and equipped emblem are allow-listed, nullable, and closed", () => {
   const withoutAppearance = validWorldProjection();
   withoutAppearance.personas[0].appearance = null;
   assert.equal(parseWorldProjection(withoutAppearance).personas[0].appearance, null);
@@ -613,6 +634,13 @@ test("WorldPersona appearance is allow-listed, nullable, and closed", () => {
   const invalid = validWorldProjection();
   invalid.personas[0].appearance.outfit = "uploaded";
   expectContractError(() => parseWorldProjection(invalid), "$.personas[0].appearance.outfit");
+
+  const equipped = validWorldProjection();
+  equipped.personas[0].equippedRewardKey = "first-connect";
+  assert.equal(parseWorldProjection(equipped).personas[0].equippedRewardKey, "first-connect");
+  const unknownReward = validWorldProjection();
+  unknownReward.personas[0].equippedRewardKey = "private-reward";
+  expectContractError(() => parseWorldProjection(unknownReward), "$.personas[0].equippedRewardKey");
 
   const leaked = validWorldProjection();
   leaked.personas[0].memberId = "member-private";

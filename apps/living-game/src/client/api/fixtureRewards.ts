@@ -1,4 +1,4 @@
-import { parseRewardSnapshot } from "@homebase/contracts";
+import { parseRewardSnapshot, type RewardKeyV1 } from "@homebase/contracts";
 
 import type { RewardsApi } from "./rewards";
 
@@ -11,13 +11,27 @@ const definitions = [
 ] as const;
 
 export function createFixtureRewardsApi(): RewardsApi {
-  return { async load() { return parseRewardSnapshot({
-    contractVersion: 1, catalogVersion: 1, policyVersion: 1,
-    householdId: "household-homebase", memberId: "member-edwin", personaId: "persona-edwin",
-    generatedAt: new Date().toISOString(),
-    rewards: definitions.map(([key, title, description, dimension, thresholdPoints, currentPoints, unlockedAt]) => ({
-      contractVersion: 1, policyVersion: 1, currentPoints, unlockedAt,
-      reward: { catalogVersion: 1, key, kind: "emblem", title, description, dimension, thresholdPoints },
-    })),
-  }); } };
+  let equippedRewardKey: RewardKeyV1 | null = "first-tend";
+  function snapshot() {
+    return parseRewardSnapshot({
+      contractVersion: 1, catalogVersion: 1, policyVersion: 1,
+      householdId: "household-homebase", memberId: "member-edwin", personaId: "persona-edwin",
+      equippedRewardKey,
+      generatedAt: new Date().toISOString(),
+      rewards: definitions.map(([key, title, description, dimension, thresholdPoints, currentPoints, unlockedAt]) => ({
+        contractVersion: 1, policyVersion: 1, currentPoints, unlockedAt,
+        reward: { catalogVersion: 1, key, kind: "emblem", title, description, dimension, thresholdPoints },
+      })),
+    });
+  }
+  return {
+    async load() { return snapshot(); },
+    async equip(rewardKey) {
+      if (rewardKey !== null && !snapshot().rewards.some((entry) => entry.reward.key === rewardKey && entry.unlockedAt)) {
+        throw new Error("Unlock this emblem before equipping it.");
+      }
+      equippedRewardKey = rewardKey;
+      return snapshot();
+    },
+  };
 }
