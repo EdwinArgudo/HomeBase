@@ -137,6 +137,7 @@ function validWorldProjection() {
         altDescription: "Edwin's pixel persona tending the household ledger.",
         visibility: "household",
         activity: "tend",
+        appearance: { skinPalette: "warm", hairStyle: "short", hairColor: "espresso", outfit: "mint", accent: "none" },
         x: 35,
         y: 60,
         manifest: validPersonaManifest(),
@@ -554,6 +555,24 @@ test("WorldProjection rejects duplicate record IDs", () => {
   const duplicateAdventure = validWorldProjection();
   duplicateAdventure.adventures.push(copy(duplicateAdventure.adventures[0]));
   expectContractError(() => parseWorldProjection(duplicateAdventure), "$.adventures[1].id", "duplicate");
+});
+
+test("WorldPersona appearance is allow-listed, nullable, and closed", () => {
+  const withoutAppearance = validWorldProjection();
+  withoutAppearance.personas[0].appearance = null;
+  assert.equal(parseWorldProjection(withoutAppearance).personas[0].appearance, null);
+
+  const unsafe = validWorldProjection();
+  unsafe.personas[0].appearance = { ...unsafe.personas[0].appearance, css: "url(private)" };
+  expectContractError(() => parseWorldProjection(unsafe), "$.personas[0].appearance", "unknown_field");
+
+  const invalid = validWorldProjection();
+  invalid.personas[0].appearance.outfit = "uploaded";
+  expectContractError(() => parseWorldProjection(invalid), "$.personas[0].appearance.outfit");
+
+  const leaked = validWorldProjection();
+  leaked.personas[0].memberId = "member-private";
+  expectContractError(() => parseWorldProjection(leaked), "$.personas[0]", "unknown_field");
 });
 
 test("display world projections cannot contain private or household-only entities", () => {

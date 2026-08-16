@@ -5,4 +5,5 @@ interface ImportMetaEnv {
   readonly VITE_LIVE_MOVES?: string;
   readonly VITE_LIVE_PROGRESS?: string;
   readonly VITE_LIVE_PERSONA?: string;
+  readonly VITE_LIVE_WORLD?: string;
 }

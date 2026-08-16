@@ -3,6 +3,7 @@ import PrimaryNavigation from "./components/PrimaryNavigation.vue";
 
 const liveData = import.meta.env.VITE_LIVE_MOVES === "true" && import.meta.env.VITE_LIVE_PROGRESS === "true";
 const livePersona = import.meta.env.VITE_LIVE_PERSONA === "true";
+const liveWorld = import.meta.env.VITE_LIVE_WORLD === "true";
 </script>
 
 <template>
@@ -17,9 +18,9 @@ const livePersona = import.meta.env.VITE_LIVE_PERSONA === "true";
       <p class="home-status"><span aria-hidden="true" /> Home feels calm</p>
 
       <div class="header-actions">
-        <div class="preview-context" aria-label="Preview uses fixture data">
+        <div class="preview-context" aria-label="Living Game data disclosure">
           <span class="preview-badge">Preview</span>
-          <span class="preview-fixture">{{ liveData && livePersona ? "Live moves + progress + persona · Preview world" : "Fixture data · Preview world" }}</span>
+          <span class="preview-fixture">{{ liveData && livePersona && liveWorld ? "Live moves + progress + household personas · Preview scene" : "Fixture data · Preview world" }}</span>
           <a class="back-to-homebase" href="/">Current Homebase</a>
         </div>
 

@@ -41,13 +41,15 @@ test("wires deterministic ignored Vue preview assets into the root build", async
 });
 
 test("uses the living-game router base and identifies live member data inside the preview world", async () => {
-  const [router, previewConfig, app, api, progressApi, personaApi, displayView] = await Promise.all([
+  const [router, previewConfig, app, api, progressApi, personaApi, worldApi, worldView, displayView] = await Promise.all([
     source("apps/living-game/src/client/router.ts"),
     source("apps/living-game/vite.preview.config.ts"),
     source("apps/living-game/src/client/App.vue"),
     source("apps/living-game/src/client/api/dailyMoves.ts"),
     source("apps/living-game/src/client/api/progress.ts"),
     source("apps/living-game/src/client/api/persona.ts"),
+    source("apps/living-game/src/client/api/world.ts"),
+    source("apps/living-game/src/client/views/WorldView.vue"),
     source("apps/living-game/src/client/views/DisplayView.vue"),
   ]);
 
@@ -56,14 +58,18 @@ test("uses the living-game router base and identifies live member data inside th
   assert.match(previewConfig, /VITE_LIVE_MOVES.*"true"/s);
   assert.match(previewConfig, /VITE_LIVE_PROGRESS.*"true"/s);
   assert.match(previewConfig, /VITE_LIVE_PERSONA.*"true"/s);
+  assert.match(previewConfig, /VITE_LIVE_WORLD.*"true"/s);
   assert.match(app, />Preview</);
-  assert.match(app, /Live moves \+ progress \+ persona · Preview world/);
+  assert.match(app, /Live moves \+ progress \+ household personas · Preview scene/);
   assert.match(api, /\/api\/game\/moves\?date=/);
   assert.doesNotMatch(api, /dailyMoveFixtures/);
   assert.match(progressApi, /\/api\/game\/progress/);
   assert.doesNotMatch(progressApi, /progressFixtures/);
   assert.match(personaApi, /\/api\/personas\/current/);
   assert.doesNotMatch(personaApi, /worldFixture|fixturePersona/);
+  assert.match(worldApi, /\/api\/world/);
+  assert.doesNotMatch(worldApi, /worldFixture|fixtureWorld/);
+  assert.doesNotMatch(worldView, /worldFixture|usePersonaStore/);
   assert.match(app, /href="\/"/);
   assert.match(app, />Current Homebase</);
   assert.match(displayView, /No personal or financial details are shown/);

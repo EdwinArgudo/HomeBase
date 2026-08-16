@@ -7,10 +7,12 @@ import App from "./App.vue";
 import { createFixtureDailyMovesApi } from "./api/fixtureDailyMoves";
 import { createFixtureProgressApi } from "./api/fixtureProgress";
 import { createFixturePersonaApi } from "./api/fixturePersona";
+import { createFixtureWorldApi } from "./api/fixtureWorld";
 import { routes } from "./router";
 import { configureDailyMovesRuntime } from "./stores/dailyMoves";
 import { configureProgressRuntime } from "./stores/progress";
 import { configurePersonaRuntime } from "./stores/persona";
+import { configureWorldRuntime } from "./stores/world";
 
 const expectedHeadings = [
   ["/", "Our World"],
@@ -26,6 +28,7 @@ describe("client routes", () => {
     configureDailyMovesRuntime({ api: createFixtureDailyMovesApi(), now: () => new Date(2026, 7, 15) });
     configureProgressRuntime({ api: createFixtureProgressApi() });
     configurePersonaRuntime({ api: createFixturePersonaApi() });
+    configureWorldRuntime({ api: createFixtureWorldApi() });
   });
 
   it.each(expectedHeadings)("renders %s with its accessible heading", async (path, heading) => {

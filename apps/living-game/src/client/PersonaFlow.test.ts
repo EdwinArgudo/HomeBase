@@ -7,12 +7,14 @@ import App from "./App.vue";
 import { createFixtureDailyMovesApi } from "./api/fixtureDailyMoves";
 import { createFixturePersonaApi } from "./api/fixturePersona";
 import { createFixtureProgressApi } from "./api/fixtureProgress";
+import { createFixtureWorldApi } from "./api/fixtureWorld";
 import PersonaSprite from "./components/PersonaSprite.vue";
 import { worldFixture } from "./fixtures/game";
 import { routes } from "./router";
 import { configureDailyMovesRuntime } from "./stores/dailyMoves";
 import { configurePersonaRuntime } from "./stores/persona";
 import { configureProgressRuntime } from "./stores/progress";
+import { configureWorldRuntime } from "./stores/world";
 
 describe("manual persona flow", () => {
   it("renders allow-listed appearance through fixed classes", () => {
@@ -29,10 +31,11 @@ describe("manual persona flow", () => {
     ]));
   });
 
-  it("saves, approves, reloads, and shows only the current persona in World", async () => {
+  it("saves and approves the current persona through its dedicated API", async () => {
     configureDailyMovesRuntime({ api: createFixtureDailyMovesApi(), now: () => new Date(2026, 7, 15) });
     configureProgressRuntime({ api: createFixtureProgressApi() });
     configurePersonaRuntime({ api: createFixturePersonaApi() });
+    configureWorldRuntime({ api: createFixtureWorldApi() });
     const router = createRouter({ history: createMemoryHistory(), routes: [...routes] });
     await router.push("/persona");
     await router.isReady();
@@ -49,12 +52,6 @@ describe("manual persona flow", () => {
     await flushPromises();
     expect(wrapper.text()).toContain("Persona approved and ready");
 
-    await router.push("/");
-    await flushPromises();
-    expect(wrapper.findAll(".world-scene .persona-control")).toHaveLength(1);
-    expect(wrapper.text()).toContain("Pixel Edwin");
-    expect(wrapper.text()).not.toContain("Vienna");
-    expect(wrapper.get(".world-scene .persona-anchor").classes()).toContain("persona-outfit--berry");
     wrapper.unmount();
   });
 });

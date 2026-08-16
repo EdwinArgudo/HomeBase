@@ -147,3 +147,11 @@ test("persona routes remain thin authenticated boundaries", async () => {
     assert.doesNotMatch(source, /SELECT|appearance_json|game_events|fixture|demo/i);
   }
 });
+
+test("world route remains a thin authenticated boundary without fixtures", async () => {
+  const source = await readFile(new URL("../app/api/world/route.ts", import.meta.url), "utf8");
+  assert.match(source, /createWorldGetHandler/);
+  assert.match(source, /requireHouseholdMember/);
+  assert.match(source, /dynamic = "force-dynamic"/);
+  assert.doesNotMatch(source, /SELECT|personas|fixture|demo/i);
+});

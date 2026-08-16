@@ -49,12 +49,12 @@ type EventRow = {
   created_at: string;
 };
 
-export function createManualPersonaManifest(personaId: string): PersonaManifestV1 {
+export function createManualPersonaManifest(personaId: string, baseStyleVersion = BASE_STYLE_VERSION): PersonaManifestV1 {
   const sheetId = `${personaId}:sheet`;
   return {
     manifestVersion: 1,
     personaId,
-    baseStyleVersion: BASE_STYLE_VERSION,
+    baseStyleVersion,
     grid: { frameWidth: 32, frameHeight: 48, columns: 4, rows: 2 },
     assets: [
       { id: `${personaId}:portrait`, kind: "portrait", width: 64, height: 64, transparent: true },

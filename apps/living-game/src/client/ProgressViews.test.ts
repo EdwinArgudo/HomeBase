@@ -7,10 +7,12 @@ import { describe, expect, it, vi } from "vitest";
 import App from "./App.vue";
 import { createFixtureDailyMovesApi } from "./api/fixtureDailyMoves";
 import { createFixturePersonaApi } from "./api/fixturePersona";
+import { createFixtureWorldApi } from "./api/fixtureWorld";
 import { routes } from "./router";
 import { configureDailyMovesRuntime } from "./stores/dailyMoves";
 import { configureProgressRuntime } from "./stores/progress";
 import { configurePersonaRuntime } from "./stores/persona";
+import { configureWorldRuntime } from "./stores/world";
 
 function balance(overrides: Partial<ProgressBalanceV1> = {}) {
   return parseProgressBalance({
@@ -48,6 +50,7 @@ function deferred<T>() {
 
 async function mountAt(path: string) {
   configurePersonaRuntime({ api: createFixturePersonaApi() });
+  configureWorldRuntime({ api: createFixtureWorldApi() });
   const router = createRouter({ history: createMemoryHistory(), routes: [...routes] });
   await router.push(path);
   await router.isReady();

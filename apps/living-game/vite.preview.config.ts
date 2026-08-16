@@ -8,6 +8,7 @@ export default defineConfig({
     "import.meta.env.VITE_LIVE_MOVES": JSON.stringify("true"),
     "import.meta.env.VITE_LIVE_PROGRESS": JSON.stringify("true"),
     "import.meta.env.VITE_LIVE_PERSONA": JSON.stringify("true"),
+    "import.meta.env.VITE_LIVE_WORLD": JSON.stringify("true"),
   },
   plugins: [vue()],
   build: {

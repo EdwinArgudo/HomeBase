@@ -227,6 +227,7 @@ export type WorldPersonaV1 = {
   altDescription: string;
   visibility: Visibility;
   activity: PersonaActivityState;
+  appearance: PersonaAppearanceV1 | null;
   x: number;
   y: number;
   manifest: PersonaManifestV1;
@@ -796,7 +797,7 @@ export function parsePersonaApprovalResult(input: unknown): PersonaApprovalResul
 }
 
 function worldPersonaAt(input: unknown, path: string): WorldPersonaV1 {
-  const record = objectAt(input, path, ["id", "displayName", "altDescription", "visibility", "activity", "x", "y", "manifest"]);
+  const record = objectAt(input, path, ["id", "displayName", "altDescription", "visibility", "activity", "appearance", "x", "y", "manifest"]);
   const id = idAt(required(record, "id", path), `${path}.id`);
   const manifest = personaManifestAt(required(record, "manifest", path), `${path}.manifest`);
   if (manifest.personaId !== id) fail(`${path}.manifest.personaId`, "must match the world persona id");
@@ -806,6 +807,9 @@ function worldPersonaAt(input: unknown, path: string): WorldPersonaV1 {
     altDescription: stringAt(required(record, "altDescription", path), `${path}.altDescription`, 1, 240),
     visibility: enumAt(required(record, "visibility", path), `${path}.visibility`, VISIBILITIES),
     activity: enumAt(required(record, "activity", path), `${path}.activity`, PERSONA_ACTIVITY_STATES),
+    appearance: required(record, "appearance", path) === null
+      ? null
+      : personaAppearanceAt(required(record, "appearance", path), `${path}.appearance`),
     x: integerAt(required(record, "x", path), `${path}.x`, 0, 100),
     y: integerAt(required(record, "y", path), `${path}.y`, 0, 100),
     manifest,

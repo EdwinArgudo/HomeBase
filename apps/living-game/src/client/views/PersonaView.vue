@@ -46,6 +46,7 @@ const previewPersona = computed<WorldPersonaV1>(() => ({
   altDescription: `Manual pixel persona preview for ${form.displayName.trim() || "the current member"}.`,
   visibility: form.visibility,
   activity: "idle",
+  appearance: { ...form.appearance },
   x: 50,
   y: 60,
   manifest: persona.value?.manifest ?? { ...worldFixture.personas[0]!.manifest, personaId: "persona-manual-preview" },
