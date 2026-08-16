@@ -80,8 +80,17 @@ beta carries anything a household would miss:
 
 Until step 4 is done, assume there is no production backup.
 
+## Configuration
+
+`HOMEBASE_OWNER_EMAILS` — comma-separated addresses allowed to claim an
+unclaimed Homebase. **A deployment without this set cannot be claimed by
+anyone**, which is the safe direction: the household that already exists is
+unaffected, and an empty one stays empty rather than going to whoever finds the
+URL first. Set it before the first sign-in on any fresh database.
+
 ## Before opening the beta
 
+- [ ] Set `HOMEBASE_OWNER_EMAILS` in the deployed environment.
 - [ ] Verify the production export and restore above.
 - [ ] Run Plaid Link once against real sandbox credentials end to end.
 - [ ] Re-read `docs/PRIVACY_REVIEW.md` and confirm nothing has regressed.

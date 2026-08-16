@@ -6,5 +6,7 @@ declare namespace Cloudflare {
     PLAID_ENV?: string;
     PLAID_REDIRECT_URI?: string;
     BANK_TOKEN_ENCRYPTION_KEY?: string;
+    /** Comma-separated emails allowed to claim an unclaimed Homebase. */
+    HOMEBASE_OWNER_EMAILS?: string;
   }
 }

@@ -10,6 +10,7 @@ interface Env {
   PLAID_ENV?: string;
   PLAID_REDIRECT_URI?: string;
   BANK_TOKEN_ENCRYPTION_KEY?: string;
+  HOMEBASE_OWNER_EMAILS?: string;
   IMAGES: {
     input(stream: ReadableStream): {
       transform(options: Record<string, unknown>): {

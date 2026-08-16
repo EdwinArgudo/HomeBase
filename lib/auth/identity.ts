@@ -2,6 +2,8 @@ export type Identity = {
   externalId: string;
   email: string;
   displayName: string;
+  /** True only for the localhost development fallback, never for a real user. */
+  isLocalDevelopment: boolean;
 };
 
 export class HttpError extends Error {
@@ -32,12 +34,12 @@ export function identityFromRequest(request: Request): Identity {
         // Keep the email-derived fallback when the optional name is malformed.
       }
     }
-    return { externalId, email: normalizeEmail(email), displayName };
+    return { externalId, email: normalizeEmail(email), displayName, isLocalDevelopment: false };
   }
 
   const host = new URL(request.url).hostname;
   if (host === "localhost" || host === "127.0.0.1") {
-    return { externalId: "local-edwin", email: "edwin@homebase.local", displayName: "Edwin" };
+    return { externalId: "local-edwin", email: "edwin@homebase.local", displayName: "Edwin", isLocalDevelopment: true };
   }
 
   throw new HttpError(401, "Sign in to continue.");

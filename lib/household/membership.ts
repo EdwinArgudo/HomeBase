@@ -1,6 +1,9 @@
+import { env } from "cloudflare:workers";
+
 import { identityBeforeStorage } from "../auth/identity";
 import { HttpError } from "../auth/identity";
 import { readyHouseholdDatabase } from "./storage";
+import { mayBootstrapHousehold } from "./ownership";
 import type { HouseholdContext, MemberRow } from "./types";
 
 function ids(householdId: string, ownerId: string) {
@@ -70,7 +73,15 @@ export async function resolveMember(request: Request, allowOwnerBootstrap: boole
   }
 
   const householdCount = await db.prepare("SELECT COUNT(*) AS count FROM households").first<{ count: number }>();
-  if (!allowOwnerBootstrap || Number(householdCount?.count ?? 0) > 0) {
+  const claimable = allowOwnerBootstrap && Number(householdCount?.count ?? 0) === 0;
+  const mayClaim = claimable && mayBootstrapHousehold({
+    email: identity.email,
+    isLocalDevelopment: identity.isLocalDevelopment,
+    configuredOwners: env.HOMEBASE_OWNER_EMAILS,
+  });
+  if (!mayClaim) {
+    // The same refusal either way, so this never reveals whether a Homebase is
+    // already claimed or merely waiting for its owner.
     throw new HttpError(403, "This account has not been invited to the household.");
   }
 

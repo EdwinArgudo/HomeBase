@@ -71,14 +71,32 @@ binding names never reach the client. The world, rewards, persona, and progress
 handlers each have a test asserting an internal error message does not appear in
 the response.
 
+### 6. An unclaimed Homebase could be claimed by whoever arrived first — fixed
+
+Bootstrapping only ran against an empty database, so the window was narrow: the
+gap between a deployment and the owner's first sign-in, and again any time the
+database were recreated. Inside that window, any signed-in visitor became the
+household owner and inherited everything built afterwards.
+
+Claiming now requires the address to be named in `HOMEBASE_OWNER_EMAILS`. A
+deployment with nothing configured claims nothing at all — refusing costs a
+household that has to be configured, against a household that belongs to a
+stranger. The refusal is worded identically to an ordinary uninvited account, so
+it never reveals whether a Homebase is claimed or merely waiting.
+
+Local development is exempt by identity rather than by configuration: the
+localhost fallback is a distinct kind of identity and says so.
+
 ## Accepted risks
 
 - **Authentication belongs to the hosting platform** (D-002). A member is whoever
   the platform's headers say they are. The localhost fallback auto-creates an
   owner, which is correct for development and would be a hole anywhere else —
   it is guarded on hostname, not on environment.
-- **The first signed-in visitor becomes the owner.** Correct for a private beta,
-  wrong the moment the app is reachable by anyone who is not you.
+- ~~**The first signed-in visitor becomes the owner.**~~ Closed on 16 August
+  2026: claiming an unclaimed Homebase now requires the address to appear in
+  `HOMEBASE_OWNER_EMAILS`, and a deployment without that configured can be
+  claimed by nobody. See finding 6.
 - **Bank access tokens are encrypted at rest** with a key from the environment.
   Rotating that key has no procedure yet.
 - **No rate limiting** on any route. A household is two people, so this is a
