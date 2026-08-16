@@ -7,6 +7,9 @@ import {
   parseMoveCompletionOptions,
   parseGameEvent,
   parsePersonaManifest,
+  parsePersonaDraftInput,
+  parsePersonaProfile,
+  parsePersonaSnapshot,
   parseProgressBalance,
   parseProgressSnapshot,
   parseWorldProjection,
@@ -153,6 +156,25 @@ function validWorldProjection() {
         visibility: "household",
       },
     ],
+  };
+}
+
+function validPersonaProfile() {
+  return {
+    contractVersion: 1,
+    id: "persona-1",
+    householdId: "household-1",
+    memberId: "member-1",
+    displayName: "Edwin",
+    creationMethod: "manual",
+    status: "ready",
+    baseStyleVersion: "pixel-v1",
+    appearance: { skinPalette: "warm", hairStyle: "short", hairColor: "espresso", outfit: "mint", accent: "none" },
+    visibility: "household",
+    manifest: validPersonaManifest(),
+    approvedAt: timestamp,
+    createdAt: timestamp,
+    updatedAt: timestamp,
   };
 }
 
@@ -445,6 +467,49 @@ test("PersonaManifest rejects invalid grid, frame, asset, and anchor geometry", 
   const outsideFrame = validPersonaManifest();
   outsideFrame.attachmentAnchors[0].x = 32;
   expectContractError(() => parsePersonaManifest(outsideFrame), "$.attachmentAnchors[0].x");
+});
+
+test("manual persona contracts are closed and allow-list every appearance choice", () => {
+  assert.deepEqual(parsePersonaDraftInput({
+    contractVersion: 1,
+    displayName: " Edwin ",
+    visibility: "private",
+    appearance: validPersonaProfile().appearance,
+  }).displayName, "Edwin");
+
+  const unknown = { contractVersion: 1, displayName: "Edwin", visibility: "private", appearance: validPersonaProfile().appearance, css: "url(secret)" };
+  expectContractError(() => parsePersonaDraftInput(unknown), "$", "unknown_field");
+  for (const [key, value] of [["skinPalette", "custom"], ["hairStyle", "uploaded"], ["hairColor", "#fff"], ["outfit", "url"], ["accent", "biometric"]]) {
+    const input = { contractVersion: 1, displayName: "Edwin", visibility: "private", appearance: { ...validPersonaProfile().appearance, [key]: value } };
+    expectContractError(() => parsePersonaDraftInput(input), `$.appearance.${key}`);
+  }
+  expectContractError(() => parsePersonaDraftInput({ contractVersion: 1, displayName: " ", visibility: "private", appearance: validPersonaProfile().appearance }), "$.displayName");
+});
+
+test("persona profile enforces approval, visibility, and manifest identity invariants", () => {
+  assert.deepEqual(parsePersonaProfile(validPersonaProfile()), validPersonaProfile());
+  const draftApproved = { ...validPersonaProfile(), status: "draft" };
+  expectContractError(() => parsePersonaProfile(draftApproved), "$.approvedAt");
+  const readyUnapproved = { ...validPersonaProfile(), approvedAt: null };
+  expectContractError(() => parsePersonaProfile(readyUnapproved), "$.approvedAt", "missing_field");
+  const display = { ...validPersonaProfile(), visibility: "display" };
+  expectContractError(() => parsePersonaProfile(display), "$.visibility");
+  const mismatch = validPersonaProfile();
+  mismatch.manifest.personaId = "persona-other";
+  expectContractError(() => parsePersonaProfile(mismatch), "$.manifest.personaId");
+});
+
+test("persona snapshot rejects partner and household scope mismatches", () => {
+  const snapshot = {
+    contractVersion: 1,
+    householdId: "household-1",
+    memberId: "member-1",
+    persona: validPersonaProfile(),
+    generatedAt: timestamp,
+  };
+  assert.deepEqual(parsePersonaSnapshot(snapshot), snapshot);
+  expectContractError(() => parsePersonaSnapshot({ ...snapshot, memberId: "member-2" }), "$.persona.memberId");
+  expectContractError(() => parsePersonaSnapshot({ ...snapshot, householdId: "household-2" }), "$.persona.householdId");
 });
 
 test("WorldProjection validates versions, ranges, relationships, and scene values", () => {

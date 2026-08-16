@@ -123,3 +123,27 @@ test("progress route remains a thin authenticated boundary", async () => {
   assert.match(source, /requireHouseholdMember/);
   assert.doesNotMatch(source, /SELECT|progress_balances|game_events|payload/i);
 });
+
+test("generated persona migration enforces one active manual persona per member", async () => {
+  const migration = await readFile(new URL("../drizzle/0008_dear_lethal_legion.sql", import.meta.url), "utf8");
+  assert.match(migration, /CREATE TABLE `personas`/);
+  for (const column of ["household_id", "member_id", "display_name", "creation_method", "status", "base_style_version", "appearance_json", "active_loadout_json", "visibility", "approved_at", "created_at", "updated_at", "deleted_at"]) {
+    assert.match(migration, new RegExp("`" + column + "`"));
+  }
+  assert.match(migration, /idx_personas_member_active[^;]+WHERE .*deleted_at.* IS NULL/);
+  assert.match(migration, /personas_appearance_json_check/);
+  assert.match(migration, /personas_approval_check/);
+  const readiness = await readFile(new URL("../db/readiness.ts", import.meta.url), "utf8");
+  assert.match(readiness, /LEFT JOIN personas p ON 0/);
+  assert.match(readiness, /p\.appearance_json/);
+});
+
+test("persona routes remain thin authenticated boundaries", async () => {
+  const current = await readFile(new URL("../app/api/personas/current/route.ts", import.meta.url), "utf8");
+  const approve = await readFile(new URL("../app/api/personas/current/approve/route.ts", import.meta.url), "utf8");
+  for (const source of [current, approve]) {
+    assert.match(source, /requireHouseholdMember/);
+    assert.match(source, /dynamic = "force-dynamic"/);
+    assert.doesNotMatch(source, /SELECT|appearance_json|game_events|fixture|demo/i);
+  }
+});

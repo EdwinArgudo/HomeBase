@@ -6,9 +6,11 @@ import { describe, expect, it, vi } from "vitest";
 
 import App from "./App.vue";
 import { createFixtureDailyMovesApi } from "./api/fixtureDailyMoves";
+import { createFixturePersonaApi } from "./api/fixturePersona";
 import { routes } from "./router";
 import { configureDailyMovesRuntime } from "./stores/dailyMoves";
 import { configureProgressRuntime } from "./stores/progress";
+import { configurePersonaRuntime } from "./stores/persona";
 
 function balance(overrides: Partial<ProgressBalanceV1> = {}) {
   return parseProgressBalance({
@@ -45,6 +47,7 @@ function deferred<T>() {
 }
 
 async function mountAt(path: string) {
+  configurePersonaRuntime({ api: createFixturePersonaApi() });
   const router = createRouter({ history: createMemoryHistory(), routes: [...routes] });
   await router.push(path);
   await router.isReady();
@@ -60,14 +63,15 @@ describe("live progress views", () => {
     configureDailyMovesRuntime({ api: createFixtureDailyMovesApi(), now: () => new Date(2026, 7, 15) });
     const { wrapper } = await mountAt("/persona");
 
-    expect(wrapper.get('[role="status"]').text()).toContain("Loading your progress");
+    await flushPromises();
+    expect(wrapper.get('.progress-state[role="status"]').text()).toContain("Loading your progress");
     first.reject(new Error("Please sign in again."));
     await flushPromises();
-    expect(wrapper.get('[role="alert"]').text()).toContain("Please sign in again.");
-    await wrapper.get('[role="alert"] button').trigger("click");
+    expect(wrapper.get('.progress-state[role="alert"]').text()).toContain("Please sign in again.");
+    await wrapper.get('.progress-state[role="alert"] button').trigger("click");
     await flushPromises();
     expect(wrapper.text()).toContain("No progress recorded yet");
-    expect(wrapper.text()).toContain("Real Edwin");
+    expect(wrapper.text()).toContain("Edwin");
     expect(wrapper.text()).toContain("Level 1 · 0 total points");
     wrapper.unmount();
   });
@@ -117,10 +121,10 @@ describe("live progress views", () => {
 
     await router.push("/persona");
     await flushPromises();
-    expect(wrapper.text()).toContain("Real Edwin");
+    expect(wrapper.text()).toContain("Edwin");
     expect(wrapper.text()).toContain("20 total points");
     expect(wrapper.text()).toContain("tendLife admin & home · 20 points");
-    expect(wrapper.text()).toContain("cosmetic preview");
+    expect(wrapper.text()).toContain("Saved ready persona");
     wrapper.unmount();
   });
 });

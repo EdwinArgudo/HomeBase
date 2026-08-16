@@ -6,14 +6,17 @@ import { describe, expect, it } from "vitest";
 import App from "./App.vue";
 import { createFixtureDailyMovesApi } from "./api/fixtureDailyMoves";
 import { createFixtureProgressApi } from "./api/fixtureProgress";
+import { createFixturePersonaApi } from "./api/fixturePersona";
 import { displayWorldFixture } from "./fixtures/game";
 import { routes } from "./router";
 import { configureDailyMovesRuntime } from "./stores/dailyMoves";
 import { configureProgressRuntime } from "./stores/progress";
+import { configurePersonaRuntime } from "./stores/persona";
 
 async function mountAt(path: string) {
   configureDailyMovesRuntime({ api: createFixtureDailyMovesApi(), now: () => new Date(2026, 7, 15) });
   configureProgressRuntime({ api: createFixtureProgressApi() });
+  configurePersonaRuntime({ api: createFixturePersonaApi() });
   const router = createRouter({
     history: createMemoryHistory(),
     routes: [...routes],
@@ -66,15 +69,15 @@ describe("Living Game world shell", () => {
     const scenePersonaButtons = wrapper.findAll(".world-scene .persona-control");
     const personaButtons = wrapper.findAll(".world-readout button");
 
-    expect(scenePersonaButtons).toHaveLength(2);
+    expect(scenePersonaButtons).toHaveLength(1);
     for (const button of scenePersonaButtons) {
       expect(button.element.tagName).toBe("BUTTON");
       expect(button.attributes("aria-label")).toMatch(/^Select .+, currently .+$/);
     }
-    expect(personaButtons).toHaveLength(2);
-    await scenePersonaButtons[1]?.trigger("click");
-    expect(personaButtons[1]?.attributes("aria-pressed")).toBe("true");
-    expect(wrapper.get(".selected-persona-note").text()).toContain("Vienna");
+    expect(personaButtons).toHaveLength(1);
+    await scenePersonaButtons[0]?.trigger("click");
+    expect(personaButtons[0]?.attributes("aria-pressed")).toBe("true");
+    expect(wrapper.get(".selected-persona-note").text()).toContain("Edwin");
     expect(wrapper.get(".world-text-equivalent").text()).toContain("World summary");
 
     wrapper.unmount();
@@ -94,14 +97,13 @@ describe("Living Game world shell", () => {
     wrapper.unmount();
   });
 
-  it("makes persona mood previews operable and stateful", async () => {
+  it("makes the saved manual outfit control operable and stateful", async () => {
     const wrapper = await mountAt("/persona");
-    const berry = wrapper.get('button[aria-label="Preview berry mood"]');
-
-    expect(berry.attributes("aria-pressed")).toBe("false");
-    await berry.trigger("click");
-    expect(berry.attributes("aria-pressed")).toBe("true");
+    await flushPromises();
+    const outfit = wrapper.findAll(".persona-builder label").find((label) => label.text().includes("Outfit"))!.get("select");
+    await outfit.setValue("berry");
     expect(wrapper.get(".persona-stage .persona-anchor").classes()).toContain("persona-anchor--berry");
+    expect(wrapper.text()).toContain("Unsaved changes");
 
     wrapper.unmount();
   });

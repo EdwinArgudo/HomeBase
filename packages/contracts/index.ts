@@ -25,6 +25,14 @@ export const PERSONA_ACTIVITY_STATES = ["idle", "rest", "tend", "move", "grow", 
 export const WORLD_ITEM_STATES = ["idle", "active", "complete"] as const;
 export const ADVENTURE_STATUSES = ["offered", "active", "complete", "expired", "dismissed"] as const;
 export const WORLD_VIEWERS = ["member", "display"] as const;
+export const PERSONA_CREATION_METHODS = ["manual"] as const;
+export const PERSONA_STATUSES = ["draft", "ready"] as const;
+export const PERSONA_VISIBILITIES = ["private", "household"] as const;
+export const PERSONA_SKIN_PALETTES = ["warm", "golden", "deep", "rose"] as const;
+export const PERSONA_HAIR_STYLES = ["short", "waves", "curls", "long"] as const;
+export const PERSONA_HAIR_COLORS = ["espresso", "chestnut", "gold", "midnight"] as const;
+export const PERSONA_OUTFITS = ["mint", "berry", "sun"] as const;
+export const PERSONA_ACCENTS = ["none", "glasses", "headband"] as const;
 
 export type OwnershipType = typeof OWNERSHIP_TYPES[number];
 export type Visibility = typeof VISIBILITIES[number];
@@ -42,6 +50,23 @@ export type PersonaActivityState = typeof PERSONA_ACTIVITY_STATES[number];
 export type WorldItemState = typeof WORLD_ITEM_STATES[number];
 export type AdventureStatus = typeof ADVENTURE_STATUSES[number];
 export type WorldViewer = typeof WORLD_VIEWERS[number];
+export type PersonaStatus = typeof PERSONA_STATUSES[number];
+export type PersonaVisibility = typeof PERSONA_VISIBILITIES[number];
+
+export type PersonaAppearanceV1 = {
+  skinPalette: typeof PERSONA_SKIN_PALETTES[number];
+  hairStyle: typeof PERSONA_HAIR_STYLES[number];
+  hairColor: typeof PERSONA_HAIR_COLORS[number];
+  outfit: typeof PERSONA_OUTFITS[number];
+  accent: typeof PERSONA_ACCENTS[number];
+};
+
+export type PersonaDraftInputV1 = {
+  contractVersion: 1;
+  displayName: string;
+  visibility: PersonaVisibility;
+  appearance: PersonaAppearanceV1;
+};
 
 export type JsonPrimitive = string | number | boolean | null;
 export type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue };
@@ -163,6 +188,37 @@ export type PersonaManifestV1 = {
   assets: SpriteAssetV1[];
   animations: SpriteAnimationV1[];
   attachmentAnchors: AttachmentAnchorV1[];
+};
+
+export type PersonaProfileV1 = {
+  contractVersion: 1;
+  id: string;
+  householdId: string;
+  memberId: string;
+  displayName: string;
+  creationMethod: "manual";
+  status: PersonaStatus;
+  baseStyleVersion: string;
+  appearance: PersonaAppearanceV1;
+  visibility: PersonaVisibility;
+  manifest: PersonaManifestV1;
+  approvedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type PersonaSnapshotV1 = {
+  contractVersion: 1;
+  householdId: string;
+  memberId: string;
+  persona: PersonaProfileV1 | null;
+  generatedAt: string;
+};
+
+export type PersonaApprovalResultV1 = {
+  contractVersion: 1;
+  persona: PersonaProfileV1;
+  event: GameEventV1;
 };
 
 export type WorldPersonaV1 = {
@@ -639,6 +695,104 @@ function personaManifestAt(input: unknown, path: string): PersonaManifestV1 {
 
 export function parsePersonaManifest(input: unknown): PersonaManifestV1 {
   return personaManifestAt(input, "$");
+}
+
+function personaAppearanceAt(input: unknown, path: string): PersonaAppearanceV1 {
+  const record = objectAt(input, path, ["skinPalette", "hairStyle", "hairColor", "outfit", "accent"]);
+  return {
+    skinPalette: enumAt(required(record, "skinPalette", path), `${path}.skinPalette`, PERSONA_SKIN_PALETTES),
+    hairStyle: enumAt(required(record, "hairStyle", path), `${path}.hairStyle`, PERSONA_HAIR_STYLES),
+    hairColor: enumAt(required(record, "hairColor", path), `${path}.hairColor`, PERSONA_HAIR_COLORS),
+    outfit: enumAt(required(record, "outfit", path), `${path}.outfit`, PERSONA_OUTFITS),
+    accent: enumAt(required(record, "accent", path), `${path}.accent`, PERSONA_ACCENTS),
+  };
+}
+
+export function parsePersonaAppearance(input: unknown): PersonaAppearanceV1 {
+  return personaAppearanceAt(input, "$");
+}
+
+export function parsePersonaDraftInput(input: unknown): PersonaDraftInputV1 {
+  const path = "$";
+  const record = objectAt(input, path, ["contractVersion", "displayName", "visibility", "appearance"]);
+  versionAt(required(record, "contractVersion", path), "$.contractVersion", 1);
+  const displayName = stringAt(required(record, "displayName", path), "$.displayName", 1, 80).trim();
+  if (!displayName) fail("$.displayName", "must contain a visible name");
+  return {
+    contractVersion: 1,
+    displayName,
+    visibility: enumAt(required(record, "visibility", path), "$.visibility", PERSONA_VISIBILITIES),
+    appearance: personaAppearanceAt(required(record, "appearance", path), "$.appearance"),
+  };
+}
+
+function personaProfileAt(input: unknown, path: string): PersonaProfileV1 {
+  const record = objectAt(input, path, ["contractVersion", "id", "householdId", "memberId", "displayName", "creationMethod", "status", "baseStyleVersion", "appearance", "visibility", "manifest", "approvedAt", "createdAt", "updatedAt"]);
+  versionAt(required(record, "contractVersion", path), `${path}.contractVersion`, 1);
+  const id = idAt(required(record, "id", path), `${path}.id`);
+  const status = enumAt(required(record, "status", path), `${path}.status`, PERSONA_STATUSES);
+  const approvedAt = nullableTimestampAt(required(record, "approvedAt", path), `${path}.approvedAt`);
+  if (status === "ready" && approvedAt === null) fail(`${path}.approvedAt`, "is required for a ready persona", "missing_field");
+  if (status === "draft" && approvedAt !== null) fail(`${path}.approvedAt`, "must be null for a draft persona");
+  const manifest = personaManifestAt(required(record, "manifest", path), `${path}.manifest`);
+  if (manifest.personaId !== id) fail(`${path}.manifest.personaId`, "must match the persona id");
+  const baseStyleVersion = stringAt(required(record, "baseStyleVersion", path), `${path}.baseStyleVersion`, 1, 64);
+  if (manifest.baseStyleVersion !== baseStyleVersion) fail(`${path}.manifest.baseStyleVersion`, "must match the persona base style version");
+  return {
+    contractVersion: 1,
+    id,
+    householdId: idAt(required(record, "householdId", path), `${path}.householdId`),
+    memberId: idAt(required(record, "memberId", path), `${path}.memberId`),
+    displayName: stringAt(required(record, "displayName", path), `${path}.displayName`, 1, 80),
+    creationMethod: enumAt(required(record, "creationMethod", path), `${path}.creationMethod`, PERSONA_CREATION_METHODS),
+    status,
+    baseStyleVersion,
+    appearance: personaAppearanceAt(required(record, "appearance", path), `${path}.appearance`),
+    visibility: enumAt(required(record, "visibility", path), `${path}.visibility`, PERSONA_VISIBILITIES),
+    manifest,
+    approvedAt,
+    createdAt: timestampAt(required(record, "createdAt", path), `${path}.createdAt`),
+    updatedAt: timestampAt(required(record, "updatedAt", path), `${path}.updatedAt`),
+  };
+}
+
+export function parsePersonaProfile(input: unknown): PersonaProfileV1 {
+  return personaProfileAt(input, "$");
+}
+
+export function parsePersonaSnapshot(input: unknown): PersonaSnapshotV1 {
+  const path = "$";
+  const record = objectAt(input, path, ["contractVersion", "householdId", "memberId", "persona", "generatedAt"]);
+  versionAt(required(record, "contractVersion", path), "$.contractVersion", 1);
+  const householdId = idAt(required(record, "householdId", path), "$.householdId");
+  const memberId = idAt(required(record, "memberId", path), "$.memberId");
+  const rawPersona = required(record, "persona", path);
+  const persona = rawPersona === null ? null : personaProfileAt(rawPersona, "$.persona");
+  if (persona && persona.householdId !== householdId) fail("$.persona.householdId", "must match the snapshot household");
+  if (persona && persona.memberId !== memberId) fail("$.persona.memberId", "must match the current member");
+  return {
+    contractVersion: 1,
+    householdId,
+    memberId,
+    persona,
+    generatedAt: timestampAt(required(record, "generatedAt", path), "$.generatedAt"),
+  };
+}
+
+export function parsePersonaApprovalResult(input: unknown): PersonaApprovalResultV1 {
+  const path = "$";
+  const record = objectAt(input, path, ["contractVersion", "persona", "event"]);
+  versionAt(required(record, "contractVersion", path), "$.contractVersion", 1);
+  const persona = personaProfileAt(required(record, "persona", path), "$.persona");
+  const event = parseGameEvent(required(record, "event", path));
+  if (persona.status !== "ready") fail("$.persona.status", "must be ready after approval");
+  if (event.eventType !== "persona.approved" || event.source.type !== "persona" || event.source.id !== persona.id) {
+    fail("$.event", "must be the approval event for this persona");
+  }
+  if (event.householdId !== persona.householdId || event.memberId !== persona.memberId || event.visibility !== persona.visibility) {
+    fail("$.event", "must match the persona scope and visibility");
+  }
+  return { contractVersion: 1, persona, event };
 }
 
 function worldPersonaAt(input: unknown, path: string): WorldPersonaV1 {

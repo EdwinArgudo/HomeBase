@@ -2,9 +2,9 @@
 
 This directory contains the Vue/Hono implementation of the Homebase Living
 Game. The current React/Vinext application remains the rollback-safe Homebase
-experience at `/`. The current milestone connects the embedded preview's daily
-moves to the authenticated Homebase backend while keeping the surrounding world
-as a contract-backed visual preview.
+experience at `/`. The embedded preview uses authenticated daily moves,
+progress, and the current member's persistent manual persona while keeping the
+surrounding world as a contract-backed visual preview.
 
 ## Stack
 
@@ -27,12 +27,13 @@ as a contract-backed visual preview.
   accommodations
 
 In the embedded `/living-game` build, daily moves, their complete/defer/replace
-actions, and canonical current-member/household progress balances are live
-authenticated household data. The surrounding world scene, sprite cosmetics,
-adventures, and Ledger balances remain fixture-driven preview data. The embedded
-client never falls back to move or progress fixtures when authentication,
-storage, or networking fails. Access uses the existing private Sites project
-boundary; the client does not imitate authentication.
+actions, canonical current-member/household progress balances, and the current
+member's allow-listed manual persona appearance are live authenticated data.
+The apartment scene, any future partner personas, adventures, and Ledger
+balances remain preview-only. The embedded client never falls back to move,
+progress, or persona fixtures when authentication, storage, or networking
+fails. Access uses the existing private Sites project boundary; the client does
+not imitate authentication.
 
 ## Embedded private preview
 
@@ -56,8 +57,9 @@ Vue Router uses `/living-game/` as its embedded base, so routes such as
 The generated browser assets live under `public/living-game-preview/`; they are
 ignored and must not be committed. The normal standalone Vue/Hono build remains
 available through this package's `npm run build` command.
-That standalone build explicitly installs fixture move and progress adapters so
-local UI development and tests do not depend on the root authenticated APIs.
+That standalone build explicitly installs fixture move, progress, and persona
+adapters so local UI development and tests do not depend on the root
+authenticated APIs.
 
 ## Local development
 

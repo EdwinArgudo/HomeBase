@@ -1,17 +1,19 @@
 <script setup lang="ts">
 import { storeToRefs } from "pinia";
-import { onMounted } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 
 import DailyMoveCard from "../components/DailyMoveCard.vue";
 import WorldScene from "../components/WorldScene.vue";
 import { useDailyMovesStore } from "../stores/dailyMoves";
 import { useProgressStore } from "../stores/progress";
-import { useWorldStore } from "../stores/world";
+import { usePersonaStore } from "../stores/persona";
+import { worldFixture } from "../fixtures/game";
 
-const worldStore = useWorldStore();
 const movesStore = useDailyMovesStore();
 const progressStore = useProgressStore();
-const { selectedPersona, selectedPersonaId } = storeToRefs(worldStore);
+const personaStore = usePersonaStore();
+const { persona, loadState: personaLoadState, loadError: personaLoadError } = storeToRefs(personaStore);
+const selectedPersonaId = ref<string | null>(null);
 const { recommendedMove, loadState, loadError, feedback } = storeToRefs(movesStore);
 const {
   householdLevel,
@@ -22,6 +24,29 @@ const {
 
 onMounted(() => void movesStore.ensureLoaded());
 onMounted(() => void progressStore.ensureLoaded());
+onMounted(() => void personaStore.ensureLoaded());
+
+const projection = computed(() => ({
+  ...worldFixture,
+  personas: persona.value ? [{
+    id: persona.value.id,
+    displayName: persona.value.displayName,
+    altDescription: `${persona.value.displayName}'s saved manual pixel persona in the preview apartment.`,
+    visibility: persona.value.visibility,
+    activity: "idle" as const,
+    x: 28,
+    y: 62,
+    manifest: persona.value.manifest,
+  }] : [],
+}));
+const appearances = computed(() => persona.value ? { [persona.value.id]: persona.value.appearance } : {});
+const selectedPersona = computed(() => projection.value.personas.find((candidate) => candidate.id === selectedPersonaId.value) ?? null);
+
+watch(persona, (current) => { selectedPersonaId.value = current?.id ?? null; }, { immediate: true });
+
+function selectPersona(personaId: string) {
+  if (projection.value.personas.some((candidate) => candidate.id === personaId)) selectedPersonaId.value = personaId;
+}
 
 function activityLabel(activity: string) {
   return activity.replace("_", " ");
@@ -47,10 +72,20 @@ function activityLabel(activity: string) {
       </p>
     </header>
 
+    <div v-if="personaLoadState === 'idle' || personaLoadState === 'loading'" class="persona-load-state" role="status" aria-live="polite">Loading your saved persona…</div>
+    <div v-else-if="personaLoadState === 'error'" class="persona-load-state" role="alert">
+      <p>{{ personaLoadError }}</p><button type="button" class="inline-retry" @click="personaStore.ensureLoaded(true)">Retry</button>
+    </div>
+    <div v-else-if="!persona" class="persona-load-state">
+      No persona is saved yet. <RouterLink to="/persona">Create your persona</RouterLink> to enter the preview world.
+    </div>
+
     <WorldScene
-      :world="worldStore.projection"
+      v-if="personaLoadState === 'ready' && persona"
+      :world="projection"
+      :appearances="appearances"
       :selected-persona-id="selectedPersonaId"
-      @select-persona="worldStore.selectPersona"
+      @select-persona="selectPersona"
     />
 
     <div class="world-dashboard">
@@ -63,14 +98,14 @@ function activityLabel(activity: string) {
           <span class="status-orb" aria-label="Preview world is ready" />
         </div>
         <ul>
-          <li v-for="persona in worldStore.projection.personas" :key="persona.id">
+          <li v-for="worldPersona in projection.personas" :key="worldPersona.id">
             <button
               type="button"
-              :aria-pressed="persona.id === selectedPersonaId"
-              @click="worldStore.selectPersona(persona.id)"
+              :aria-pressed="worldPersona.id === selectedPersonaId"
+              @click="selectPersona(worldPersona.id)"
             >
-              <span class="mini-avatar" :class="persona.id.includes('vienna') ? 'mini-avatar--berry' : ''" aria-hidden="true" />
-              <span><strong>{{ persona.displayName }}</strong><small>{{ activityLabel(persona.activity) }}</small></span>
+              <span class="mini-avatar" aria-hidden="true" />
+              <span><strong>{{ worldPersona.displayName }}</strong><small>{{ activityLabel(worldPersona.activity) }}</small></span>
             </button>
           </li>
         </ul>
@@ -114,7 +149,7 @@ function activityLabel(activity: string) {
     </div>
 
     <p class="world-text-equivalent">
-      World summary: Edwin is tending the home. Vienna is reading. Your available move is
+      World summary: {{ persona ? `${persona.displayName}'s saved persona is idle in the preview scene.` : "No saved persona is in the preview scene." }} Your available move is
       {{ loadState === "loading" || loadState === "idle" ? "loading" : recommendedMove?.title ?? "complete for today" }}.
       Household progress is level {{ householdLevel }} with {{ householdPoints }} points. The scene remains a preview.
     </p>

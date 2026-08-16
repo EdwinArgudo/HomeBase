@@ -743,6 +743,48 @@ summary:focus-visible,
   background: #6f4a37;
 }
 
+.persona-skin--warm .pixel-persona__head { background: #bb7959; }
+.persona-skin--golden .pixel-persona__head { background: #d19a64; }
+.persona-skin--deep .pixel-persona__head { background: #754833; }
+.persona-skin--rose .pixel-persona__head { background: #d99a8c; }
+.persona-hair-color--espresso .pixel-persona__hair { background: #4a332a; }
+.persona-hair-color--chestnut .pixel-persona__hair { background: #784c36; }
+.persona-hair-color--gold .pixel-persona__hair { background: #c49345; }
+.persona-hair-color--midnight .pixel-persona__hair { background: #26323e; }
+.persona-hair--short .pixel-persona__hair { height: 1.05rem; }
+.persona-hair--waves .pixel-persona__hair { border-radius: 0.8rem 0.45rem 0 0.5rem; }
+.persona-hair--curls .pixel-persona__hair { height: 1.45rem; border-radius: 0.8rem; }
+.persona-hair--long .pixel-persona__hair { height: 2.25rem; }
+.persona-outfit--mint .pixel-persona__body { background: var(--mint); }
+.persona-outfit--berry .pixel-persona__body { background: var(--berry); }
+.persona-outfit--sun .pixel-persona__body { background: var(--sun); }
+
+.pixel-persona__accent {
+  position: absolute;
+  z-index: 3;
+  display: none;
+}
+
+.persona-accent--glasses .pixel-persona__accent {
+  top: 0.58rem;
+  left: 0.15rem;
+  display: block;
+  width: 0.55rem;
+  height: 0.42rem;
+  border: 2px solid var(--ink);
+  box-shadow: 0.72rem 0 0 -2px var(--ink), 0.72rem 0 0 0 var(--ink);
+}
+
+.persona-accent--headband .pixel-persona__accent {
+  top: -0.18rem;
+  left: -0.15rem;
+  display: block;
+  width: 1.8rem;
+  height: 0.22rem;
+  background: var(--sun);
+  border: 1px solid var(--ink);
+}
+
 .pixel-persona__legs {
   top: 4rem;
   left: 0.62rem;
@@ -1328,6 +1370,82 @@ summary:focus-visible,
   font-size: 0.8rem;
 }
 
+.persona-load-state,
+.persona-builder {
+  margin-top: 1rem;
+  padding: 1.25rem;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 1rem;
+}
+
+.persona-load-state .inline-retry {
+  margin-top: 0.75rem;
+}
+
+.persona-builder__heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 1.5rem;
+}
+
+.persona-builder__heading > p {
+  max-width: 34rem;
+  font-size: 0.8rem;
+}
+
+.persona-builder__controls {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: 0.85rem;
+  margin-top: 1.25rem;
+}
+
+.persona-builder label {
+  display: grid;
+  gap: 0.35rem;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: capitalize;
+}
+
+.persona-builder input,
+.persona-builder select {
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0.55rem 0.65rem;
+  color: var(--ink);
+  background: var(--canvas);
+  border: 1px solid var(--line);
+  border-radius: 0.65rem;
+  font: inherit;
+  text-transform: none;
+}
+
+.persona-builder__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.persona-unsaved,
+.persona-action-feedback {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.persona-action-feedback {
+  min-height: 1.25rem;
+  margin-top: 0.75rem;
+}
+
+.persona-action-feedback--error {
+  color: #8a3240;
+}
+
 .swatch-row {
   display: flex;
   gap: 0.75rem;
@@ -1685,7 +1803,8 @@ summary:focus-visible,
 
   .view-intro,
   .display-heading,
-  .customization-panel {
+  .customization-panel,
+  .persona-builder__heading {
     align-items: flex-start;
     flex-direction: column;
     gap: 0.85rem;

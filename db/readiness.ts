@@ -10,11 +10,15 @@ const READINESS_QUERY = `SELECT
   ge.idempotency_key AS game_event_idempotency_key,
   ge.payload_version AS game_event_payload_version,
   pb.lifetime_points AS progress_lifetime_points,
-  pb.level AS progress_level
+  pb.level AS progress_level,
+  p.appearance_json AS persona_appearance_json,
+  p.active_loadout_json AS persona_active_loadout_json,
+  p.approved_at AS persona_approved_at
 FROM bank_connections bc
 LEFT JOIN daily_moves dm ON 0
 LEFT JOIN game_events ge ON 0
 LEFT JOIN progress_balances pb ON 0
+LEFT JOIN personas p ON 0
 LIMIT 0`;
 
 export class DatabaseSchemaNotReadyError extends Error {

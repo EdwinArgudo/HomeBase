@@ -220,6 +220,32 @@ export const dailyMoves = sqliteTable("daily_moves", {
   check("daily_moves_replacement_count_check", sql`${table.replacementCount} BETWEEN 0 AND 1`),
 ]);
 
+export const personas = sqliteTable("personas", {
+  id: text("id").primaryKey(),
+  householdId: text("household_id").notNull().references(() => households.id),
+  memberId: text("member_id").notNull().references(() => members.id),
+  displayName: text("display_name").notNull(),
+  creationMethod: text("creation_method", { enum: ["manual"] }).notNull().default("manual"),
+  status: text("status", { enum: ["draft", "ready", "deleted"] }).notNull().default("draft"),
+  baseStyleVersion: text("base_style_version").notNull().default("homebase-pixel-v1"),
+  appearanceJson: text("appearance_json").notNull(),
+  activeLoadoutJson: text("active_loadout_json").notNull().default("{}"),
+  visibility: text("visibility", { enum: ["private", "household"] }).notNull().default("private"),
+  approvedAt: text("approved_at"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  deletedAt: text("deleted_at"),
+}, (table) => [
+  uniqueIndex("idx_personas_member_active").on(table.householdId, table.memberId).where(sql`${table.deletedAt} IS NULL`),
+  index("idx_personas_household_member_status").on(table.householdId, table.memberId, table.status),
+  check("personas_creation_method_check", sql`${table.creationMethod} = 'manual'`),
+  check("personas_status_check", sql`${table.status} IN ('draft', 'ready', 'deleted')`),
+  check("personas_visibility_check", sql`${table.visibility} IN ('private', 'household')`),
+  check("personas_appearance_json_check", sql`json_valid(${table.appearanceJson})`),
+  check("personas_loadout_json_check", sql`json_valid(${table.activeLoadoutJson})`),
+  check("personas_approval_check", sql`(${table.status} = 'ready' AND ${table.approvedAt} IS NOT NULL AND ${table.deletedAt} IS NULL) OR (${table.status} = 'draft' AND ${table.approvedAt} IS NULL AND ${table.deletedAt} IS NULL) OR (${table.status} = 'deleted' AND ${table.deletedAt} IS NOT NULL)`),
+]);
+
 export const gameEvents = sqliteTable("game_events", {
   id: text("id").primaryKey(),
   householdId: text("household_id").notNull().references(() => households.id),

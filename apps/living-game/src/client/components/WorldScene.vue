@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { WorldProjectionV1 } from "@homebase/contracts";
+import type { PersonaAppearanceV1, WorldProjectionV1 } from "@homebase/contracts";
 
 import PersonaSprite from "./PersonaSprite.vue";
 
@@ -7,6 +7,7 @@ defineProps<{
   world: WorldProjectionV1;
   selectedPersonaId?: string | null;
   displayMode?: boolean;
+  appearances?: Record<string, PersonaAppearanceV1>;
 }>();
 
 defineEmits<{
@@ -39,6 +40,7 @@ defineEmits<{
       class="world-scene__persona"
       :class="`world-scene__persona--${index + 1}`"
       :persona="persona"
+      :appearance="appearances?.[persona.id]"
       :variant="index % 2 === 0 ? 'mint' : 'berry'"
       :selected="persona.id === selectedPersonaId"
       :static="displayMode"
