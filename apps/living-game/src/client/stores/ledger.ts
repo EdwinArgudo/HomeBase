@@ -2,10 +2,11 @@ import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 
 import type { LedgerApi, LedgerLimitChange, LedgerNewCategory, LedgerSnapshot, LedgerSplitPart } from "../api/ledger";
+import { PlaidLinkClosed, type PlaidLinkLauncher } from "../api/plaidLink";
 
-let runtime: { api: LedgerApi } | null = null;
+let runtime: { api: LedgerApi; openPlaidLink: PlaidLinkLauncher } | null = null;
 
-export function configureLedgerRuntime(configuration: { api: LedgerApi }) {
+export function configureLedgerRuntime(configuration: { api: LedgerApi; openPlaidLink: PlaidLinkLauncher }) {
   runtime = configuration;
 }
 
@@ -120,6 +121,53 @@ export const useLedgerStore = defineStore("ledger", () => {
     }
   }
 
+  const bankState = ref<"idle" | "linking">("idle");
+
+  async function withLink(connectionId: string | undefined, finish: () => Promise<void>, done: string) {
+    if (bankState.value !== "idle") return false;
+    bankState.value = "linking";
+    actionError.value = "";
+    feedback.value = "";
+    try {
+      const linkToken = await configuredRuntime().api.startBankLink(connectionId);
+      await finishWithToken(linkToken, finish);
+      feedback.value = done;
+      return true;
+    } catch (error) {
+      // Closing Plaid Link is a decision, not a failure.
+      if (error instanceof PlaidLinkClosed) {
+        feedback.value = error.message;
+        return false;
+      }
+      actionError.value = safeMessage(error, "That bank connection could not be saved.");
+      return false;
+    } finally {
+      bankState.value = "idle";
+    }
+  }
+
+  let pendingLink: { publicToken: string; institutionName: string | null } | null = null;
+
+  async function finishWithToken(linkToken: string, finish: () => Promise<void>) {
+    pendingLink = await configuredRuntime().openPlaidLink(linkToken);
+    await finish();
+    await ensureLoaded(true);
+    pendingLink = null;
+  }
+
+  async function connectBank(ownership: "ours" | "mine") {
+    return withLink(undefined, async () => {
+      if (!pendingLink) return;
+      await configuredRuntime().api.saveBankConnection({ ...pendingLink, ownership });
+    }, "Bank connected. Homebase is importing your transactions.");
+  }
+
+  async function repairConnection(connectionId: string) {
+    return withLink(connectionId, async () => {
+      await configuredRuntime().api.syncBankConnection(connectionId);
+    }, "Connection repaired and refreshed.");
+  }
+
   async function saveLimits(changes: LedgerLimitChange[]) {
     const month = snapshot.value?.monthValue ?? "";
     if (changes.length === 0 || month.length === 0) return false;
@@ -156,6 +204,8 @@ export const useLedgerStore = defineStore("ledger", () => {
 
   return {
     snapshot, loadState, loadError, busyTransactionIds, actionError, feedback, needsReviewCount,
+    bankState,
     ensureLoaded, review, split, removeMerchantRule, setTransfer, saveLimits, createCategory,
+    connectBank, repairConnection,
   };
 });

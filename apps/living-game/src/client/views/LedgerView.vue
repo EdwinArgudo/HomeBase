@@ -6,7 +6,8 @@ import { amountInCents, type LedgerCategory, type LedgerScope } from "../api/led
 import { useLedgerStore } from "../stores/ledger";
 
 const ledger = useLedgerStore();
-const { snapshot, loadState, loadError, busyTransactionIds, actionError, feedback } = storeToRefs(ledger);
+const { snapshot, loadState, loadError, busyTransactionIds, actionError, feedback, bankState } = storeToRefs(ledger);
+const connectionScope = ref<"ours" | "mine">("ours");
 
 const scopeLabels: Record<LedgerScope, string> = { ours: "Ours", mine: "Mine", yours: "Yours" };
 const drafts = reactive<Record<string, { categoryId: string; createRule: boolean }>>({});
@@ -52,13 +53,19 @@ const editingScope = ref<LedgerScope | null>(null);
 const limitDrafts = reactive<Record<string, { limit: string | number; rolloverEnabled: boolean }>>({});
 const newCategory = reactive({ name: "", limit: "" as string | number });
 
-function beginEditing(scope: LedgerScope, categories: LedgerCategory[]) {
+function beginEditing(scope: LedgerScope) {
   editingScope.value = scope;
   newCategory.name = "";
   newCategory.limit = "";
-  for (const category of categories.filter((entry) => entry.editable)) {
+  for (const key of Object.keys(limitDrafts)) delete limitDrafts[key];
+}
+
+// Lazily, so a category added mid-edit has a draft the moment it appears.
+function limitDraftFor(category: LedgerCategory) {
+  if (!limitDrafts[category.id]) {
     limitDrafts[category.id] = { limit: category.baseLimit, rolloverEnabled: category.rolloverEnabled };
   }
+  return limitDrafts[category.id]!;
 }
 
 function stopEditing() {
@@ -288,7 +295,7 @@ onMounted(() => void ledger.ensureLoaded());
             v-if="scope !== 'yours' && snapshot.isCurrentMonth && editingScope !== scope"
             type="button"
             class="move-secondary-action"
-            @click="beginEditing(scope, snapshot.budgets[scope])"
+            @click="beginEditing(scope)"
           >Adjust limits</button>
         </div>
 
@@ -322,7 +329,7 @@ onMounted(() => void ledger.ensureLoaded());
               <label>
                 <span class="visually-hidden">{{ category.name }} monthly limit</span>
                 <input
-                  v-model="limitDrafts[category.id]!.limit"
+                  v-model="limitDraftFor(category).limit"
                   type="number"
                   min="0"
                   step="1"
@@ -330,7 +337,7 @@ onMounted(() => void ledger.ensureLoaded());
                 >
               </label>
               <label class="rule-option">
-                <input v-model="limitDrafts[category.id]!.rolloverEnabled" type="checkbox">
+                <input v-model="limitDraftFor(category).rolloverEnabled" type="checkbox">
                 Carry over what is left
               </label>
             </div>
@@ -414,18 +421,47 @@ onMounted(() => void ledger.ensureLoaded());
           <span class="connection-pill">{{ snapshot.merchantRules.length }} merchant rules</span>
         </div>
         <p v-if="!snapshot.plaidConfigured" class="ledger-empty">
-          No bank is connected yet, so these figures come from Homebase's demonstration data.
+          Bank connections are switched off in this environment, so these figures come from
+          Homebase's demonstration data.
         </p>
-        <ul v-else-if="snapshot.connections.length === 0" class="ledger-empty">No connections yet.</ul>
-        <ul v-else class="connection-list">
-          <li v-for="connection in snapshot.connections" :key="connection.id" :class="`connection--${connection.health}`">
-            <div class="review-row__what">
-              <strong>{{ connection.institutionName }}</strong>
-              <span>{{ connection.healthMessage }}</span>
-            </div>
-            <b>{{ connection.healthLabel }}</b>
-          </li>
-        </ul>
+        <template v-else>
+          <p v-if="snapshot.connections.length === 0" class="ledger-empty">
+            No bank is connected yet. Homebase never sees your bank sign-in — that happens inside
+            your bank's own screen.
+          </p>
+          <ul v-else class="connection-list">
+            <li v-for="connection in snapshot.connections" :key="connection.id" :class="`connection--${connection.health}`">
+              <div class="review-row__what">
+                <strong>{{ connection.institutionName }}</strong>
+                <span>{{ connection.healthMessage }}</span>
+              </div>
+              <button
+                v-if="connection.needsRepair"
+                type="button"
+                class="move-secondary-action"
+                :disabled="bankState !== 'idle'"
+                @click="ledger.repairConnection(connection.id)"
+              >{{ bankState === "linking" ? "Opening…" : "Repair" }}</button>
+              <b>{{ connection.healthLabel }}</b>
+            </li>
+          </ul>
+
+          <div class="connect-bank">
+            <label>
+              <span class="visually-hidden">Whose accounts are these</span>
+              <select v-model="connectionScope" :disabled="bankState !== 'idle'">
+                <option value="ours">Shared accounts</option>
+                <option value="mine">My accounts</option>
+              </select>
+            </label>
+            <button
+              type="button"
+              class="action-button"
+              :disabled="bankState !== 'idle'"
+              @click="ledger.connectBank(connectionScope)"
+            >{{ bankState === "linking" ? "Opening your bank…" : "Connect a bank" }}</button>
+          </div>
+        </template>
       </section>
       <section class="ledger-panel" aria-labelledby="rules-heading">
         <div class="section-heading-row">

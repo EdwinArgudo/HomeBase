@@ -40,6 +40,8 @@ export type LedgerConnection = {
   health: string;
   healthLabel: string;
   healthMessage: string;
+  /** A connection Plaid can no longer refresh until the person signs in again. */
+  needsRepair: boolean;
 };
 
 export type LedgerSnapshot = {
@@ -65,6 +67,9 @@ export interface LedgerApi {
   split(transactionId: string, parts: LedgerSplitPart[]): Promise<void>;
   removeMerchantRule(ruleId: string): Promise<void>;
   setTransfer(transactionId: string, isTransfer: boolean): Promise<void>;
+  startBankLink(connectionId?: string): Promise<string>;
+  saveBankConnection(input: { publicToken: string; ownership: "ours" | "mine"; institutionName: string | null }): Promise<void>;
+  syncBankConnection(connectionId: string): Promise<void>;
   saveLimits(month: string, changes: LedgerLimitChange[]): Promise<void>;
   createCategory(month: string, category: LedgerNewCategory): Promise<void>;
 }
@@ -77,6 +82,16 @@ export class LedgerApiError extends Error {
 }
 
 const FALLBACK = "Unable to read your ledger.";
+
+function record(input: unknown, fallback: string): Record<string, unknown> {
+  if (input === null || typeof input !== "object" || Array.isArray(input)) throw new LedgerApiError(fallback);
+  return input as Record<string, unknown>;
+}
+
+function text(value: unknown, fallback: string, max = 200): string {
+  if (typeof value !== "string" || value.length < 1 || value.length > max) throw new LedgerApiError(fallback);
+  return value;
+}
 
 function plain(input: unknown): Record<string, unknown> {
   if (input === null || typeof input !== "object" || Array.isArray(input)) throw new LedgerApiError(FALLBACK);
@@ -169,6 +184,7 @@ export function snapshotFrom(input: unknown): LedgerSnapshot {
         health: str(row.health, "healthy"),
         healthLabel: str(row.healthLabel, "Up to date"),
         healthMessage: str(row.healthMessage),
+        needsRepair: str(row.health) === "attention" || str(row.health) === "warning",
       };
     }),
     plaidConfigured: plaid.configured === true,
@@ -236,6 +252,36 @@ export function createHttpLedgerApi(): LedgerApi {
         body: JSON.stringify({ id: transactionId, isTransfer }),
       });
       await readJson(response, "Unable to update that transaction.");
+    },
+    async startBankLink(connectionId) {
+      const fallback = "Plaid Link could not start.";
+      const response = await fetch("/api/plaid/link-token", {
+        method: "POST",
+        headers: { "content-type": "application/json", accept: "application/json" },
+        body: JSON.stringify(connectionId ? { connectionId } : {}),
+      });
+      const data = record(await readJson(response, fallback), fallback);
+      return text(data.linkToken, fallback, 500);
+    },
+    async saveBankConnection(input) {
+      const response = await fetch("/api/plaid/exchange", {
+        method: "POST",
+        headers: { "content-type": "application/json", accept: "application/json" },
+        body: JSON.stringify({
+          publicToken: input.publicToken,
+          ownership: input.ownership,
+          institutionName: input.institutionName ?? undefined,
+        }),
+      });
+      await readJson(response, "That bank connection could not be saved.");
+    },
+    async syncBankConnection(connectionId) {
+      const response = await fetch("/api/plaid/sync", {
+        method: "POST",
+        headers: { "content-type": "application/json", accept: "application/json" },
+        body: JSON.stringify({ connectionId }),
+      });
+      await readJson(response, "That bank could not be refreshed.");
     },
     async saveLimits(month, changes) {
       const response = await fetch("/api/budgets/categories", {
@@ -325,8 +371,9 @@ export function createFixtureLedgerApi(): LedgerApi {
       health: "healthy",
       healthLabel: "Up to date",
       healthMessage: "Automatic refresh is working.",
+      needsRepair: false,
     }],
-    plaidConfigured: false,
+    plaidConfigured: true,
     merchantRules: [
       { id: "rule-costco", merchant: "Costco", category: "Groceries", scope: "Ours" },
       { id: "rule-mta", merchant: "MTA", category: "Transportation", scope: "Ours" },
@@ -344,6 +391,25 @@ export function createFixtureLedgerApi(): LedgerApi {
     },
     async removeMerchantRule(ruleId) {
       snapshot.merchantRules = snapshot.merchantRules.filter((rule) => rule.id !== ruleId);
+    },
+    async startBankLink() {
+      return "link-sandbox-token";
+    },
+    async saveBankConnection(input) {
+      snapshot.plaidConfigured = true;
+      snapshot.connections = [...snapshot.connections, {
+        id: `connection-${snapshot.connections.length + 1}`,
+        institutionName: input.institutionName ?? "Bank",
+        health: "healthy",
+        healthLabel: "Up to date",
+        healthMessage: "Automatic refresh is working.",
+        needsRepair: false,
+      }];
+    },
+    async syncBankConnection(connectionId) {
+      snapshot.connections = snapshot.connections.map((connection) => (connection.id === connectionId
+        ? { ...connection, health: "healthy", healthLabel: "Up to date", healthMessage: "Automatic refresh is working.", needsRepair: false }
+        : connection));
     },
     async setTransfer(transactionId, isTransfer) {
       const entry = [...snapshot.needsReview, ...snapshot.recent].find((row) => row.id === transactionId);

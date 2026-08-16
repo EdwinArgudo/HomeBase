@@ -16,6 +16,7 @@ import { createFixtureSettingsApi, createHttpSettingsApi } from "./api/settings"
 import { createFixtureHouseholdApi, createHttpHouseholdApi } from "./api/household";
 import { createFixtureDisplayWorldApi, createHttpDisplayWorldApi } from "./api/displayWorld";
 import { createFixtureLedgerApi, createHttpLedgerApi } from "./api/ledger";
+import { createBrowserPlaidLinkLauncher, createFixturePlaidLinkLauncher } from "./api/plaidLink";
 import { router } from "./router";
 import { configureDailyMovesRuntime } from "./stores/dailyMoves";
 import { configureProgressRuntime } from "./stores/progress";
@@ -50,6 +51,9 @@ configureRewardsRuntime({ api: liveRewards ? createHttpRewardsApi() : createFixt
 configureSettingsRuntime({ api: liveMoves ? createHttpSettingsApi() : createFixtureSettingsApi() });
 configureHouseholdRuntime({ api: liveWorld ? createHttpHouseholdApi() : createFixtureHouseholdApi() });
 configureDisplayWorldRuntime({ api: liveWorld ? createHttpDisplayWorldApi() : createFixtureDisplayWorldApi() });
-configureLedgerRuntime({ api: liveWorld ? createHttpLedgerApi() : createFixtureLedgerApi() });
+configureLedgerRuntime({
+  api: liveWorld ? createHttpLedgerApi() : createFixtureLedgerApi(),
+  openPlaidLink: liveWorld ? createBrowserPlaidLinkLauncher() : createFixturePlaidLinkLauncher(),
+});
 
 createApp(App).use(createPinia()).use(router).mount("#app");

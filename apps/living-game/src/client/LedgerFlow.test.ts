@@ -2,6 +2,7 @@ import { flushPromises, mount } from "@vue/test-utils";
 import { createPinia, setActivePinia } from "pinia";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { PlaidLinkClosed, PlaidLinkError, createFixturePlaidLinkLauncher } from "./api/plaidLink";
 import { createFixtureLedgerApi, snapshotFrom } from "./api/ledger";
 import { configureLedgerRuntime, useLedgerStore } from "./stores/ledger";
 import LedgerView from "./views/LedgerView.vue";
@@ -49,7 +50,7 @@ describe("the ledger", () => {
     const api = createFixtureLedgerApi();
     const review = vi.spyOn(api, "review");
     const load = vi.spyOn(api, "load");
-    configureLedgerRuntime({ api });
+    configureLedgerRuntime({ api, openPlaidLink: createFixturePlaidLinkLauncher() });
 
     const wrapper = mount(LedgerView);
     await flushPromises();
@@ -69,7 +70,7 @@ describe("the ledger", () => {
   it("keeps a purchase in place when the server refuses it", async () => {
     const api = createFixtureLedgerApi();
     vi.spyOn(api, "review").mockRejectedValue(new Error("Choose a budget category for this transaction."));
-    configureLedgerRuntime({ api });
+    configureLedgerRuntime({ api, openPlaidLink: createFixturePlaidLinkLauncher() });
 
     const wrapper = mount(LedgerView);
     await flushPromises();
@@ -91,7 +92,7 @@ describe("splitting a purchase", () => {
   it("stays closed until the parts add up exactly, then sends whole cents", async () => {
     const api = createFixtureLedgerApi();
     const split = vi.spyOn(api, "split");
-    configureLedgerRuntime({ api });
+    configureLedgerRuntime({ api, openPlaidLink: createFixturePlaidLinkLauncher() });
 
     const wrapper = mount(LedgerView);
     await flushPromises();
@@ -126,7 +127,7 @@ describe("splitting a purchase", () => {
   });
 
   it("refuses to send the same category twice", async () => {
-    configureLedgerRuntime({ api: createFixtureLedgerApi() });
+    configureLedgerRuntime({ api: createFixtureLedgerApi(), openPlaidLink: createFixturePlaidLinkLauncher() });
     const wrapper = mount(LedgerView);
     await flushPromises();
     await wrapper.get(".review-list .move-secondary-action").trigger("click");
@@ -153,7 +154,7 @@ describe("merchant rules", () => {
   it("removes a rule and re-reads the ledger", async () => {
     const api = createFixtureLedgerApi();
     const remove = vi.spyOn(api, "removeMerchantRule");
-    configureLedgerRuntime({ api });
+    configureLedgerRuntime({ api, openPlaidLink: createFixturePlaidLinkLauncher() });
 
     const wrapper = mount(LedgerView);
     await flushPromises();
@@ -176,7 +177,7 @@ describe("budget limits", () => {
   it("sends only the limits that actually moved", async () => {
     const api = createFixtureLedgerApi();
     const saveLimits = vi.spyOn(api, "saveLimits");
-    configureLedgerRuntime({ api });
+    configureLedgerRuntime({ api, openPlaidLink: createFixturePlaidLinkLauncher() });
 
     const wrapper = mount(LedgerView);
     await flushPromises();
@@ -202,7 +203,7 @@ describe("budget limits", () => {
   it("treats turning carry-over on as a change of its own", async () => {
     const api = createFixtureLedgerApi();
     const saveLimits = vi.spyOn(api, "saveLimits");
-    configureLedgerRuntime({ api });
+    configureLedgerRuntime({ api, openPlaidLink: createFixturePlaidLinkLauncher() });
 
     const wrapper = mount(LedgerView);
     await flushPromises();
@@ -218,7 +219,7 @@ describe("budget limits", () => {
   });
 
   it("never offers to edit a partner's spending", async () => {
-    configureLedgerRuntime({ api: createFixtureLedgerApi() });
+    configureLedgerRuntime({ api: createFixtureLedgerApi(), openPlaidLink: createFixturePlaidLinkLauncher() });
     const wrapper = mount(LedgerView);
     await flushPromises();
 
@@ -232,7 +233,7 @@ describe("budget limits", () => {
   it("adds a category to the scope being edited", async () => {
     const api = createFixtureLedgerApi();
     const createCategory = vi.spyOn(api, "createCategory");
-    configureLedgerRuntime({ api });
+    configureLedgerRuntime({ api, openPlaidLink: createFixturePlaidLinkLauncher() });
 
     const wrapper = mount(LedgerView);
     await flushPromises();
@@ -255,7 +256,7 @@ describe("transfers and refunds", () => {
   it("marks a purchase as moving money, which takes it out of the inbox", async () => {
     const api = createFixtureLedgerApi();
     const setTransfer = vi.spyOn(api, "setTransfer");
-    configureLedgerRuntime({ api });
+    configureLedgerRuntime({ api, openPlaidLink: createFixturePlaidLinkLauncher() });
 
     const wrapper = mount(LedgerView);
     await flushPromises();
@@ -273,7 +274,7 @@ describe("transfers and refunds", () => {
   it("shows a transfer as not counted, and can count it again", async () => {
     const api = createFixtureLedgerApi();
     const setTransfer = vi.spyOn(api, "setTransfer");
-    configureLedgerRuntime({ api });
+    configureLedgerRuntime({ api, openPlaidLink: createFixturePlaidLinkLauncher() });
 
     const wrapper = mount(LedgerView);
     await flushPromises();
@@ -289,7 +290,7 @@ describe("transfers and refunds", () => {
   it("can reclassify a purchase that was already filed as spending", async () => {
     const api = createFixtureLedgerApi();
     const setTransfer = vi.spyOn(api, "setTransfer");
-    configureLedgerRuntime({ api });
+    configureLedgerRuntime({ api, openPlaidLink: createFixturePlaidLinkLauncher() });
 
     const wrapper = mount(LedgerView);
     await flushPromises();
@@ -302,7 +303,7 @@ describe("transfers and refunds", () => {
   });
 
   it("reads a refund as money coming back rather than a negative purchase", async () => {
-    configureLedgerRuntime({ api: createFixtureLedgerApi() });
+    configureLedgerRuntime({ api: createFixtureLedgerApi(), openPlaidLink: createFixturePlaidLinkLauncher() });
     const wrapper = mount(LedgerView);
     await flushPromises();
 
@@ -310,6 +311,103 @@ describe("transfers and refunds", () => {
     expect(refundRow.text()).toContain("Money back into Clothing");
     expect(refundRow.get("b").text()).toContain("+$32.50");
     expect(refundRow.get("b").text()).not.toContain("-");
+    wrapper.unmount();
+  });
+});
+
+describe("connecting a bank", () => {
+  beforeEach(() => {
+    setActivePinia(createPinia());
+  });
+
+  it("takes the token from Homebase, the sign-in from Plaid, and saves what comes back", async () => {
+    const api = createFixtureLedgerApi();
+    const startBankLink = vi.spyOn(api, "startBankLink");
+    const saveBankConnection = vi.spyOn(api, "saveBankConnection");
+    const openPlaidLink = vi.fn().mockResolvedValue({ publicToken: "public-token", institutionName: "Chase" });
+    configureLedgerRuntime({ api, openPlaidLink });
+
+    const wrapper = mount(LedgerView);
+    await flushPromises();
+    await wrapper.findAll(".connect-bank button").find((button) => button.text().includes("Connect a bank"))!.trigger("click");
+    await flushPromises();
+
+    expect(startBankLink).toHaveBeenCalledWith(undefined);
+    expect(openPlaidLink).toHaveBeenCalledWith("link-sandbox-token");
+    // Only the public token crosses back; no credential ever reaches Homebase.
+    expect(saveBankConnection).toHaveBeenCalledWith({
+      publicToken: "public-token",
+      institutionName: "Chase",
+      ownership: "ours",
+    });
+    expect(wrapper.text()).toContain("Chase");
+    wrapper.unmount();
+  });
+
+  it("treats closing Plaid Link as a decision, not an error", async () => {
+    const api = createFixtureLedgerApi();
+    const saveBankConnection = vi.spyOn(api, "saveBankConnection");
+    configureLedgerRuntime({ api, openPlaidLink: vi.fn().mockRejectedValue(new PlaidLinkClosed()) });
+
+    const wrapper = mount(LedgerView);
+    await flushPromises();
+    await wrapper.findAll(".connect-bank button").find((button) => button.text().includes("Connect a bank"))!.trigger("click");
+    await flushPromises();
+
+    expect(saveBankConnection).not.toHaveBeenCalled();
+    expect(wrapper.get('[role="status"]').text()).toContain("No bank connection was changed");
+    expect(wrapper.find(".ledger-feedback--error").exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it("surfaces a real Link failure", async () => {
+    configureLedgerRuntime({
+      api: createFixtureLedgerApi(),
+      openPlaidLink: vi.fn().mockRejectedValue(new PlaidLinkError("Plaid Link could not load.")),
+    });
+
+    const wrapper = mount(LedgerView);
+    await flushPromises();
+    await wrapper.findAll(".connect-bank button").find((button) => button.text().includes("Connect a bank"))!.trigger("click");
+    await flushPromises();
+
+    expect(wrapper.get('[role="alert"]').text()).toContain("Plaid Link could not load.");
+    wrapper.unmount();
+  });
+
+  it("offers no way to connect where bank connections are switched off", async () => {
+    const api = createFixtureLedgerApi();
+    const snapshot = await api.load();
+    snapshot.plaidConfigured = false;
+    vi.spyOn(api, "load").mockResolvedValue(snapshot);
+    configureLedgerRuntime({ api, openPlaidLink: createFixturePlaidLinkLauncher() });
+
+    const wrapper = mount(LedgerView);
+    await flushPromises();
+    // A button that cannot work is worse than an explanation.
+    expect(wrapper.find(".connect-bank").exists()).toBe(false);
+    expect(wrapper.text()).toContain("switched off in this environment");
+    wrapper.unmount();
+  });
+
+  it("repairs a connection through Link in update mode", async () => {
+    const api = createFixtureLedgerApi();
+    await api.saveBankConnection({ publicToken: "t", ownership: "ours", institutionName: "Wobbly Bank" });
+    const snapshot = await api.load();
+    snapshot.connections[snapshot.connections.length - 1]!.needsRepair = true;
+    vi.spyOn(api, "load").mockResolvedValue(snapshot);
+    const startBankLink = vi.spyOn(api, "startBankLink");
+    const syncBankConnection = vi.spyOn(api, "syncBankConnection");
+    configureLedgerRuntime({ api, openPlaidLink: createFixturePlaidLinkLauncher() });
+
+    const wrapper = mount(LedgerView);
+    await flushPromises();
+    await wrapper.findAll(".connection-list button").find((button) => button.text() === "Repair")!.trigger("click");
+    await flushPromises();
+
+    const connectionId = snapshot.connections[snapshot.connections.length - 1]!.id;
+    expect(startBankLink).toHaveBeenCalledWith(connectionId);
+    expect(syncBankConnection).toHaveBeenCalledWith(connectionId);
     wrapper.unmount();
   });
 });

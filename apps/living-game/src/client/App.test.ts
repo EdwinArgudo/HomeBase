@@ -16,6 +16,7 @@ import { createFixtureRewardsApi } from "./api/fixtureRewards";
 import { createFixturePersonaApi } from "./api/fixturePersona";
 import { createFixtureWorldApi } from "./api/fixtureWorld";
 import { createFixtureDisplayWorldApi } from "./api/displayWorld";
+import { createFixturePlaidLinkLauncher } from "./api/plaidLink";
 import { createFixtureLedgerApi } from "./api/ledger";
 import { createFixtureHouseholdApi } from "./api/household";
 import { routes } from "./router";
@@ -45,7 +46,7 @@ describe("client routes", () => {
     configurePersonaRuntime({ api: createFixturePersonaApi() });
     configureWorldRuntime({ api: createFixtureWorldApi() });
     configureDisplayWorldRuntime({ api: createFixtureDisplayWorldApi() });
-    configureLedgerRuntime({ api: createFixtureLedgerApi() });
+    configureLedgerRuntime({ api: createFixtureLedgerApi(), openPlaidLink: createFixturePlaidLinkLauncher() });
     configureHouseholdRuntime({ api: createFixtureHouseholdApi() });
   });
 
