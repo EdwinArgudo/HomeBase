@@ -35,6 +35,31 @@ describe("manual persona flow", () => {
     expect(wrapper.get(".persona-control--static").attributes("aria-label")).toContain("Steady Hands emblem");
   });
 
+  it("draws the sprite as whole-pixel rects coloured only through fixed classes", () => {
+    const wrapper = mount(PersonaSprite, {
+      props: {
+        persona: worldFixture.personas[0]!,
+        variant: "sun",
+        static: true,
+        appearance: { skinPalette: "deep", hairStyle: "long", hairColor: "gold", outfit: "berry", accent: "glasses" },
+      },
+    });
+
+    const rects = wrapper.findAll(".pixel-persona__sprite rect");
+    expect(rects.length).toBeGreaterThan(20);
+    for (const rect of rects) {
+      // Colour comes from a stylesheet class, never from an attribute built out
+      // of persona data, and every part lands on the pixel grid.
+      expect(rect.attributes("style")).toBeUndefined();
+      expect(rect.attributes("fill")).toBeUndefined();
+      for (const attribute of ["x", "y", "width", "height"] as const) {
+        expect(Number.isInteger(Number(rect.attributes(attribute)))).toBe(true);
+      }
+    }
+    expect(wrapper.findAll(".px--lens").length).toBe(2);
+    expect(wrapper.findAll(".px--hair").length).toBe(3);
+  });
+
   it("saves and approves the current persona through its dedicated API", async () => {
     configureDailyMovesRuntime({ api: createFixtureDailyMovesApi(), now: () => new Date(2026, 7, 15) });
     configureProgressRuntime({ api: createFixtureProgressApi() });

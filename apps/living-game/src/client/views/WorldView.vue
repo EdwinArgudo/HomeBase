@@ -37,8 +37,9 @@ function activityLabel(activity: string) {
         <h1 id="world-heading">Our World</h1>
       </div>
       <p v-if="progressLoadState === 'ready'" class="world-level" aria-live="polite">
+        <span class="visually-hidden">Household level</span>
         <span class="world-level__badge">{{ householdLevel }}</span>
-        <span class="world-level__text">Household level · {{ householdPoints }} points</span>
+        <span class="world-level__text">Household · {{ householdPoints }} points</span>
       </p>
       <p v-else-if="progressLoadState === 'idle' || progressLoadState === 'loading'" class="world-level" role="status" aria-live="polite">
         Loading household progress…
