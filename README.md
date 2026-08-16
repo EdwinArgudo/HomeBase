@@ -21,11 +21,42 @@ Financial accounts are still represented by seeded demonstration data and no fin
 
 ## Local development
 
-Requires Node.js 22.13 or newer.
+Requires Node.js 22.13 or newer. `npm install` also installs `apps/living-game`,
+which the build and the Vue test suite need.
 
 ```bash
 npm install
 npm run dev
 ```
 
-Use `npm run build` to create the deployable build and `npm test` to verify the rendered Homebase shell.
+The dev server starts with an empty local database, so every household request
+answers `503` until the checked-in migrations are applied. In a second terminal:
+
+```bash
+npm run db:migrate:local
+```
+
+This applies `drizzle/` migrations in journal order to the local Miniflare D1
+database and records what it applied, so it is safe to re-run after generating a
+new migration. Deployed environments are migrated by the hosting control plane;
+this command only touches local state.
+
+Then open <http://localhost:3000> once. The first signed-in visitor becomes the
+household owner and seeds demonstration data — the Living Game at
+<http://localhost:3000/living-game> reads that household and cannot bootstrap one
+on its own yet.
+
+If a local database predates this command, or local state gets into a shape you
+do not want, reset it: stop the dev server, run `npm run db:reset:local`, start
+the dev server, then migrate again. Local data is seeded demonstration data.
+
+## Verification
+
+| Command | Covers |
+| --- | --- |
+| `npm test` | Build, Node domain/route suites, and the Vue component suite |
+| `npm run lint` / `npm run lint:living-game` | ESLint for the root app and the Vue app |
+| `npm run type-check` | `vue-tsc` over the Vue app |
+| `npm run build` | The deployable build |
+
+CI runs the same commands on every push and pull request.

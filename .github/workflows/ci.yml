@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # 22.13.0 is the floor declared in package.json engines; the second entry
+        # tracks current Node. Both matter because the test suites use node:sqlite.
+        node-version: ["22.13.0", "24.x"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+
+      # postinstall installs apps/living-game, which the build and Vue tests need.
+      - run: npm ci
+
+      - run: npm run lint
+
+      - run: npm run lint:living-game
+
+      - run: npm run type-check
+
+      - run: npm test
