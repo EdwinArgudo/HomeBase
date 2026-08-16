@@ -180,6 +180,40 @@ summary:focus-visible,
   gap: 0.6rem;
 }
 
+.header-actions,
+.preview-context {
+  display: flex;
+  align-items: center;
+}
+
+.header-actions {
+  justify-self: end;
+  gap: 0.8rem;
+}
+
+.preview-context {
+  gap: 0.45rem;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.preview-badge {
+  padding: 0.3rem 0.5rem;
+  color: var(--ink);
+  background: var(--sun-pale);
+  border: 1px solid #c79535;
+  border-radius: 999px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.back-to-homebase {
+  padding: 0.35rem 0.45rem;
+  color: var(--mint-dark);
+  text-underline-offset: 0.2rem;
+}
+
 .utility-nav a {
   display: inline-flex;
   align-items: center;
@@ -1461,9 +1495,19 @@ summary:focus-visible,
 @media (max-width: 50rem) {
   .app-header {
     grid-template-columns: 1fr auto;
+    gap: 0.75rem;
   }
 
   .home-status {
+    display: none;
+  }
+
+  .header-actions {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  .preview-fixture {
     display: none;
   }
 
@@ -1500,7 +1544,15 @@ summary:focus-visible,
   }
 
   .app-header {
+    grid-template-columns: 1fr;
+    gap: 0.45rem;
     min-height: 4.5rem;
+    padding: 0.6rem 0;
+  }
+
+  .header-actions {
+    justify-self: stretch;
+    justify-content: space-between;
   }
 
   .brand__pet {

@@ -13,10 +13,18 @@ import PrimaryNavigation from "./components/PrimaryNavigation.vue";
 
       <p class="home-status"><span aria-hidden="true" /> Home feels calm</p>
 
-      <nav class="utility-nav" aria-label="Utilities">
-        <RouterLink class="ledger-link" to="/ledger"><span aria-hidden="true">▦</span> Ledger</RouterLink>
-        <RouterLink class="display-link" to="/display">Display</RouterLink>
-      </nav>
+      <div class="header-actions">
+        <div class="preview-context" aria-label="Preview uses fixture data">
+          <span class="preview-badge">Preview</span>
+          <span class="preview-fixture">Fixture data</span>
+          <a class="back-to-homebase" href="/">Current Homebase</a>
+        </div>
+
+        <nav class="utility-nav" aria-label="Utilities">
+          <RouterLink class="ledger-link" to="/ledger"><span aria-hidden="true">▦</span> Ledger</RouterLink>
+          <RouterLink class="display-link" to="/display">Display</RouterLink>
+        </nav>
+      </div>
     </header>
 
     <div class="app-layout">

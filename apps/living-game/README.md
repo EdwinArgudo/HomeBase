@@ -1,10 +1,10 @@
 # Homebase Living Game
 
-This directory is the parallel Vue/Hono implementation of the Homebase Living
-Game. It does not replace, modify, or deploy the current React/Vinext
-application. The current milestone is a contract-backed, fixture-driven world
-shell: it proves the interaction model and privacy boundary before the live
-backend is connected.
+This directory contains the Vue/Hono implementation of the Homebase Living
+Game. The current React/Vinext application remains the rollback-safe Homebase
+experience at `/`. The current milestone is a contract-backed, fixture-driven
+world shell: it proves the interaction model and privacy boundary before the
+live backend is connected.
 
 ## Stack
 
@@ -26,10 +26,34 @@ backend is connected.
 - Reduced-motion, keyboard-focus, screen-reader summary, and forced-colors
   accommodations
 
-The UI currently reads validated local fixtures. No database, object storage,
-Plaid, authentication, production game engine, or backend persistence is wired
-into this parallel app yet. The Ledger copy is a visual shell and does not
-represent live balances.
+The UI currently reads validated local fixtures. Its moves, progress, personas,
+and Ledger balances are preview data and are not live household records. No
+database, object storage, Plaid, production game engine, or backend persistence
+is wired into this preview yet. Access to the preview uses the existing private
+Sites project boundary; the client does not imitate authentication.
+
+## Embedded private preview
+
+The root project stages a Vue-only browser build and serves it from the same
+Vinext/Sites deployment at:
+
+```text
+http://localhost:3000/living-game
+```
+
+From the repository root, stage the preview assets before starting the local
+root server:
+
+```sh
+npm run build:living-game-preview
+npm run dev
+```
+
+Vue Router uses `/living-game/` as its embedded base, so routes such as
+`http://localhost:3000/living-game/persona` refresh through the root catch-all.
+The generated browser assets live under `public/living-game-preview/`; they are
+ignored and must not be committed. The normal standalone Vue/Hono build remains
+available through this package's `npm run build` command.
 
 ## Local development
 
@@ -52,5 +76,6 @@ npm run lint
 npm run build
 ```
 
-The generated build is local-only. Do not deploy this parallel application
-until the migration plan explicitly reaches the cutover phase.
+The standalone generated build is local-only. The embedded browser preview is
+published only as part of the existing private root Sites deployment; it is not
+a second application or a production-data cutover.

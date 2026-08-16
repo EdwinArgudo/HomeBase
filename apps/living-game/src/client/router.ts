@@ -17,6 +17,6 @@ export const routes = [
 ] as const;
 
 export const router = createRouter({
-  history: createWebHistory(),
+  history: createWebHistory(import.meta.env.VITE_ROUTER_BASE ?? import.meta.env.BASE_URL),
   routes: [...routes],
 });
