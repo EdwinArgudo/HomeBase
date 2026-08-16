@@ -5,6 +5,11 @@ export type LedgerCategory = {
   name: string;
   spent: number;
   limit: number;
+  /** The limit before rollover; this is the figure a person edits. */
+  baseLimit: number;
+  rollover: number;
+  rolloverEnabled: boolean;
+  editable: boolean;
 };
 
 export type LedgerTransaction = {
@@ -35,6 +40,8 @@ export type LedgerConnection = {
 
 export type LedgerSnapshot = {
   monthLabel: string;
+  monthValue: string;
+  isCurrentMonth: boolean;
   budgets: Record<LedgerScope, LedgerCategory[]>;
   categoryChoices: { id: string; name: string; scope: LedgerScope }[];
   needsReview: LedgerTransaction[];
@@ -45,12 +52,16 @@ export type LedgerSnapshot = {
 };
 
 export type LedgerSplitPart = { categoryId: string; amountCents: number };
+export type LedgerLimitChange = { id: string; limitCents: number; rolloverEnabled: boolean };
+export type LedgerNewCategory = { scope: "ours" | "mine"; name: string; limitCents: number };
 
 export interface LedgerApi {
   load(): Promise<LedgerSnapshot>;
   review(transactionId: string, categoryId: string, createRule: boolean): Promise<void>;
   split(transactionId: string, parts: LedgerSplitPart[]): Promise<void>;
   removeMerchantRule(ruleId: string): Promise<void>;
+  saveLimits(month: string, changes: LedgerLimitChange[]): Promise<void>;
+  createCategory(month: string, category: LedgerNewCategory): Promise<void>;
 }
 
 export class LedgerApiError extends Error {
@@ -79,13 +90,23 @@ function money(value: unknown): number {
   return typeof value === "number" && Number.isFinite(value) ? value : 0;
 }
 
-function categoryFrom(input: unknown): LedgerCategory {
+// A partner's private spending arrives as one aggregate row with a synthetic
+// id, and their own categories are theirs to set, so neither can be edited.
+const AGGREGATE_CATEGORY_ID = "private-partner-budget";
+
+function categoryFrom(input: unknown, editableScope: boolean): LedgerCategory {
   const row = plain(input);
+  const id = str(row.id);
+  const limit = money(row.limit);
   return {
-    id: str(row.id),
+    id,
     name: str(row.name, "Category"),
     spent: money(row.spent),
-    limit: money(row.limit),
+    limit,
+    baseLimit: typeof row.baseLimit === "number" ? money(row.baseLimit) : limit,
+    rollover: money(row.rollover),
+    rolloverEnabled: row.rolloverEnabled === true,
+    editable: editableScope && id.length > 0 && id !== AGGREGATE_CATEGORY_ID,
   };
 }
 
@@ -114,19 +135,22 @@ export function snapshotFrom(input: unknown): LedgerSnapshot {
   const data = plain(input);
   const budgetsRaw = plain(data.budgets ?? {});
   const budgets = {
-    ours: list(budgetsRaw.ours).map(categoryFrom),
-    mine: list(budgetsRaw.mine).map(categoryFrom),
-    yours: list(budgetsRaw.yours).map(categoryFrom),
+    ours: list(budgetsRaw.ours).map((entry) => categoryFrom(entry, true)),
+    mine: list(budgetsRaw.mine).map((entry) => categoryFrom(entry, true)),
+    yours: list(budgetsRaw.yours).map((entry) => categoryFrom(entry, false)),
   };
+  const budgetMonth = plain(data.budgetMonth ?? {});
   const transactions = list(data.transactions).map(transactionFrom);
   const plaid = plain(data.plaid ?? {});
   return {
-    monthLabel: str(plain(data.budgetMonth ?? {}).label, "This month"),
+    monthLabel: str(budgetMonth.label, "This month"),
+    monthValue: str(budgetMonth.value),
+    isCurrentMonth: budgetMonth.isCurrent === true,
     budgets,
     // A partner's private categories are aggregated by the server and cannot be
     // chosen, so only your own and shared categories are offered.
     categoryChoices: (["ours", "mine"] as const).flatMap((scope) => budgets[scope]
-      .filter((category) => category.id.length > 0 && category.id !== "private-partner-budget")
+      .filter((category) => category.editable)
       .map((category) => ({ id: category.id, name: category.name, scope }))),
     needsReview: transactions.filter((entry) => entry.reviewStatus === "needs_review" && entry.editable),
     recent: transactions.slice(0, 8),
@@ -198,19 +222,37 @@ export function createHttpLedgerApi(): LedgerApi {
       });
       await readJson(response, "Unable to remove that rule.");
     },
+    async saveLimits(month, changes) {
+      const response = await fetch("/api/budgets/categories", {
+        method: "POST",
+        headers: { "content-type": "application/json", accept: "application/json" },
+        body: JSON.stringify({ action: "update-limits", month, changes }),
+      });
+      await readJson(response, "Unable to update those limits.");
+    },
+    async createCategory(month, category) {
+      const response = await fetch("/api/budgets/categories", {
+        method: "POST",
+        headers: { "content-type": "application/json", accept: "application/json" },
+        body: JSON.stringify({ action: "create", month, ...category }),
+      });
+      await readJson(response, "Unable to add that category.");
+    },
   };
 }
 
 export function createFixtureLedgerApi(): LedgerApi {
   const snapshot: LedgerSnapshot = {
     monthLabel: "August",
+    monthValue: "2026-08",
+    isCurrentMonth: true,
     budgets: {
       ours: [
-        { id: "cat-groceries", name: "Groceries", spent: 286, limit: 600 },
-        { id: "cat-dining", name: "Dining out", spent: 272, limit: 350 },
+        { id: "cat-groceries", name: "Groceries", spent: 286, limit: 600, baseLimit: 600, rollover: 0, rolloverEnabled: false, editable: true },
+        { id: "cat-dining", name: "Dining out", spent: 272, limit: 350, baseLimit: 350, rollover: 0, rolloverEnabled: false, editable: true },
       ],
-      mine: [{ id: "cat-hobbies", name: "Hobbies", spent: 82, limit: 150 }],
-      yours: [{ id: "private-partner-budget", name: "Personal spending", spent: 140, limit: 300 }],
+      mine: [{ id: "cat-hobbies", name: "Hobbies", spent: 82, limit: 150, baseLimit: 150, rollover: 0, rolloverEnabled: false, editable: true }],
+      yours: [{ id: "private-partner-budget", name: "Personal spending", spent: 140, limit: 300, baseLimit: 300, rollover: 0, rolloverEnabled: false, editable: false }],
     },
     categoryChoices: [
       { id: "cat-groceries", name: "Groceries", scope: "ours" },
@@ -261,6 +303,27 @@ export function createFixtureLedgerApi(): LedgerApi {
     },
     async removeMerchantRule(ruleId) {
       snapshot.merchantRules = snapshot.merchantRules.filter((rule) => rule.id !== ruleId);
+    },
+    async saveLimits(_month, changes) {
+      for (const change of changes) {
+        const category = [...snapshot.budgets.ours, ...snapshot.budgets.mine].find((entry) => entry.id === change.id);
+        if (!category) continue;
+        category.baseLimit = change.limitCents / 100;
+        category.limit = category.baseLimit + category.rollover;
+        category.rolloverEnabled = change.rolloverEnabled;
+      }
+    },
+    async createCategory(_month, category) {
+      snapshot.budgets[category.scope === "ours" ? "ours" : "mine"].push({
+        id: `cat-${category.name.toLowerCase().replace(/\s+/g, "-")}`,
+        name: category.name,
+        spent: 0,
+        limit: category.limitCents / 100,
+        baseLimit: category.limitCents / 100,
+        rollover: 0,
+        rolloverEnabled: false,
+        editable: true,
+      });
     },
   };
 }

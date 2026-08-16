@@ -1,7 +1,7 @@
 import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 
-import type { LedgerApi, LedgerSnapshot, LedgerSplitPart } from "../api/ledger";
+import type { LedgerApi, LedgerLimitChange, LedgerNewCategory, LedgerSnapshot, LedgerSplitPart } from "../api/ledger";
 
 let runtime: { api: LedgerApi } | null = null;
 
@@ -98,10 +98,42 @@ export const useLedgerStore = defineStore("ledger", () => {
     }
   }
 
+  async function saveLimits(changes: LedgerLimitChange[]) {
+    const month = snapshot.value?.monthValue ?? "";
+    if (changes.length === 0 || month.length === 0) return false;
+    actionError.value = "";
+    feedback.value = "";
+    try {
+      await configuredRuntime().api.saveLimits(month, changes);
+      await ensureLoaded(true);
+      feedback.value = `Updated ${changes.length} limit${changes.length === 1 ? "" : "s"}.`;
+      return true;
+    } catch (error) {
+      actionError.value = safeMessage(error, "Unable to update those limits.");
+      return false;
+    }
+  }
+
+  async function createCategory(category: LedgerNewCategory) {
+    const month = snapshot.value?.monthValue ?? "";
+    if (month.length === 0 || category.name.trim().length === 0) return false;
+    actionError.value = "";
+    feedback.value = "";
+    try {
+      await configuredRuntime().api.createCategory(month, { ...category, name: category.name.trim() });
+      await ensureLoaded(true);
+      feedback.value = `Added ${category.name.trim()}.`;
+      return true;
+    } catch (error) {
+      actionError.value = safeMessage(error, "Unable to add that category.");
+      return false;
+    }
+  }
+
   const needsReviewCount = computed(() => snapshot.value?.needsReview.length ?? 0);
 
   return {
     snapshot, loadState, loadError, busyTransactionIds, actionError, feedback, needsReviewCount,
-    ensureLoaded, review, split, removeMerchantRule,
+    ensureLoaded, review, split, removeMerchantRule, saveLimits, createCategory,
   };
 });

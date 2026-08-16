@@ -167,3 +167,82 @@ describe("merchant rules", () => {
     wrapper.unmount();
   });
 });
+
+describe("budget limits", () => {
+  beforeEach(() => {
+    setActivePinia(createPinia());
+  });
+
+  it("sends only the limits that actually moved", async () => {
+    const api = createFixtureLedgerApi();
+    const saveLimits = vi.spyOn(api, "saveLimits");
+    configureLedgerRuntime({ api });
+
+    const wrapper = mount(LedgerView);
+    await flushPromises();
+    const adjust = wrapper.findAll(".ledger-panel button").find((button) => button.text() === "Adjust limits")!;
+    await adjust.trigger("click");
+
+    const saveButton = () => wrapper.findAll(".limit-editor button").find((button) => button.text() === "Save limits")!;
+    expect(saveButton().attributes("disabled")).toBeDefined();
+    expect(wrapper.get(".limit-editor .split-remainder").text()).toBe("Nothing changed yet");
+
+    // Groceries moves; Dining out is left exactly as it was.
+    await wrapper.findAll(".limit-row input[type=number]")[0]!.setValue("700");
+    expect(wrapper.get(".limit-editor .split-remainder").text()).toContain("1 limit to save");
+    await saveButton().trigger("click");
+    await flushPromises();
+
+    expect(saveLimits).toHaveBeenCalledWith("2026-08", [
+      { id: "cat-groceries", limitCents: 70000, rolloverEnabled: false },
+    ]);
+    wrapper.unmount();
+  });
+
+  it("treats turning carry-over on as a change of its own", async () => {
+    const api = createFixtureLedgerApi();
+    const saveLimits = vi.spyOn(api, "saveLimits");
+    configureLedgerRuntime({ api });
+
+    const wrapper = mount(LedgerView);
+    await flushPromises();
+    await wrapper.findAll(".ledger-panel button").find((button) => button.text() === "Adjust limits")!.trigger("click");
+    await wrapper.findAll(".limit-row input[type=checkbox]")[0]!.setValue(true);
+    await wrapper.findAll(".limit-editor button").find((button) => button.text() === "Save limits")!.trigger("click");
+    await flushPromises();
+
+    expect(saveLimits).toHaveBeenCalledWith("2026-08", [
+      { id: "cat-groceries", limitCents: 60000, rolloverEnabled: true },
+    ]);
+    wrapper.unmount();
+  });
+
+  it("never offers to edit a partner's spending", async () => {
+    configureLedgerRuntime({ api: createFixtureLedgerApi() });
+    const wrapper = mount(LedgerView);
+    await flushPromises();
+
+    const panels = wrapper.findAll(".ledger-panel");
+    const partnerPanel = panels.find((panel) => panel.text().includes("Your partner's spending"))!;
+    expect(partnerPanel.findAll("button").some((button) => button.text() === "Adjust limits")).toBe(false);
+    expect(partnerPanel.text()).toContain("Your partner sets these");
+    wrapper.unmount();
+  });
+
+  it("adds a category to the scope being edited", async () => {
+    const api = createFixtureLedgerApi();
+    const createCategory = vi.spyOn(api, "createCategory");
+    configureLedgerRuntime({ api });
+
+    const wrapper = mount(LedgerView);
+    await flushPromises();
+    await wrapper.findAll(".ledger-panel button").find((button) => button.text() === "Adjust limits")!.trigger("click");
+    await wrapper.get('.limit-editor input[type="text"]').setValue("Pets");
+    await wrapper.get('.limit-editor input[type="number"]').setValue("40");
+    await wrapper.findAll(".limit-editor button").find((button) => button.text() === "Add category")!.trigger("click");
+    await flushPromises();
+
+    expect(createCategory).toHaveBeenCalledWith("2026-08", { scope: "ours", name: "Pets", limitCents: 4000 });
+    wrapper.unmount();
+  });
+});

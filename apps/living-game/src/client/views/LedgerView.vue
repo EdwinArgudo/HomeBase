@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { storeToRefs } from "pinia";
-import { onMounted, reactive } from "vue";
+import { onMounted, reactive, ref } from "vue";
 
-import { amountInCents, type LedgerScope } from "../api/ledger";
+import { amountInCents, type LedgerCategory, type LedgerScope } from "../api/ledger";
 import { useLedgerStore } from "../stores/ledger";
 
 const ledger = useLedgerStore();
@@ -46,6 +46,55 @@ function splitReady(transactionId: string, total: number) {
   const parts = splitParts(transactionId);
   const uniqueCategories = new Set(parts.map((part) => part.categoryId));
   return parts.length >= 2 && uniqueCategories.size === parts.length && remainderCents(transactionId, total) === 0;
+}
+
+const editingScope = ref<LedgerScope | null>(null);
+const limitDrafts = reactive<Record<string, { limit: string | number; rolloverEnabled: boolean }>>({});
+const newCategory = reactive({ name: "", limit: "" as string | number });
+
+function beginEditing(scope: LedgerScope, categories: LedgerCategory[]) {
+  editingScope.value = scope;
+  newCategory.name = "";
+  newCategory.limit = "";
+  for (const category of categories.filter((entry) => entry.editable)) {
+    limitDrafts[category.id] = { limit: category.baseLimit, rolloverEnabled: category.rolloverEnabled };
+  }
+}
+
+function stopEditing() {
+  editingScope.value = null;
+  for (const key of Object.keys(limitDrafts)) delete limitDrafts[key];
+}
+
+// Only what actually moved is sent; the server treats each change as a decision.
+function limitChanges(categories: LedgerCategory[]) {
+  return categories
+    .filter((category) => category.editable && limitDrafts[category.id])
+    .map((category) => ({
+      id: category.id,
+      limitCents: amountInCents(Number(limitDrafts[category.id]!.limit)),
+      rolloverEnabled: limitDrafts[category.id]!.rolloverEnabled,
+    }))
+    .filter((change) => Number.isInteger(change.limitCents) && change.limitCents >= 0)
+    .filter((change) => {
+      const category = categories.find((entry) => entry.id === change.id)!;
+      return change.limitCents !== amountInCents(category.baseLimit)
+        || change.rolloverEnabled !== category.rolloverEnabled;
+    });
+}
+
+async function saveLimits(categories: LedgerCategory[]) {
+  if (await ledger.saveLimits(limitChanges(categories))) stopEditing();
+}
+
+async function addCategory(scope: LedgerScope) {
+  if (scope === "yours") return;
+  const limitCents = amountInCents(Number(newCategory.limit));
+  if (!Number.isInteger(limitCents) || limitCents < 0) return;
+  if (await ledger.createCategory({ scope, name: String(newCategory.name), limitCents })) {
+    newCategory.name = "";
+    newCategory.limit = "";
+  }
 }
 
 async function saveSplit(transactionId: string) {
@@ -217,15 +266,33 @@ onMounted(() => void ledger.ensureLoaded());
             <p class="eyebrow">{{ scopeLabels[scope] }}</p>
             <h2>{{ scope === "ours" ? "Shared spending" : scope === "mine" ? "Your spending" : "Your partner's spending" }}</h2>
           </div>
+          <button
+            v-if="scope !== 'yours' && snapshot.isCurrentMonth && editingScope !== scope"
+            type="button"
+            class="move-secondary-action"
+            @click="beginEditing(scope, snapshot.budgets[scope])"
+          >Adjust limits</button>
         </div>
+
+        <p v-if="scope === 'yours' && snapshot.budgets[scope].length > 0" class="ledger-empty">
+          Your partner sets these. Anything they keep private arrives as a single total.
+        </p>
+        <p v-else-if="scope !== 'yours' && !snapshot.isCurrentMonth" class="ledger-empty">
+          {{ snapshot.monthLabel }} is closed. Limits can only be changed in the current month.
+        </p>
+
         <p v-if="snapshot.budgets[scope].length === 0" class="ledger-empty">No categories here yet.</p>
         <ul v-else class="budget-list">
           <li v-for="category in snapshot.budgets[scope]" :key="category.id">
             <div class="budget-row">
               <strong>{{ category.name }}</strong>
-              <span>{{ money(category.spent) }} of {{ money(category.limit) }}</span>
+              <span v-if="editingScope !== scope || !category.editable">
+                {{ money(category.spent) }} of {{ money(category.limit) }}
+                <template v-if="category.rollover > 0"> · {{ money(category.rollover) }} carried over</template>
+              </span>
             </div>
             <div
+              v-if="editingScope !== scope || !category.editable"
               class="mini-progress"
               role="progressbar"
               :aria-label="`${category.name} spending`"
@@ -233,8 +300,57 @@ onMounted(() => void ledger.ensureLoaded());
               aria-valuemin="0"
               aria-valuemax="100"
             ><span :style="{ width: `${percent(category.spent, category.limit)}%` }" /></div>
+            <div v-else class="limit-row">
+              <label>
+                <span class="visually-hidden">{{ category.name }} monthly limit</span>
+                <input
+                  v-model="limitDrafts[category.id]!.limit"
+                  type="number"
+                  min="0"
+                  step="1"
+                  inputmode="decimal"
+                >
+              </label>
+              <label class="rule-option">
+                <input v-model="limitDrafts[category.id]!.rolloverEnabled" type="checkbox">
+                Carry over what is left
+              </label>
+            </div>
           </li>
         </ul>
+
+        <div v-if="editingScope === scope" class="limit-editor">
+          <div class="split-row">
+            <label>
+              <span class="visually-hidden">New category name</span>
+              <input v-model="newCategory.name" type="text" maxlength="50" placeholder="New category">
+            </label>
+            <label>
+              <span class="visually-hidden">New category monthly limit</span>
+              <input v-model="newCategory.limit" type="number" min="0" step="1" inputmode="decimal" placeholder="Limit">
+            </label>
+            <button
+              type="button"
+              class="move-secondary-action"
+              :disabled="String(newCategory.name).trim().length === 0 || String(newCategory.limit).trim().length === 0"
+              @click="addCategory(scope)"
+            >Add category</button>
+          </div>
+          <div class="split-editor__actions">
+            <p class="split-remainder split-remainder--settled" aria-live="polite">
+              {{ limitChanges(snapshot.budgets[scope]).length === 0
+                ? "Nothing changed yet"
+                : `${limitChanges(snapshot.budgets[scope]).length} limit${limitChanges(snapshot.budgets[scope]).length === 1 ? "" : "s"} to save` }}
+            </p>
+            <button
+              type="button"
+              class="action-button"
+              :disabled="limitChanges(snapshot.budgets[scope]).length === 0"
+              @click="saveLimits(snapshot.budgets[scope])"
+            >Save limits</button>
+            <button type="button" class="move-secondary-action" @click="stopEditing()">Done</button>
+          </div>
+        </div>
       </section>
 
       <section class="ledger-panel" aria-labelledby="recent-heading">
