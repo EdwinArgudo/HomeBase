@@ -99,6 +99,20 @@ function canonicalEventForReward(
   return null;
 }
 
+async function readUnlockedRewards(
+  context: HouseholdContext,
+  personaId: string,
+): Promise<ReadonlyMap<string, string>> {
+  const result = await context.db.prepare(`SELECT reward_key, unlocked_at
+    FROM persona_unlocks
+    WHERE household_id = ? AND member_id = ? AND persona_id = ?
+      AND catalog_version = 1 AND policy_version = 1
+    ORDER BY reward_key ASC`)
+    .bind(context.member.household_id, context.member.id, personaId)
+    .all<UnlockRow>();
+  return new Map(result.results.map((row) => [row.reward_key, row.unlocked_at]));
+}
+
 export async function loadAndMaterializeRewards(
   context: HouseholdContext,
   generatedAt: string,
@@ -127,15 +141,19 @@ export async function loadAndMaterializeRewards(
     }
   }
 
-  const eligible = eligibleRewardsV1(totals);
-  if (eligible.length > 0) {
+  // Unlocks are permanent, so only rewards that are eligible and not already
+  // recorded need the canonical event scan. A settled household reads its
+  // rewards without touching the event log or writing anything.
+  let unlocks = await readUnlockedRewards(context, persona.id);
+  const unrecorded = eligibleRewardsV1(totals).filter((reward) => !unlocks.has(reward.key));
+  if (unrecorded.length > 0) {
     const eventResult = await context.db.prepare(`SELECT id, member_id, payload_json, occurred_at
       FROM game_events
       WHERE household_id = ? AND event_type = 'daily_move.completed' AND payload_version = 1
       ORDER BY occurred_at ASC, id ASC`)
       .bind(context.member.household_id)
       .all<EventRow>();
-    const statements = eligible.flatMap((reward) => {
+    const statements = unrecorded.flatMap((reward) => {
       const event = canonicalEventForReward(reward, eventResult.results, context.member.id);
       if (!event) return [];
       return [context.db.prepare(`INSERT OR IGNORE INTO persona_unlocks (
@@ -145,17 +163,11 @@ export async function loadAndMaterializeRewards(
         .bind(`reward:${persona.id}:${reward.key}`, context.member.household_id,
           context.member.id, persona.id, reward.key, event.id, event.occurred_at)];
     });
-    if (statements.length > 0) await context.db.batch(statements);
+    if (statements.length > 0) {
+      await context.db.batch(statements);
+      unlocks = await readUnlockedRewards(context, persona.id);
+    }
   }
-
-  const unlockResult = await context.db.prepare(`SELECT reward_key, unlocked_at
-    FROM persona_unlocks
-    WHERE household_id = ? AND member_id = ? AND persona_id = ?
-      AND catalog_version = 1 AND policy_version = 1
-    ORDER BY reward_key ASC`)
-    .bind(context.member.household_id, context.member.id, persona.id)
-    .all<UnlockRow>();
-  const unlocks = new Map(unlockResult.results.map((row) => [row.reward_key, row.unlocked_at]));
   const storedEquipped = parseStoredActiveLoadout(persona.active_loadout_json);
   const equippedRewardKey = storedEquipped && unlocks.has(storedEquipped) ? storedEquipped : null;
   return rewardSnapshot(context, persona.id, equippedRewardKey, totals, unlocks, generatedAt);

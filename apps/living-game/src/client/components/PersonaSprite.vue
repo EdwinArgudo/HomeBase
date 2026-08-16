@@ -9,7 +9,7 @@ const props = defineProps<{
   static?: boolean;
 }>();
 
-defineEmits<{
+const emit = defineEmits<{
   select: [personaId: string];
 }>();
 
@@ -25,9 +25,27 @@ const emblemLabels = {
   "first-household": "Shared Spark",
 } as const;
 
-function personaLabel() {
+function emblemSuffix() {
   const emblem = props.persona.equippedRewardKey;
-  return `Select ${props.persona.displayName}, currently ${activityLabel(props.persona.activity)}${emblem ? `, wearing the ${emblemLabels[emblem]} emblem` : ""}`;
+  return emblem ? ` wearing the ${emblemLabels[emblem]} emblem` : "";
+}
+
+// A tappable persona is a button; a display persona is an image. Both render
+// the same sprite, so only the control semantics differ.
+function controlAttributes() {
+  if (props.static) {
+    return {
+      role: "img",
+      "aria-label": `${props.persona.displayName}'s pixel persona${emblemSuffix()}`,
+    };
+  }
+  const emblem = emblemSuffix();
+  return {
+    type: "button",
+    "aria-label": `Select ${props.persona.displayName}, currently ${activityLabel(props.persona.activity)}${emblem ? `,${emblem}` : ""}`,
+    "aria-pressed": props.selected,
+    onClick: () => emit("select", props.persona.id),
+  };
 }
 
 function appearanceClasses() {
@@ -44,13 +62,11 @@ function appearanceClasses() {
 
 <template>
   <div class="persona-anchor" :class="[`persona-anchor--${variant}`, ...appearanceClasses()]">
-    <button
-      v-if="!static"
+    <component
+      :is="static ? 'div' : 'button'"
       class="persona-control"
-      type="button"
-      :aria-label="personaLabel()"
-      :aria-pressed="selected"
-      @click="$emit('select', persona.id)"
+      :class="{ 'persona-control--static': static }"
+      v-bind="controlAttributes()"
     >
       <span class="pixel-persona" aria-hidden="true" data-motion="ambient">
         <span class="pixel-persona__hair" />
@@ -63,20 +79,6 @@ function appearanceClasses() {
         <strong>{{ persona.displayName }}</strong>
         <span>{{ activityLabel(persona.activity) }}</span>
       </span>
-    </button>
-
-    <div v-else class="persona-control persona-control--static" role="img" :aria-label="`${persona.displayName}'s pixel persona${persona.equippedRewardKey ? ` wearing the ${emblemLabels[persona.equippedRewardKey]} emblem` : ''}`">
-      <span class="pixel-persona" aria-hidden="true" data-motion="ambient">
-        <span class="pixel-persona__hair" />
-        <span class="pixel-persona__head"><span class="pixel-persona__eyes" /><span class="pixel-persona__accent" /></span>
-        <span class="pixel-persona__body" />
-        <span class="pixel-persona__legs" />
-        <span v-if="persona.equippedRewardKey" class="pixel-emblem" :class="`pixel-emblem--${persona.equippedRewardKey}`" aria-hidden="true">✦</span>
-      </span>
-      <span class="persona-label">
-        <strong>{{ persona.displayName }}</strong>
-        <span>{{ activityLabel(persona.activity) }}</span>
-      </span>
-    </div>
+    </component>
   </div>
 </template>
