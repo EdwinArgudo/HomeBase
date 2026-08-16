@@ -15,6 +15,7 @@ import { createFixtureProgressApi } from "./api/fixtureProgress";
 import { createFixtureRewardsApi } from "./api/fixtureRewards";
 import { createFixturePersonaApi } from "./api/fixturePersona";
 import { createFixtureWorldApi } from "./api/fixtureWorld";
+import { createFixtureAdventuresApi } from "./api/adventures";
 import { createFixtureDisplayWorldApi } from "./api/displayWorld";
 import { createFixturePlaidLinkLauncher } from "./api/plaidLink";
 import { createFixtureLedgerApi } from "./api/ledger";
@@ -25,6 +26,7 @@ import { configureProgressRuntime } from "./stores/progress";
 import { configureRewardsRuntime } from "./stores/rewards";
 import { configurePersonaRuntime } from "./stores/persona";
 import { configureWorldRuntime } from "./stores/world";
+import { configureAdventuresRuntime } from "./stores/adventures";
 import { configureDisplayWorldRuntime } from "./stores/displayWorld";
 import { configureLedgerRuntime } from "./stores/ledger";
 import { configureHouseholdRuntime } from "./stores/household";
@@ -48,6 +50,7 @@ describe("client routes", () => {
     configureDisplayWorldRuntime({ api: createFixtureDisplayWorldApi() });
     configureLedgerRuntime({ api: createFixtureLedgerApi(), openPlaidLink: createFixturePlaidLinkLauncher() });
     configureHouseholdRuntime({ api: createFixtureHouseholdApi() });
+    configureAdventuresRuntime({ api: createFixtureAdventuresApi() });
   });
 
   it.each(expectedHeadings)("renders %s with its accessible heading", async (path, heading) => {

@@ -283,6 +283,22 @@ export const personaUnlocks = sqliteTable("persona_unlocks", {
   check("persona_unlocks_policy_version_check", sql`${table.policyVersion} = 1`),
 ]);
 
+export const adventures = sqliteTable("adventures", {
+  id: text("id").primaryKey(),
+  householdId: text("household_id").notNull().references(() => households.id),
+  templateKey: text("template_key").notNull(),
+  status: text("status", { enum: ["offered", "active", "complete", "expired", "dismissed"] }).notNull().default("active"),
+  startsAt: text("starts_at").notNull(),
+  endsAt: text("ends_at").notNull(),
+  completedAt: text("completed_at"),
+  createdAt: text("created_at").notNull(),
+}, (table) => [
+  // One adventure at a time: a household is two people, not a backlog.
+  uniqueIndex("idx_adventures_household_active").on(table.householdId).where(sql`${table.status} = 'active'`),
+  index("idx_adventures_household_status").on(table.householdId, table.status, table.endsAt),
+  check("adventures_completion_check", sql`(${table.status} = 'complete' AND ${table.completedAt} IS NOT NULL) OR (${table.status} <> 'complete' AND ${table.completedAt} IS NULL)`),
+]);
+
 export const auditEvents = sqliteTable("audit_events", {
   id: text("id").primaryKey(),
   householdId: text("household_id").notNull().references(() => households.id),

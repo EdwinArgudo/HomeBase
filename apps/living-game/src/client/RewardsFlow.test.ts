@@ -15,6 +15,7 @@ import { createFixturePersonaApi } from "./api/fixturePersona";
 import { createFixtureProgressApi } from "./api/fixtureProgress";
 import { createFixtureRewardsApi } from "./api/fixtureRewards";
 import { createFixtureWorldApi } from "./api/fixtureWorld";
+import { createFixtureAdventuresApi } from "./api/adventures";
 import { createFixtureHouseholdApi } from "./api/household";
 import type { RewardsApi } from "./api/rewards";
 import type { WorldApi } from "./api/world";
@@ -24,6 +25,7 @@ import { configurePersonaRuntime } from "./stores/persona";
 import { configureProgressRuntime } from "./stores/progress";
 import { configureRewardsRuntime } from "./stores/rewards";
 import { configureWorldRuntime } from "./stores/world";
+import { configureAdventuresRuntime } from "./stores/adventures";
 import { configureHouseholdRuntime } from "./stores/household";
 
 async function mountPersona(api: RewardsApi, worldLoad: WorldApi["load"] = createFixtureWorldApi().load) {
@@ -32,6 +34,7 @@ async function mountPersona(api: RewardsApi, worldLoad: WorldApi["load"] = creat
   configurePersonaRuntime({ api: createFixturePersonaApi() });
   configureWorldRuntime({ api: { load: worldLoad } });
     configureHouseholdRuntime({ api: createFixtureHouseholdApi() });
+    configureAdventuresRuntime({ api: createFixtureAdventuresApi() });
   configureRewardsRuntime({ api });
   const router = createRouter({ history: createMemoryHistory(), routes: [...routes] });
   await router.push("/persona");

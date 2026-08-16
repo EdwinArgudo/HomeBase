@@ -197,6 +197,52 @@ export function localDaysBetweenV1(from: string, to: string): number | null {
   return Math.round((end - start) / 86_400_000);
 }
 
+export const ADVENTURE_LENGTH_DAYS = 7 as const;
+
+export type AdventureTemplateV1 = {
+  key: string;
+  title: string;
+  description: string;
+  family: MoveFamily;
+  targetValue: number;
+};
+
+/**
+ * Weekly adventures, one per way of growing. Each is finished by shared moves
+ * the household was going to make anyway — an adventure names a week's effort
+ * rather than asking for extra.
+ */
+export const ADVENTURE_TEMPLATES_V1: readonly AdventureTemplateV1[] = Object.freeze(([
+  { key: "dinners-together", title: "Three dinners together", description: "Cook, order, or reheat — sitting down together is the point.", family: "connect", targetValue: 3 },
+  { key: "tend-the-home", title: "Five small tidies", description: "Five shared bits of upkeep, none of them heroic.", family: "tend", targetValue: 5 },
+  { key: "move-together", title: "Four moves together", description: "Walks count. So does dancing in the kitchen.", family: "move", targetValue: 4 },
+  { key: "learn-together", title: "Three things learned", description: "Any three shared moments of practice.", family: "grow", targetValue: 3 },
+] satisfies AdventureTemplateV1[]).map((template) => Object.freeze(template)));
+
+export function adventureTemplateV1(key: string): AdventureTemplateV1 | null {
+  return ADVENTURE_TEMPLATES_V1.find((template) => template.key === key) ?? null;
+}
+
+/**
+ * Which adventure is on offer, rotating weekly. Deterministic from the date so
+ * both members are always looking at the same offer.
+ */
+export function offeredAdventureTemplateV1(localDate: string): AdventureTemplateV1 {
+  const days = Math.floor(Date.parse(`${localDate}T00:00:00.000Z`) / 86_400_000);
+  const week = Number.isFinite(days) ? Math.floor(days / 7) : 0;
+  const index = ((week % ADVENTURE_TEMPLATES_V1.length) + ADVENTURE_TEMPLATES_V1.length) % ADVENTURE_TEMPLATES_V1.length;
+  return ADVENTURE_TEMPLATES_V1[index]!;
+}
+
+export function adventureEndsAtV1(startsAt: string): string {
+  return new Date(Date.parse(startsAt) + ADVENTURE_LENGTH_DAYS * 86_400_000).toISOString();
+}
+
+/** An adventure is finished when its shared contributions reach the target. */
+export function adventureIsCompleteV1(template: AdventureTemplateV1, contributions: number): boolean {
+  return contributions >= template.targetValue;
+}
+
 export type MoveCandidateSignals = {
   urgency: number;
   uncertainty: number;

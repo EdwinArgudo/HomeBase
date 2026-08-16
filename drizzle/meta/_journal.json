@@ -99,6 +99,13 @@
       "when": 1786904199366,
       "tag": "0013_black_blur",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "6",
+      "when": 1786905488820,
+      "tag": "0014_striped_wrecking_crew",
+      "breakpoints": true
     }
   ]
 }

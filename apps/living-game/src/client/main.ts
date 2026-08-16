@@ -17,6 +17,7 @@ import { createFixtureHouseholdApi, createHttpHouseholdApi } from "./api/househo
 import { createFixtureDisplayWorldApi, createHttpDisplayWorldApi } from "./api/displayWorld";
 import { createFixtureLedgerApi, createHttpLedgerApi } from "./api/ledger";
 import { createBrowserPlaidLinkLauncher, createFixturePlaidLinkLauncher } from "./api/plaidLink";
+import { createFixtureAdventuresApi, createHttpAdventuresApi } from "./api/adventures";
 import { router } from "./router";
 import { configureDailyMovesRuntime } from "./stores/dailyMoves";
 import { configureProgressRuntime } from "./stores/progress";
@@ -27,6 +28,7 @@ import { configureSettingsRuntime } from "./stores/settings";
 import { configureHouseholdRuntime } from "./stores/household";
 import { configureDisplayWorldRuntime } from "./stores/displayWorld";
 import { configureLedgerRuntime } from "./stores/ledger";
+import { configureAdventuresRuntime } from "./stores/adventures";
 import "./styles.css";
 
 const liveMoves = import.meta.env.VITE_LIVE_MOVES === "true";
@@ -51,6 +53,7 @@ configureRewardsRuntime({ api: liveRewards ? createHttpRewardsApi() : createFixt
 configureSettingsRuntime({ api: liveMoves ? createHttpSettingsApi() : createFixtureSettingsApi() });
 configureHouseholdRuntime({ api: liveWorld ? createHttpHouseholdApi() : createFixtureHouseholdApi() });
 configureDisplayWorldRuntime({ api: liveWorld ? createHttpDisplayWorldApi() : createFixtureDisplayWorldApi() });
+configureAdventuresRuntime({ api: liveMoves ? createHttpAdventuresApi() : createFixtureAdventuresApi() });
 configureLedgerRuntime({
   api: liveWorld ? createHttpLedgerApi() : createFixtureLedgerApi(),
   openPlaidLink: liveWorld ? createBrowserPlaidLinkLauncher() : createFixturePlaidLinkLauncher(),

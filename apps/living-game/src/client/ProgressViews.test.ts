@@ -15,6 +15,7 @@ import { createFixtureDailyMovesApi } from "./api/fixtureDailyMoves";
 import { createFixturePersonaApi } from "./api/fixturePersona";
 import { createFixtureRewardsApi } from "./api/fixtureRewards";
 import { createFixtureWorldApi } from "./api/fixtureWorld";
+import { createFixtureAdventuresApi } from "./api/adventures";
 import { createFixtureHouseholdApi } from "./api/household";
 import { routes } from "./router";
 import { configureDailyMovesRuntime } from "./stores/dailyMoves";
@@ -22,6 +23,7 @@ import { configureProgressRuntime } from "./stores/progress";
 import { configurePersonaRuntime } from "./stores/persona";
 import { configureRewardsRuntime } from "./stores/rewards";
 import { configureWorldRuntime } from "./stores/world";
+import { configureAdventuresRuntime } from "./stores/adventures";
 import { configureHouseholdRuntime } from "./stores/household";
 
 function balance(overrides: Partial<ProgressBalanceV1> = {}) {
@@ -63,6 +65,7 @@ async function mountAt(path: string) {
   configureRewardsRuntime({ api: createFixtureRewardsApi() });
   configureWorldRuntime({ api: createFixtureWorldApi() });
   configureHouseholdRuntime({ api: createFixtureHouseholdApi() });
+    configureAdventuresRuntime({ api: createFixtureAdventuresApi() });
   const router = createRouter({ history: createMemoryHistory(), routes: [...routes] });
   await router.push(path);
   await router.isReady();

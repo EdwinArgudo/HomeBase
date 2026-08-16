@@ -291,6 +291,16 @@ export type WorldItemV1 = {
   state: WorldItemState;
 };
 
+export type AdventureSnapshotV1 = {
+  contractVersion: 1;
+  householdId: string;
+  generatedAt: string;
+  /** At most one adventure runs at a time; the offer waits until it ends. */
+  active: WorldAdventureV1 | null;
+  offered: WorldAdventureV1 | null;
+  finished: WorldAdventureV1[];
+};
+
 export type WorldAdventureV1 = {
   id: string;
   title: string;
@@ -972,6 +982,28 @@ function worldAdventureAt(input: unknown, path: string): WorldAdventureV1 {
     currentValue,
     endsAt: nullableTimestampAt(required(record, "endsAt", path), `${path}.endsAt`),
     visibility: enumAt(required(record, "visibility", path), `${path}.visibility`, VISIBILITIES),
+  };
+}
+
+export function parseAdventureSnapshot(input: unknown): AdventureSnapshotV1 {
+  const path = "$";
+  const record = objectAt(input, path, ["contractVersion", "householdId", "generatedAt", "active", "offered", "finished"]);
+  versionAt(required(record, "contractVersion", path), `${path}.contractVersion`, 1);
+  const nullableAdventure = (value: unknown, at: string) => (value === null ? null : worldAdventureAt(value, at));
+  const finished = arrayAt(required(record, "finished", path), `${path}.finished`, 0, 24)
+    .map((entry, index) => worldAdventureAt(entry, `${path}.finished[${index}]`));
+  const active = nullableAdventure(required(record, "active", path), `${path}.active`);
+  const offered = nullableAdventure(required(record, "offered", path), `${path}.offered`);
+  if (active && offered) fail(`${path}.offered`, "must be null while an adventure is active");
+  if (active && active.status !== "active") fail(`${path}.active.status`, "must be active");
+  if (offered && offered.status !== "offered") fail(`${path}.offered.status`, "must be offered");
+  return {
+    contractVersion: 1,
+    householdId: idAt(required(record, "householdId", path), `${path}.householdId`),
+    generatedAt: timestampAt(required(record, "generatedAt", path), `${path}.generatedAt`),
+    active,
+    offered,
+    finished,
   };
 }
 

@@ -3034,3 +3034,102 @@ summary:focus-visible,
 .month-figure--over {
   color: var(--gap, #a94b40);
 }
+
+/* Adventures: one week, named. */
+.adventure-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  padding: clamp(1.2rem, 3vw, 1.9rem);
+  margin-top: 1.2rem;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--lift-2);
+}
+
+.adventure-card--active {
+  background: linear-gradient(180deg, var(--accent-soft), var(--paper) 60%);
+}
+
+.adventure-card .action-button {
+  width: auto;
+  align-self: flex-start;
+  min-height: 2.9rem;
+  padding-inline: 1.4rem;
+  margin-top: 0.2rem;
+}
+
+.adventure-card .progress-track {
+  margin-top: 0;
+}
+
+.adventure-count {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.adventure-count strong {
+  color: var(--ink);
+  font-size: 1.05rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.adventure-count span {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.adventure-feedback {
+  min-height: 1.2rem;
+  margin-top: 0.6rem;
+  color: var(--accent-deep);
+  font-size: 0.86rem;
+}
+
+.adventure-feedback--error {
+  color: var(--gap, #a94b40);
+}
+
+.finished-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.finished-list li {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.finished-list div {
+  display: grid;
+  gap: 0.1rem;
+}
+
+.finished-list span {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.finished-mark {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 1.8rem;
+  height: 1.8rem;
+  border-radius: 50%;
+  font-size: 0.85rem;
+  font-weight: 800;
+}
+
+.finished-mark--complete {
+  color: #fff;
+  background: var(--accent);
+}
+
+.finished-mark--expired {
+  color: var(--muted);
+  background: var(--surface-sunk, #ece4d9);
+}
