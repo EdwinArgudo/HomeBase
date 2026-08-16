@@ -28,3 +28,20 @@ test("anchors the header and desktop rail without changing the mobile bottom doc
   assert.match(css, /\.skip-link \{[\s\S]*?safe-area-inset-top/);
   assert.match(css, /@media \(max-width: 38rem\)[\s\S]*?--app-header-height: calc\(7\.5rem \+ env\(safe-area-inset-top, 0px\)\)/);
 });
+
+test("keeps phone header content readable instead of hiding or clipping it", async () => {
+  const css = await readFile(stylesUrl, "utf8");
+  const phone = css.slice(css.indexOf("@media (max-width: 38rem)"));
+
+  // The level number is the only quantity in the pill; narrow screens shrink it
+  // rather than removing it.
+  const levelBadge = phone.match(/\.world-level__badge \{([\s\S]*?)\}/)?.[1] ?? "";
+  assert.notEqual(levelBadge, "");
+  assert.doesNotMatch(levelBadge, /display: none/);
+
+  // The Ledger entry collapses to its icon. Dropping the label is deliberate;
+  // clipping it mid-word is the bug this guards against.
+  assert.match(phone, /\.ledger-link__label \{[\s\S]*?display: none/);
+  const ledgerLink = phone.match(/\.ledger-link \{([\s\S]*?)\}/)?.[1] ?? "";
+  assert.doesNotMatch(ledgerLink, /overflow: hidden/);
+});

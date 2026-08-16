@@ -60,6 +60,13 @@ function durationLabel(seconds: number) {
   return `${minutes} min`;
 }
 
+// Adapters already phrase shortLabel as the action ("Review transaction",
+// "Repair connection"). Goal moves carry the goal's name instead, so they get
+// their own verb rather than reading as a fragment.
+function actionLabel() {
+  return props.move.source.type === "goal" ? "Log progress" : props.move.shortLabel;
+}
+
 function completionInput(): CompleteMoveInput | null {
   if (props.move.source.type === "goal") {
     return Number.isInteger(goalValue.value) && goalValue.value > 0
@@ -153,7 +160,7 @@ function complete() {
         @click="complete"
       >
         <span aria-hidden="true">→</span>
-        {{ busy ? "Working…" : `Do ${move.shortLabel.toLowerCase()}` }}
+        {{ busy ? "Working…" : actionLabel() }}
       </button>
       <button class="move-secondary-action" type="button" :disabled="busy" @click="emit('defer', move.id)">Defer</button>
       <button class="move-secondary-action" type="button" :disabled="busy" @click="emit('replace', move.id)">Replace</button>

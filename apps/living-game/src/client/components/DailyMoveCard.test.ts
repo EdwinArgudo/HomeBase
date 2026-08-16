@@ -66,6 +66,15 @@ describe("DailyMoveCard completion inputs", () => {
     ]);
   });
 
+  it("labels the action with the adapter phrasing, and gives goal moves a verb", () => {
+    const transaction = transactionMove();
+    expect(mount(DailyMoveCard, { props: { move: transaction } }).get(".action-button").text())
+      .toBe(`→ ${transaction.shortLabel}`);
+    // Goal moves carry the goal's name in shortLabel, which does not read as an action.
+    expect(mount(DailyMoveCard, { props: { move: goalMove() } }).get(".action-button").text())
+      .toBe("→ Log progress");
+  });
+
   it("disables actions while busy and exposes safe action errors", () => {
     const wrapper = mount(DailyMoveCard, {
       props: { move: transactionMove(), busy: true, actionError: "Replacement already used." },

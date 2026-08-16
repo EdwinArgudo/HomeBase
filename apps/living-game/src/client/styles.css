@@ -376,8 +376,9 @@ summary:focus-visible,
   gap: 0.65rem;
 }
 
-.world-level span {
+.world-level__badge {
   display: grid;
+  flex: 0 0 auto;
   place-items: center;
   width: 2rem;
   height: 2rem;
@@ -1870,14 +1871,19 @@ summary:focus-visible,
     height: 1.9rem;
   }
 
+  /* Narrow phones show the Ledger entry as an icon. The label is dropped
+     rather than clipped, and aria-label keeps the accessible name. */
   .ledger-link {
     width: 2.65rem;
-    overflow: hidden;
-    white-space: nowrap;
+    padding-inline: 0;
   }
 
   .ledger-link span {
     flex: 0 0 auto;
+  }
+
+  .ledger-link__label {
+    display: none;
   }
 
   .display-link {
@@ -1899,13 +1905,18 @@ summary:focus-visible,
   }
 
   .world-level {
-    max-width: 8.5rem;
-    padding: 0.45rem;
+    max-width: 9.5rem;
+    gap: 0.45rem;
+    padding: 0.4rem 0.55rem 0.4rem 0.4rem;
     font-size: 0.67rem;
   }
 
-  .world-level span {
-    display: none;
+  /* The level number is the point of this pill, so it stays visible and the
+     wording wraps instead. */
+  .world-level__badge {
+    width: 1.6rem;
+    height: 1.6rem;
+    font-size: 0.7rem;
   }
 
   .world-scene {

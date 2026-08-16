@@ -26,7 +26,10 @@ const liveRewards = import.meta.env.VITE_LIVE_REWARDS === "true";
         </div>
 
         <nav class="utility-nav" aria-label="Utilities">
-          <RouterLink class="ledger-link" to="/ledger"><span aria-hidden="true">▦</span> Ledger</RouterLink>
+          <RouterLink class="ledger-link" to="/ledger" aria-label="Ledger">
+            <span aria-hidden="true">▦</span>
+            <span class="ledger-link__label">Ledger</span>
+          </RouterLink>
           <RouterLink class="display-link" to="/display">Display</RouterLink>
         </nav>
       </div>

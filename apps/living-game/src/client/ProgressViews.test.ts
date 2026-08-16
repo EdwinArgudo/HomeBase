@@ -121,6 +121,7 @@ describe("live progress views", () => {
     await flushPromises();
 
     expect(wrapper.get(".world-level").text()).toContain("100 points");
+    expect(wrapper.get(".world-level__badge").text()).toBe("2");
     await wrapper.get(".recommended-move .action-button").trigger("click");
     await flushPromises();
     expect(wrapper.get(".world-level").text()).toContain("104 points");
