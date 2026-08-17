@@ -156,7 +156,7 @@ onMounted(() => void ledger.ensureLoaded());
       <div v-if="snapshot" class="month-nav">
         <button
           type="button"
-          class="move-secondary-action"
+          class="hb-control hb-control--quiet"
           aria-label="Previous month"
           :disabled="loadState === 'loading'"
           @click="ledger.viewMonth(snapshot.previousMonth)"
@@ -164,7 +164,7 @@ onMounted(() => void ledger.ensureLoaded());
         <span class="connection-pill" aria-live="polite">{{ snapshot.monthLabel }}</span>
         <button
           type="button"
-          class="move-secondary-action"
+          class="hb-control hb-control--quiet"
           aria-label="Next month"
           :disabled="!snapshot.nextMonth || loadState === 'loading'"
           @click="snapshot.nextMonth && ledger.viewMonth(snapshot.nextMonth)"
@@ -173,10 +173,10 @@ onMounted(() => void ledger.ensureLoaded());
     </header>
     <p class="view-lede">Every number Homebase keeps, separate from the calm of your home.</p>
 
-    <div v-if="loadState === 'idle' || loadState === 'loading'" class="move-state" role="status" aria-live="polite">
+    <div v-if="loadState === 'idle' || loadState === 'loading'" class="rounded-md border border-line bg-paper p-4 text-small" role="status" aria-live="polite">
       Loading your ledger…
     </div>
-    <div v-else-if="loadState === 'error'" class="move-state" role="alert">
+    <div v-else-if="loadState === 'error'" class="rounded-md border border-line bg-paper p-4 text-small" role="alert">
       <p>{{ loadError }}</p>
       <button type="button" class="inline-retry" @click="ledger.ensureLoaded(true)">Retry</button>
     </div>
@@ -250,7 +250,7 @@ onMounted(() => void ledger.ensureLoaded());
                   </option>
                 </select>
               </label>
-              <label class="rule-option">
+              <label class="mt-1 flex items-center gap-2 text-small font-strong text-muted">
                 <input
                   v-model="draftFor(transaction.id).createRule"
                   type="checkbox"
@@ -267,13 +267,13 @@ onMounted(() => void ledger.ensureLoaded());
               <button
                 v-if="!splitRowsFor(transaction.id)"
                 type="button"
-                class="move-secondary-action"
+                class="hb-control hb-control--quiet"
                 @click="beginSplit(transaction.id)"
               >Split it</button>
               <button
                 v-if="!splitRowsFor(transaction.id)"
                 type="button"
-                class="move-secondary-action"
+                class="hb-control hb-control--quiet"
                 :disabled="busyTransactionIds.has(transaction.id)"
                 @click="ledger.setTransfer(transaction.id, true)"
               >Not spending</button>
@@ -306,7 +306,7 @@ onMounted(() => void ledger.ensureLoaded());
                 <button
                   v-if="splitRowsFor(transaction.id)!.length > 2"
                   type="button"
-                  class="move-secondary-action"
+                  class="hb-control hb-control--quiet"
                   :aria-label="`Remove split ${index + 1}`"
                   @click="splitRowsFor(transaction.id)!.splice(index, 1)"
                 >Remove</button>
@@ -315,7 +315,7 @@ onMounted(() => void ledger.ensureLoaded());
               <div class="split-editor__actions">
                 <button
                   type="button"
-                  class="move-secondary-action"
+                  class="hb-control hb-control--quiet"
                   :disabled="splitRowsFor(transaction.id)!.length >= 10"
                   @click="splitRowsFor(transaction.id)!.push({ categoryId: '', amount: '' })"
                 >Add a part</button>
@@ -330,7 +330,7 @@ onMounted(() => void ledger.ensureLoaded());
                   :disabled="busyTransactionIds.has(transaction.id) || !splitReady(transaction.id, transaction.amount)"
                   @click="saveSplit(transaction.id)"
                 >{{ busyTransactionIds.has(transaction.id) ? "Saving…" : "Save split" }}</button>
-                <button type="button" class="move-secondary-action" @click="cancelSplit(transaction.id)">Cancel</button>
+                <button type="button" class="hb-control hb-control--quiet" @click="cancelSplit(transaction.id)">Cancel</button>
               </div>
             </div>
           </li>
@@ -352,7 +352,7 @@ onMounted(() => void ledger.ensureLoaded());
           <button
             v-if="scope !== 'yours' && snapshot.isCurrentMonth && editingScope !== scope"
             type="button"
-            class="move-secondary-action"
+            class="hb-control hb-control--quiet"
             @click="beginEditing(scope)"
           >Adjust limits</button>
         </div>
@@ -394,7 +394,7 @@ onMounted(() => void ledger.ensureLoaded());
                   inputmode="decimal"
                 >
               </label>
-              <label class="rule-option">
+              <label class="mt-1 flex items-center gap-2 text-small font-strong text-muted">
                 <input v-model="limitDraftFor(category).rolloverEnabled" type="checkbox">
                 Carry over what is left
               </label>
@@ -414,7 +414,7 @@ onMounted(() => void ledger.ensureLoaded());
             </label>
             <button
               type="button"
-              class="move-secondary-action"
+              class="hb-control hb-control--quiet"
               :disabled="String(newCategory.name).trim().length === 0 || String(newCategory.limit).trim().length === 0"
               @click="addCategory(scope)"
             >Add category</button>
@@ -431,7 +431,7 @@ onMounted(() => void ledger.ensureLoaded());
               :disabled="limitChanges(snapshot.budgets[scope]).length === 0"
               @click="saveLimits(snapshot.budgets[scope])"
             >Save limits</button>
-            <button type="button" class="move-secondary-action" @click="stopEditing()">Done</button>
+            <button type="button" class="hb-control hb-control--quiet" @click="stopEditing()">Done</button>
           </div>
         </div>
       </section>
@@ -459,7 +459,7 @@ onMounted(() => void ledger.ensureLoaded());
             <button
               v-if="transaction.editable"
               type="button"
-              class="move-secondary-action"
+              class="hb-control hb-control--quiet"
               :disabled="busyTransactionIds.has(transaction.id)"
               @click="ledger.setTransfer(transaction.id, !transaction.isTransfer)"
             >{{ transaction.isTransfer ? "Count it" : "Not spending" }}</button>
@@ -496,7 +496,7 @@ onMounted(() => void ledger.ensureLoaded());
               <button
                 v-if="connection.needsRepair"
                 type="button"
-                class="move-secondary-action"
+                class="hb-control hb-control--quiet"
                 :disabled="bankState !== 'idle'"
                 @click="ledger.repairConnection(connection.id)"
               >{{ bankState === "linking" ? "Opening…" : "Repair" }}</button>
@@ -539,7 +539,7 @@ onMounted(() => void ledger.ensureLoaded());
             </div>
             <button
               type="button"
-              class="move-secondary-action"
+              class="hb-control hb-control--quiet"
               :aria-label="`Remove the rule for ${rule.merchant}`"
               @click="ledger.removeMerchantRule(rule.id)"
             >Remove</button>

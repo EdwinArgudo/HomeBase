@@ -101,10 +101,10 @@ onMounted(() => void rewardsStore.ensureLoaded(true));
       <span class="persona-status">{{ personaLoadState === "loading" || personaLoadState === "idle" ? "Loading" : persona?.status === "ready" ? "Ready" : persona ? "Draft" : "Not created" }}</span>
     </header>
 
-    <div v-if="personaLoadState === 'idle' || personaLoadState === 'loading'" class="persona-load-state" role="status" aria-live="polite">
+    <div v-if="personaLoadState === 'idle' || personaLoadState === 'loading'" class="hb-card" role="status" aria-live="polite">
       Loading your persona…
     </div>
-    <div v-else-if="personaLoadState === 'error'" class="persona-load-state" role="alert">
+    <div v-else-if="personaLoadState === 'error'" class="hb-card" role="alert">
       <p>{{ personaLoadError }}</p>
       <button type="button" class="inline-retry" @click="personaStore.ensureLoaded(true)">Retry</button>
     </div>

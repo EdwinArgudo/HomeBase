@@ -96,7 +96,7 @@ describe("splitting a purchase", () => {
 
     const wrapper = mount(LedgerView);
     await flushPromises();
-    await wrapper.get(".review-list .move-secondary-action").trigger("click");
+    await wrapper.get(".review-list .hb-control--quiet").trigger("click");
 
     const selects = () => wrapper.findAll(".split-row select");
     const amounts = () => wrapper.findAll(".split-row input");
@@ -130,7 +130,7 @@ describe("splitting a purchase", () => {
     configureLedgerRuntime({ api: createFixtureLedgerApi(), openPlaidLink: createFixturePlaidLinkLauncher() });
     const wrapper = mount(LedgerView);
     await flushPromises();
-    await wrapper.get(".review-list .move-secondary-action").trigger("click");
+    await wrapper.get(".review-list .hb-control--quiet").trigger("click");
 
     const selects = wrapper.findAll(".split-row select");
     const amounts = wrapper.findAll(".split-row input");
@@ -160,7 +160,7 @@ describe("merchant rules", () => {
     await flushPromises();
     expect(wrapper.findAll(".rule-list li")).toHaveLength(2);
 
-    await wrapper.get(".rule-list .move-secondary-action").trigger("click");
+    await wrapper.get(".rule-list .hb-control--quiet").trigger("click");
     await flushPromises();
 
     expect(remove).toHaveBeenCalledWith("rule-costco");

@@ -134,7 +134,7 @@ describe("live progress views", () => {
 
     expect(wrapper.get(".world-level").text()).toContain("100 points");
     expect(wrapper.get(".world-level__badge").text()).toBe("2");
-    await wrapper.get(".move-list .action-button").trigger("click");
+    await wrapper.get("[aria-label=\"Today's moves\"] .action-button").trigger("click");
     await settle();
     expect(wrapper.get(".world-level").text()).toContain("104 points");
 

@@ -112,7 +112,7 @@ function complete() {
     ]"
     :aria-busy="busy || undefined"
   >
-    <div class="move-card__meta">
+    <div class="mb-4 flex items-center justify-between gap-4 text-label font-strong text-muted">
       <span class="family-chip">{{ familyLabels[move.family] }}</span>
       <span>{{ durationLabel(move.estimatedSeconds) }}</span>
     </div>
@@ -121,13 +121,14 @@ function complete() {
       {{ reasonCopy[move.selectionReasonCode] }}
     </p>
 
-    <div v-if="move.status === 'active' && move.source.type === 'goal'" class="completion-input">
-      <label :for="`goal-value-${move.id}`">
+    <div v-if="move.status === 'active' && move.source.type === 'goal'" class="mt-1 mb-3 grid gap-1">
+      <label class="hb-label" :for="`goal-value-${move.id}`">
         Progress <span v-if="completionOptions?.kind === 'goal'">({{ completionOptions.unitLabel }})</span>
       </label>
       <input
         :id="`goal-value-${move.id}`"
         v-model.number="goalValue"
+        class="hb-field"
         type="number"
         min="1"
         max="1000000"
@@ -136,11 +137,12 @@ function complete() {
       >
     </div>
 
-    <div v-if="move.status === 'active' && move.source.type === 'transaction'" class="completion-input">
-      <label :for="`category-${move.id}`">Category</label>
+    <div v-if="move.status === 'active' && move.source.type === 'transaction'" class="mt-1 mb-3 grid gap-1">
+      <label class="hb-label" :for="`category-${move.id}`">Category</label>
       <select
         :id="`category-${move.id}`"
         v-model="selectedCategoryId"
+        class="hb-field"
         :disabled="busy || optionsState !== 'ready'"
       >
         <option value="">Choose a category</option>
@@ -152,19 +154,19 @@ function complete() {
           {{ category.name }} · {{ category.ownership === "shared" ? "Ours" : "Mine" }}
         </option>
       </select>
-      <label class="rule-option">
+      <label class="mt-1 flex items-center gap-2 text-small font-strong text-muted">
         <input v-model="createRule" type="checkbox" :disabled="busy || optionsState !== 'ready'">
         Remember this choice for this merchant
       </label>
     </div>
 
-    <p v-if="optionsState === 'loading'" class="move-feedback" role="status">Loading choices…</p>
-    <p v-else-if="optionsState === 'error'" class="move-feedback" role="alert">
+    <p v-if="optionsState === 'loading'" class="my-2 text-small text-muted" role="status">Loading choices…</p>
+    <p v-else-if="optionsState === 'error'" class="my-2 text-small text-gap" role="alert">
       {{ optionsError }}
       <button type="button" class="inline-retry" @click="emit('requestOptions', move, true)">Retry choices</button>
     </p>
 
-    <div v-if="move.status === 'active'" class="move-card__actions">
+    <div v-if="move.status === 'active'" class="mt-auto grid grid-cols-[1fr_auto_auto] items-center gap-2">
       <button
         class="action-button"
         type="button"
@@ -174,12 +176,12 @@ function complete() {
         <span aria-hidden="true">→</span>
         {{ busy ? "Working…" : actionLabel() }}
       </button>
-      <button class="move-secondary-action" type="button" :disabled="busy" @click="emit('defer', move.id)">Defer</button>
-      <button class="move-secondary-action" type="button" :disabled="busy" @click="emit('replace', move.id)">Replace</button>
+      <button class="hb-control hb-control--quiet" type="button" :disabled="busy" @click="emit('defer', move.id)">Defer</button>
+      <button class="hb-control hb-control--quiet" type="button" :disabled="busy" @click="emit('replace', move.id)">Replace</button>
     </div>
-    <p v-else class="move-status">
+    <p v-else class="mt-auto text-small text-muted">
       {{ move.status === "complete" ? "✓ Done for today" : move.status === "deferred" ? "Deferred for today" : move.status }}
     </p>
-    <p v-if="actionError" class="move-feedback" role="alert">{{ actionError }}</p>
+    <p v-if="actionError" class="mt-2 text-small text-gap" role="alert">{{ actionError }}</p>
   </article>
 </template>

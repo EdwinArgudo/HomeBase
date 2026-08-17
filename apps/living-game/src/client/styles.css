@@ -1137,12 +1137,6 @@ summary:focus-visible,
   white-space: nowrap;
 }
 
-.move-list {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 1rem;
-}
-
 .move-card {
   --move-tone: var(--mint-vivid);
   display: flex;
@@ -1192,17 +1186,6 @@ summary:focus-visible,
   box-shadow: none;
 }
 
-.move-card__meta {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  margin-bottom: 1.25rem;
-  color: var(--muted);
-  font-size: var(--type-label);
-  font-weight: var(--weight-strong);
-}
-
 .family-chip {
   padding: 0.28rem 0.5rem;
   color: var(--ink);
@@ -1228,8 +1211,9 @@ summary:focus-visible,
   align-items: center;
   justify-content: space-between;
   width: 100%;
-  min-height: 3rem;
-  padding: 0.6rem 0.75rem 0.6rem 1rem;
+  /* Matches the control height so a primary and its neighbours sit on one line. */
+  min-height: 2.75rem;
+  padding: 0.35rem 0.5rem 0.35rem 1rem;
   margin-top: auto;
   color: var(--on-accent-deep);
   background: var(--accent-deep);
@@ -1250,8 +1234,8 @@ summary:focus-visible,
   display: grid;
   place-items: center;
   order: 2;
-  width: 1.8rem;
-  height: 1.8rem;
+  width: 1.6rem;
+  height: 1.6rem;
   color: var(--ink);
   background: var(--move-tone);
   border-radius: 50%;
@@ -1267,19 +1251,6 @@ summary:focus-visible,
   cursor: default;
 }
 
-.move-card__actions {
-  display: grid;
-  grid-template-columns: 1fr auto auto;
-  gap: 0.45rem;
-  align-items: center;
-  margin-top: auto;
-}
-
-.move-card__actions .action-button {
-  margin-top: 0;
-}
-
-.move-secondary-action,
 .inline-retry {
   min-height: 2.5rem;
   padding: 0.45rem 0.6rem;
@@ -1293,61 +1264,13 @@ summary:focus-visible,
   cursor: pointer;
 }
 
-.move-secondary-action:active:not(:disabled),
 .inline-retry:active:not(:disabled) {
   transform: scale(0.97);
 }
 
-.move-secondary-action:disabled {
-  opacity: 0.55;
-  cursor: default;
-}
-
-.completion-input {
-  display: grid;
-  gap: 0.4rem;
-  margin: 0.4rem 0 0.8rem;
-  color: var(--muted);
-  font-size: var(--type-label);
-  font-weight: var(--weight-display);
-}
-
-.completion-input input[type="number"],
-.completion-input select {
-  min-height: 2.6rem;
-  width: 100%;
-  padding: 0.45rem 0.6rem;
-  color: var(--ink);
-  background: var(--paper);
-  border: 1px solid var(--line);
-  border-radius: 0.6rem;
-  font: inherit;
-}
-
-.completion-input .rule-option {
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
-  font-weight: var(--weight-strong);
-}
-
-.move-card .move-feedback,
-.move-card .move-status,
-.move-view-feedback,
-.move-state {
+.move-card .move-feedback {
   margin: 0.65rem 0;
   font-size: var(--type-small);
-}
-
-.move-state {
-  padding: 1rem;
-  background: rgb(255 255 255 / 70%);
-  border: 1px solid var(--line);
-  border-radius: 0.85rem;
-}
-
-.move-view-feedback:empty {
-  display: none;
 }
 
 .move-card--deferred {
@@ -1556,17 +1479,12 @@ summary:focus-visible,
   font-size: var(--type-small);
 }
 
-.persona-load-state,
 .persona-builder {
   margin-top: 1rem;
   padding: 1.25rem;
   background: var(--paper);
   border: 1px solid var(--line);
   border-radius: 1rem;
-}
-
-.persona-load-state .inline-retry {
-  margin-top: 0.75rem;
 }
 
 .persona-builder__heading {
@@ -2003,10 +1921,6 @@ summary:focus-visible,
     justify-content: flex-end;
   }
 
-  .move-list {
-    grid-template-columns: 1fr;
-  }
-
   .move-card {
     min-height: 14rem;
   }
@@ -2249,28 +2163,6 @@ summary:focus-visible,
   content: "";
 }
 
-/* Home: the world and today's shortlist on one page. */
-.home-view {
-  display: flex;
-  flex-direction: column;
-  gap: 1.4rem;
-  width: min(100%, 71rem);
-}
-
-.scene-caption {
-  margin: -0.4rem 0 0;
-  color: var(--muted);
-  font-size: var(--type-body);
-  text-align: center;
-}
-
-.today-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  margin-top: 1.4rem;
-}
-
 .rest-mode {
   display: flex;
   flex-direction: column;
@@ -2397,15 +2289,6 @@ summary:focus-visible,
 
 .world-scene--display .persona-label {
   font-size: var(--type-small);
-}
-
-.alone-note {
-  padding: 0.7rem 0.9rem;
-  background: var(--accent-soft);
-  border-radius: var(--radius-md);
-  color: var(--accent-deep);
-  font-size: var(--type-body);
-  text-align: center;
 }
 
 /* Furnishings the household earned. Each one is placed by the projection, so

@@ -84,7 +84,7 @@ describe("Living Game world shell", () => {
     await buttons[0]?.trigger("click");
     await settle();
     expect(wrapper.get(".count-bubble").text()).toContain("1 left");
-    expect(wrapper.findAll(".move-status").some((status) => status.text().includes("Done for today"))).toBe(true);
+    expect(wrapper.findAll(".move-card--done p").some((status) => status.text().includes("Done for today"))).toBe(true);
 
     wrapper.unmount();
   });
@@ -104,7 +104,7 @@ describe("Living Game world shell", () => {
     await scenePersonaButtons[1]?.trigger("click");
     expect(scenePersonaButtons[1]?.attributes("aria-pressed")).toBe("true");
     expect(scenePersonaButtons[0]?.attributes("aria-pressed")).toBe("false");
-    expect(wrapper.get(".scene-caption").text()).toContain("Vienna");
+    expect(wrapper.get("figcaption").text()).toContain("Vienna");
     expect(wrapper.get(".world-text-equivalent").text()).toContain("Home summary");
 
     wrapper.unmount();
@@ -116,7 +116,7 @@ describe("Living Game world shell", () => {
     const summary = wrapper.get(".world-text-equivalent");
 
     expect(summary.text()).toContain("2 moves remain and 1 are done");
-    await wrapper.get(".move-list .action-button").trigger("click");
+    await wrapper.get("[aria-label=\"Today's moves\"] .action-button").trigger("click");
     await settle();
     expect(summary.text()).toContain("1 move remains and 2 are done");
 
