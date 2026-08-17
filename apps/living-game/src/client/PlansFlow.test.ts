@@ -23,13 +23,67 @@ describe("Plans view", () => {
     expect(wrapper.text()).toContain("Practice Spanish");
     expect(wrapper.text()).toContain("3 sessions / 12 sessions");
     expect(wrapper.text()).toContain("$40.00 / $100.00");
-    expect(wrapper.text()).toContain("Progress is logged through completed moves on Today");
+    expect(wrapper.text()).toContain("both count the same way");
     await wrapper.get('button[aria-label="Complete Take recycling downstairs"]').trigger("click"); await flushPromises();
     expect(wrapper.find('button[aria-label="Reopen Take recycling downstairs"]').exists()).toBe(true);
     await wrapper.get("#grocery-name").setValue("Apples"); await wrapper.get(".grocery-quick-add").trigger("submit"); await flushPromises();
     expect(wrapper.text()).toContain("Apples");
     await wrapper.get('button[aria-label="Pick up Apples"]').trigger("click"); await flushPromises();
     expect(wrapper.find('button[aria-label="Put back Apples"]').exists()).toBe(true);
+    wrapper.unmount();
+  });
+
+  it("logs sessions and dollars against a goal and shows the new total", async () => {
+    const wrapper = await mounted(); await flushPromises();
+
+    await wrapper.get('button[aria-label="Log a session for Practice Spanish"]').trigger("click"); await flushPromises();
+    expect(wrapper.text()).toContain("4 sessions / 12 sessions");
+
+    // Dollars are typed the way they are spoken and stored in cents.
+    await wrapper.get("#goal-amount-goal-fund").setValue("12.50");
+    await wrapper.get('button[aria-label="Add to Household fund"]').trigger("click"); await flushPromises();
+    expect(wrapper.text()).toContain("$52.50 / $100.00");
+    expect((wrapper.get("#goal-amount-goal-fund").element as HTMLInputElement).value).toBe("");
+    wrapper.unmount();
+  });
+
+  it("will not send an amount that is not an amount", async () => {
+    const act = vi.fn();
+    const fixture = createFixturePlansApi();
+    const wrapper = await mounted({ load: fixture.load, act }); await flushPromises();
+    const button = () => wrapper.get('button[aria-label="Add to Household fund"]');
+
+    expect(button().attributes("disabled")).toBeDefined();
+    await wrapper.get("#goal-amount-goal-fund").setValue("0.004");
+    expect(button().attributes("disabled")).toBeDefined();
+    await wrapper.get("#goal-amount-goal-fund").setValue("nine dollars");
+    expect(button().attributes("disabled")).toBeDefined();
+    await button().trigger("click"); await flushPromises();
+    expect(act).not.toHaveBeenCalled();
+    wrapper.unmount();
+  });
+
+  it("adds a goal and asks before finishing one", async () => {
+    const wrapper = await mounted(); await flushPromises();
+
+    await wrapper.get(".goal-compose-toggle").trigger("click");
+    await wrapper.get("#goal-name").setValue("Read together");
+    await wrapper.get("#goal-target").setValue("24");
+    await wrapper.get(".goal-compose").trigger("submit"); await flushPromises();
+    expect(wrapper.text()).toContain("Read together");
+    expect(wrapper.text()).toContain("0 sessions / 24 sessions");
+    expect(wrapper.find(".goal-compose").exists()).toBe(false);
+
+    // Finishing is not undoable from here, so it asks first.
+    await wrapper.get('button[aria-label="Finish Practice Spanish"]').trigger("click");
+    expect(wrapper.text()).toContain("Finish this goal?");
+    await wrapper.get('button[aria-label="Keep Practice Spanish"]').trigger("click");
+    expect(wrapper.text()).toContain("Practice Spanish");
+
+    await wrapper.get('button[aria-label="Finish Practice Spanish"]').trigger("click");
+    await wrapper.get('button[aria-label="Yes, finish Practice Spanish"]').trigger("click");
+    await flushPromises();
+    expect(wrapper.text()).not.toContain("Practice Spanish");
     wrapper.unmount();
   });
 

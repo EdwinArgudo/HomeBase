@@ -1676,8 +1676,29 @@ summary:focus-visible,
 .goal-progress > span { height: 0.45rem; overflow: hidden; background: var(--line); border-radius: 99px; }
 .goal-progress i { display: block; height: 100%; background: var(--mint-dark); }
 .goal-progress b { font-size: 0.72rem; }
+.goal-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; }
+.goal-actions input { width: 5.5rem; }
+.goal-actions input,
+.goal-actions button,
+.goal-compose input,
+.goal-compose select,
+.goal-compose button,
+.goal-compose-toggle { min-height: 2.4rem; padding: 0.4rem 0.6rem; background: var(--paper); border: 1px solid var(--line); border-radius: 0.6rem; font: inherit; font-size: 0.78rem; }
+.goal-actions button:first-of-type,
+.goal-compose button,
+.goal-compose-toggle { background: var(--mint); font-weight: 800; }
+.goal-actions button:disabled,
+.goal-compose button:disabled { opacity: 0.5; }
+.goal-retire { color: var(--muted); }
+.goal-retire-ask { font-size: 0.72rem; font-weight: 800; }
+.goal-compose { display: grid; gap: 0.4rem; margin-top: 0.8rem; padding: 0.75rem; background: var(--canvas); border-radius: 0.75rem; }
+.goal-compose label { color: var(--muted); font-size: 0.7rem; font-weight: 800; }
+.goal-compose-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.5rem; }
+.goal-compose-row span { display: grid; gap: 0.2rem; }
+.goal-compose-row input { min-width: 0; }
 
 @media (max-width: 46rem) {
+  .goal-compose-row { grid-template-columns: 1fr; }
   .plans-grid { grid-template-columns: 1fr; }
   .plans-panel--goals { grid-column: auto; }
 }

@@ -597,6 +597,27 @@ test("plans snapshot and actions are closed, bounded, and privacy-minimal", () =
   expectContractError(() => parsePlansAction({ contractVersion: 1, action: "toggle_task", id: "task-1", text: "extra" }), "$.text", "unknown_field");
   expectContractError(() => parsePlansAction({ contractVersion: 1, action: "add_grocery", text: "x".repeat(121) }), "$.text");
   expectContractError(() => parsePlansAction({ contractVersion: 1, action: "add_grocery", text: "  " }), "$.text");
+
+  assert.deepEqual(
+    parsePlansAction({ contractVersion: 1, action: "log_goal", id: "goal-1", value: 3 }),
+    { contractVersion: 1, action: "log_goal", id: "goal-1", value: 3 },
+  );
+  assert.deepEqual(
+    parsePlansAction({ contractVersion: 1, action: "add_goal", text: "  Walk daily  ", ownership: "shared", trackingType: "sessions", targetValue: 30 }),
+    { contractVersion: 1, action: "add_goal", text: "Walk daily", ownership: "shared", trackingType: "sessions", targetValue: 30 },
+  );
+  assert.deepEqual(parsePlansAction({ contractVersion: 1, action: "retire_goal", id: "goal-1" }), { contractVersion: 1, action: "retire_goal", id: "goal-1" });
+
+  // A goal only moves forward, and only by an amount a person could mean.
+  expectContractError(() => parsePlansAction({ contractVersion: 1, action: "log_goal", id: "goal-1", value: 0 }), "$.value");
+  expectContractError(() => parsePlansAction({ contractVersion: 1, action: "log_goal", id: "goal-1", value: -2 }), "$.value");
+  expectContractError(() => parsePlansAction({ contractVersion: 1, action: "log_goal", id: "goal-1", value: 1.5 }), "$.value");
+  expectContractError(() => parsePlansAction({ contractVersion: 1, action: "log_goal", id: "goal-1" }), "$.value");
+  expectContractError(() => parsePlansAction({ contractVersion: 1, action: "retire_goal", id: "goal-1", value: 1 }), "$.value", "unknown_field");
+  expectContractError(() => parsePlansAction({ contractVersion: 1, action: "add_goal", text: "Walk", ownership: "everyone", trackingType: "sessions", targetValue: 5 }), "$.ownership");
+  expectContractError(() => parsePlansAction({ contractVersion: 1, action: "add_goal", text: "Walk", ownership: "shared", trackingType: "steps", targetValue: 5 }), "$.trackingType");
+  expectContractError(() => parsePlansAction({ contractVersion: 1, action: "add_goal", text: " ", ownership: "shared", trackingType: "sessions", targetValue: 5 }), "$.text");
+  expectContractError(() => parsePlansAction({ contractVersion: 1, action: "add_goal", text: "Walk", ownership: "shared", trackingType: "sessions", targetValue: 0 }), "$.targetValue");
   expectContractError(() => parsePlansSnapshot({ ...snapshot, goals: [{ ...snapshot.goals[0], minimumValue: 13 }] }), "$.goals[0].minimumValue");
 });
 

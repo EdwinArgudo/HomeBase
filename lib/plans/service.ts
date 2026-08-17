@@ -64,6 +64,23 @@ async function requireGrocery(context: HouseholdContext, id: string) {
   if (!grocery) throw new HttpError(404, "That plan item was not found.");
 }
 
+/**
+ * A shared goal belongs to the household; a personal one belongs to its owner
+ * alone. The same rule the daily move path enforces, so progress recorded here
+ * and progress recorded by completing a move can never disagree about who is
+ * allowed to touch what.
+ */
+async function requireGoal(context: HouseholdContext, id: string) {
+  const goal = await context.db.prepare(`SELECT id, tracking_type FROM goals
+    WHERE id = ? AND household_id = ? AND active = 1
+      AND (ownership_type = 'shared' OR (ownership_type = 'personal' AND owner_member_id = ?))
+    LIMIT 1`)
+    .bind(id, context.member.household_id, context.member.id)
+    .first<{ id: string; tracking_type: string }>();
+  if (!goal) throw new HttpError(404, "That goal was not found.");
+  return goal;
+}
+
 export async function applyPlansAction(
   context: HouseholdContext,
   input: PlansActionV1,
@@ -81,10 +98,49 @@ export async function applyPlansAction(
     await context.db.prepare(`UPDATE grocery_items SET checked = CASE checked WHEN 1 THEN 0 ELSE 1 END
       WHERE id = ? AND household_id = ?`)
       .bind(action.id, context.member.household_id).run();
-  } else {
+  } else if (action.action === "add_grocery") {
     await context.db.prepare(`INSERT INTO grocery_items (id, household_id, added_by_member_id, name, checked)
       VALUES (?, ?, ?, ?, 0)`)
       .bind(options.createId(), context.member.household_id, context.member.id, action.text).run();
+  } else if (action.action === "log_goal") {
+    await requireGoal(context, action.id);
+    // Every log is its own entry: doing a thing twice is two sessions, not one
+    // repeated. Progress is the sum, so nothing here needs a running total.
+    await context.db.prepare(`INSERT INTO goal_entries (id, goal_id, member_id, value, occurred_at)
+      SELECT ?, id, ?, ?, ? FROM goals
+      WHERE id = ? AND household_id = ? AND active = 1
+        AND (ownership_type = 'shared' OR (ownership_type = 'personal' AND owner_member_id = ?))`)
+      .bind(
+        options.createId(),
+        context.member.id,
+        action.value,
+        options.generatedAt,
+        action.id,
+        context.member.household_id,
+        context.member.id,
+      ).run();
+  } else if (action.action === "retire_goal") {
+    await requireGoal(context, action.id);
+    // Retiring keeps what was recorded; a goal that is over is not a goal that
+    // never happened.
+    await context.db.prepare(`UPDATE goals SET active = 0
+      WHERE id = ? AND household_id = ?
+        AND (ownership_type = 'shared' OR (ownership_type = 'personal' AND owner_member_id = ?))`)
+      .bind(action.id, context.member.household_id, context.member.id).run();
+  } else {
+    const personal = action.ownership === "personal";
+    await context.db.prepare(`INSERT INTO goals
+      (id, household_id, owner_member_id, ownership_type, name, tracking_type, target_value, minimum_value, active)
+      VALUES (?, ?, ?, ?, ?, ?, ?, NULL, 1)`)
+      .bind(
+        options.createId(),
+        context.member.household_id,
+        personal ? context.member.id : null,
+        action.ownership,
+        action.text,
+        action.trackingType,
+        action.targetValue,
+      ).run();
   }
   return loadPlansSnapshot(context, options.generatedAt);
 }

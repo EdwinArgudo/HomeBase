@@ -1,4 +1,4 @@
-import type { PlansActionV1, PlansSnapshotV1 } from "@homebase/contracts";
+import type { PlanGoalOwnership, PlanGoalTrackingType, PlansActionV1, PlansSnapshotV1 } from "@homebase/contracts";
 import { defineStore } from "pinia";
 import { ref } from "vue";
 import type { PlansApi } from "../api/plans";
@@ -45,5 +45,12 @@ export const usePlansStore = defineStore("plans", () => {
   const toggleTask = (id: string) => act({ contractVersion: 1, action: "toggle_task", id }, `task:${id}`, "Task updated.");
   const toggleGrocery = (id: string) => act({ contractVersion: 1, action: "toggle_grocery", id }, `grocery:${id}`, "Grocery list updated.");
   const addGrocery = (text: string) => act({ contractVersion: 1, action: "add_grocery", text }, "grocery:add", "Added to the grocery list.");
-  return { snapshot, loadState, loadError, actionError, feedback, busyKeys, actionBusy, ensureLoaded, toggleTask, toggleGrocery, addGrocery };
+  const logGoal = (id: string, value: number) => act({ contractVersion: 1, action: "log_goal", id, value }, `goal:${id}`, "Logged. Nice.");
+  const retireGoal = (id: string) => act({ contractVersion: 1, action: "retire_goal", id }, `goal:${id}`, "Goal finished. What you did stays counted.");
+  const addGoal = (goal: { text: string; ownership: PlanGoalOwnership; trackingType: PlanGoalTrackingType; targetValue: number }) =>
+    act({ contractVersion: 1, action: "add_goal", ...goal }, "goal:add", "Goal added.");
+  return {
+    snapshot, loadState, loadError, actionError, feedback, busyKeys, actionBusy, ensureLoaded,
+    toggleTask, toggleGrocery, addGrocery, logGoal, retireGoal, addGoal,
+  };
 });

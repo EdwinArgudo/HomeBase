@@ -222,7 +222,17 @@ export type PlansSnapshotV1 = { contractVersion: 1; tasks: PlanTaskV1[]; groceri
 export type PlansActionV1 =
   | { contractVersion: 1; action: "toggle_task"; id: string }
   | { contractVersion: 1; action: "toggle_grocery"; id: string }
-  | { contractVersion: 1; action: "add_grocery"; text: string };
+  | { contractVersion: 1; action: "add_grocery"; text: string }
+  | { contractVersion: 1; action: "log_goal"; id: string; value: number }
+  | { contractVersion: 1; action: "retire_goal"; id: string }
+  | {
+    contractVersion: 1;
+    action: "add_goal";
+    text: string;
+    ownership: PlanGoalOwnership;
+    trackingType: PlanGoalTrackingType;
+    targetValue: number;
+  };
 
 export type SpriteAssetV1 = {
   id: string;
@@ -819,16 +829,49 @@ export function parsePlansSnapshot(input: unknown): PlansSnapshotV1 {
 
 export function parsePlansAction(input: unknown): PlansActionV1 {
   const path = "$";
-  const record = objectAt(input, path, ["contractVersion", "action", "id", "text"]);
+  const record = objectAt(input, path, ["contractVersion", "action", "id", "text", "value", "ownership", "trackingType", "targetValue"]);
   versionAt(required(record, "contractVersion", path), "$.contractVersion", 1);
-  const action = enumAt(required(record, "action", path), "$.action", ["toggle_task", "toggle_grocery", "add_grocery"] as const);
+  const action = enumAt(required(record, "action", path), "$.action",
+    ["toggle_task", "toggle_grocery", "add_grocery", "log_goal", "retire_goal", "add_goal"] as const);
+
+  const rejectAllBut = (allowed: readonly string[]) => {
+    for (const key of ["id", "text", "value", "ownership", "trackingType", "targetValue"]) {
+      if (key in record && !allowed.includes(key)) fail(`$.${key}`, `is not allowed for ${action}`, "unknown_field");
+    }
+  };
+
   if (action === "add_grocery") {
-    if ("id" in record) fail("$.id", "is not allowed for add_grocery", "unknown_field");
+    rejectAllBut(["text"]);
     const text = stringAt(required(record, "text", path), "$.text", 1, 120).trim();
     if (!text) fail("$.text", "must contain visible text");
     return { contractVersion: 1, action, text };
   }
-  if ("text" in record) fail("$.text", "is not allowed for toggle actions", "unknown_field");
+
+  if (action === "add_goal") {
+    rejectAllBut(["text", "ownership", "trackingType", "targetValue"]);
+    const text = stringAt(required(record, "text", path), "$.text", 1, 160).trim();
+    if (!text) fail("$.text", "must contain visible text");
+    return {
+      contractVersion: 1,
+      action,
+      text,
+      ownership: enumAt(required(record, "ownership", path), "$.ownership", PLAN_GOAL_OWNERSHIPS),
+      trackingType: enumAt(required(record, "trackingType", path), "$.trackingType", PLAN_GOAL_TRACKING_TYPES),
+      targetValue: integerAt(required(record, "targetValue", path), "$.targetValue", 1, 1_000_000_000),
+    };
+  }
+
+  if (action === "log_goal") {
+    rejectAllBut(["id", "value"]);
+    return {
+      contractVersion: 1,
+      action,
+      id: idAt(required(record, "id", path), "$.id"),
+      value: integerAt(required(record, "value", path), "$.value", 1, 1_000_000),
+    };
+  }
+
+  rejectAllBut(["id"]);
   return { contractVersion: 1, action, id: idAt(required(record, "id", path), "$.id") };
 }
 
