@@ -1,9 +1,36 @@
+/*
+ * Self-hosted so no third party sees a request from a household's phone, and so
+ * the app looks the same on every platform. One variable file covers 400-800;
+ * latin-ext is a separate file the browser only fetches for an accented name.
+ */
+@font-face {
+  font-family: "Plus Jakarta Sans";
+  font-style: normal;
+  font-weight: 400 800;
+  font-display: swap;
+  src: url("/fonts/plus-jakarta-sans-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC,
+    U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215,
+    U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: "Plus Jakarta Sans";
+  font-style: normal;
+  font-weight: 400 800;
+  font-display: swap;
+  src: url("/fonts/plus-jakarta-sans-latin-ext.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304,
+    U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0,
+    U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
 :root {
   color: var(--ink);
   background: var(--canvas);
   font-family:
-    Inter, ui-rounded, "SF Pro Rounded", system-ui, -apple-system, BlinkMacSystemFont,
-    "Segoe UI", sans-serif;
+    "Plus Jakarta Sans", ui-rounded, "SF Pro Rounded", system-ui, -apple-system,
+    BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
 
@@ -92,6 +119,20 @@
   --shadow: var(--lift-3);
   --pixel-shadow: var(--lift-2);
   --press-shadow: var(--lift-2);
+
+  /* Seven sizes for the whole app, each far enough from its neighbour to mean
+     something, and four weights so there is a step between quiet and loud. */
+  --type-micro: 0.625rem;
+  --type-label: 0.6875rem;
+  --type-small: 0.8125rem;
+  --type-body: 0.9375rem;
+  --type-heading: 1.25rem;
+  --type-title: clamp(1.4rem, 2.2vw, 1.75rem);
+  --type-display: clamp(2rem, 4.5vw, 2.75rem);
+  --weight-body: 400;
+  --weight-medium: 500;
+  --weight-strong: 600;
+  --weight-display: 800;
   --app-header-height: calc(5rem + env(safe-area-inset-top, 0px));
 }
 
@@ -111,6 +152,10 @@ body {
   min-height: 100vh;
   margin: 0;
   color: var(--ink);
+  /* Anything not given a size lands on the scale rather than the browser's 16px. */
+  font-size: var(--type-body);
+  font-weight: var(--weight-body);
+  line-height: 1.5;
   background:
     radial-gradient(circle at 85% 0%, rgb(255 126 168 / 10%), transparent 28rem),
     radial-gradient(circle at 0% 40%, rgb(127 179 255 / 12%), transparent 30rem),
@@ -142,17 +187,21 @@ h1,
 h2,
 h3 {
   margin: 0;
+  font-size: var(--type-heading);
+  font-weight: var(--weight-display);
   color: var(--ink);
   line-height: 1.05;
   letter-spacing: -0.035em;
 }
 
 h1 {
-  font-size: clamp(2.35rem, 5vw, 4.5rem);
+  font-size: var(--type-display);
+  font-weight: var(--weight-display);
 }
 
 h2 {
-  font-size: clamp(1.35rem, 2.3vw, 2rem);
+  font-size: var(--type-title);
+  font-weight: var(--weight-display);
 }
 
 ul {
@@ -178,7 +227,7 @@ summary:focus-visible,
   color: var(--paper);
   background: var(--ink);
   border-radius: 999px;
-  font-weight: 800;
+  font-weight: var(--weight-display);
   transform: translateY(-170%);
 }
 
@@ -212,8 +261,8 @@ summary:focus-visible,
   align-items: center;
   gap: 0.7rem;
   width: max-content;
-  font-size: 1.05rem;
-  font-weight: 900;
+  font-size: var(--type-heading);
+  font-weight: var(--weight-display);
   letter-spacing: -0.02em;
   text-decoration: none;
 }
@@ -237,8 +286,8 @@ summary:focus-visible,
   align-items: center;
   gap: 0.5rem;
   color: var(--muted);
-  font-size: 0.82rem;
-  font-weight: 700;
+  font-size: var(--type-small);
+  font-weight: var(--weight-strong);
 }
 
 .home-status > span,
@@ -276,8 +325,8 @@ summary:focus-visible,
   min-height: 2.6rem;
   padding: 0.5rem 0.85rem;
   border-radius: 999px;
-  font-size: 0.82rem;
-  font-weight: 800;
+  font-size: var(--type-small);
+  font-weight: var(--weight-display);
   text-decoration: none;
 }
 
@@ -326,8 +375,8 @@ summary:focus-visible,
   border: 1px solid transparent;
   border-radius: var(--radius-pill);
   color: var(--muted);
-  font-size: 0.87rem;
-  font-weight: 800;
+  font-size: var(--type-body);
+  font-weight: var(--weight-display);
   text-decoration: none;
 }
 
@@ -351,7 +400,7 @@ summary:focus-visible,
   background: var(--accent-soft);
   border-radius: var(--radius-sm);
   color: var(--accent-deep);
-  font-size: 0.8rem;
+  font-size: var(--type-small);
 }
 
 .primary-nav a.router-link-exact-active .primary-nav__mark {
@@ -394,8 +443,8 @@ summary:focus-visible,
 .eyebrow {
   margin-bottom: 0.5rem;
   color: var(--mint-dark);
-  font-size: 0.7rem;
-  font-weight: 900;
+  font-size: var(--type-label);
+  font-weight: var(--weight-display);
   letter-spacing: 0.13em;
   text-transform: uppercase;
 }
@@ -403,7 +452,7 @@ summary:focus-visible,
 .view-lede {
   max-width: 38rem;
   margin-bottom: 2.5rem;
-  font-size: clamp(1rem, 1.6vw, 1.17rem);
+  font-size: clamp(0.95rem, 1.6vw, 1.05rem);
 }
 
 .count-bubble,
@@ -417,14 +466,14 @@ summary:focus-visible,
   box-shadow: var(--lift-1);
   color: var(--ink);
   background: var(--paper);
-  font-size: 0.78rem;
-  font-weight: 700;
+  font-size: var(--type-small);
+  font-weight: var(--weight-strong);
   font-variant-numeric: tabular-nums;
 }
 
 .count-bubble strong {
   color: var(--ink);
-  font-size: 1.05rem;
+  font-size: var(--type-heading);
 }
 
 .world-level {
@@ -442,8 +491,8 @@ summary:focus-visible,
   color: var(--ink);
   background: var(--sun-pale);
   border-radius: 50%;
-  font-size: 0.8rem;
-  font-weight: 900;
+  font-size: var(--type-small);
+  font-weight: var(--weight-display);
 }
 
 /* The world is a soft habitat: a rounded pod holding a warm, lit room. */
@@ -487,8 +536,8 @@ summary:focus-visible,
   justify-content: space-between;
   padding: 0 0.25rem 0.5rem;
   color: var(--muted);
-  font-size: 0.68rem;
-  font-weight: 700;
+  font-size: var(--type-micro);
+  font-weight: var(--weight-strong);
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }
@@ -945,20 +994,20 @@ summary:focus-visible,
   background: rgb(255 255 255 / 92%);
   border-radius: var(--radius-pill);
   box-shadow: var(--lift-1);
-  font-size: 0.66rem;
+  font-size: var(--type-micro);
   line-height: 1.3;
   text-align: center;
   white-space: nowrap;
 }
 
 .persona-label strong {
-  font-weight: 800;
+  font-weight: var(--weight-display);
   letter-spacing: 0.01em;
 }
 
 .persona-label span {
   color: var(--muted);
-  font-size: 0.58rem;
+  font-size: var(--type-micro);
   letter-spacing: 0.05em;
   text-transform: uppercase;
 }
@@ -1032,7 +1081,7 @@ summary:focus-visible,
 .ledger-scope small,
 .tool-grid small {
   color: var(--muted);
-  font-size: 0.72rem;
+  font-size: var(--type-label);
   text-transform: capitalize;
 }
 
@@ -1054,7 +1103,7 @@ summary:focus-visible,
   margin-top: 0.75rem;
   background: var(--canvas);
   border-radius: 0.7rem;
-  font-size: 0.78rem;
+  font-size: var(--type-small);
 }
 
 .recommended-move .move-card {
@@ -1063,8 +1112,8 @@ summary:focus-visible,
 
 .section-heading-row a {
   color: var(--mint-dark);
-  font-size: 0.78rem;
-  font-weight: 850;
+  font-size: var(--type-small);
+  font-weight: var(--weight-display);
 }
 
 .world-text-equivalent,
@@ -1121,7 +1170,7 @@ summary:focus-visible,
 
 .move-card--done h2 {
   margin-bottom: 0;
-  font-size: 1rem;
+  font-size: var(--type-heading);
 }
 
 .move-card--done .move-reason {
@@ -1140,8 +1189,8 @@ summary:focus-visible,
   gap: 1rem;
   margin-bottom: 1.25rem;
   color: var(--muted);
-  font-size: 0.72rem;
-  font-weight: 750;
+  font-size: var(--type-label);
+  font-weight: var(--weight-strong);
 }
 
 .family-chip {
@@ -1149,8 +1198,8 @@ summary:focus-visible,
   color: var(--ink);
   background: color-mix(in srgb, var(--move-tone) 20%, white);
   border-radius: var(--radius-pill);
-  font-size: 0.68rem;
-  font-weight: 800;
+  font-size: var(--type-micro);
+  font-weight: var(--weight-display);
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
@@ -1161,7 +1210,7 @@ summary:focus-visible,
 }
 
 .move-card p {
-  font-size: 0.85rem;
+  font-size: var(--type-body);
 }
 
 .action-button {
@@ -1177,8 +1226,8 @@ summary:focus-visible,
   border: 0;
   border-radius: var(--radius-pill);
   box-shadow: var(--lift-2);
-  font-size: 0.8rem;
-  font-weight: 800;
+  font-size: var(--type-small);
+  font-weight: var(--weight-display);
   cursor: pointer;
 }
 
@@ -1229,8 +1278,8 @@ summary:focus-visible,
   border: 1px solid var(--line);
   border-radius: var(--radius-pill);
   box-shadow: var(--lift-1);
-  font-size: 0.75rem;
-  font-weight: 700;
+  font-size: var(--type-small);
+  font-weight: var(--weight-strong);
   cursor: pointer;
 }
 
@@ -1249,8 +1298,8 @@ summary:focus-visible,
   gap: 0.4rem;
   margin: 0.4rem 0 0.8rem;
   color: var(--muted);
-  font-size: 0.72rem;
-  font-weight: 800;
+  font-size: var(--type-label);
+  font-weight: var(--weight-display);
 }
 
 .completion-input input[type="number"],
@@ -1269,7 +1318,7 @@ summary:focus-visible,
   display: flex;
   align-items: center;
   gap: 0.45rem;
-  font-weight: 700;
+  font-weight: var(--weight-strong);
 }
 
 .move-card .move-feedback,
@@ -1277,7 +1326,7 @@ summary:focus-visible,
 .move-view-feedback,
 .move-state {
   margin: 0.65rem 0;
-  font-size: 0.78rem;
+  font-size: var(--type-small);
 }
 
 .move-state {
@@ -1371,7 +1420,7 @@ summary:focus-visible,
 
 .adventure-card__content h2 {
   margin-bottom: 0.9rem;
-  font-size: clamp(1.8rem, 3.5vw, 2.8rem);
+  font-size: clamp(1.5rem, 3vw, 2rem);
 }
 
 .adventure-card__content > p:not(.eyebrow) {
@@ -1399,7 +1448,7 @@ summary:focus-visible,
   justify-content: space-between;
   margin-top: 0.6rem;
   color: var(--muted);
-  font-size: 0.77rem;
+  font-size: var(--type-small);
 }
 
 .progress-copy strong {
@@ -1422,7 +1471,7 @@ summary:focus-visible,
 }
 
 .quiet-note p {
-  font-size: 0.78rem;
+  font-size: var(--type-small);
 }
 
 .persona-layout {
@@ -1489,11 +1538,11 @@ summary:focus-visible,
 
 .persona-card h2 {
   margin-bottom: 0.6rem;
-  font-size: 2rem;
+  font-size: var(--type-title);
 }
 
 .persona-card p:not(.eyebrow) {
-  font-size: 0.82rem;
+  font-size: var(--type-small);
 }
 
 .progress-panel ul {
@@ -1505,7 +1554,7 @@ summary:focus-visible,
 .progress-state {
   margin-top: 1rem;
   color: var(--muted);
-  font-size: 0.78rem;
+  font-size: var(--type-small);
 }
 
 .progress-state .inline-retry,
@@ -1527,18 +1576,18 @@ summary:focus-visible,
 }
 
 .progress-panel li strong {
-  font-size: 0.8rem;
+  font-size: var(--type-small);
   text-transform: capitalize;
 }
 
 .progress-panel li span:not(.mini-progress span) {
   color: var(--muted);
-  font-size: 0.67rem;
+  font-size: var(--type-micro);
 }
 
 .progress-panel li b {
   min-width: 2.4rem;
-  font-size: 0.7rem;
+  font-size: var(--type-label);
 }
 
 .mini-progress {
@@ -1562,7 +1611,7 @@ summary:focus-visible,
 
 .customization-panel p:not(.eyebrow) {
   margin-top: 0.4rem;
-  font-size: 0.8rem;
+  font-size: var(--type-small);
 }
 
 .persona-load-state,
@@ -1587,7 +1636,7 @@ summary:focus-visible,
 
 .persona-builder__heading > p {
   max-width: 34rem;
-  font-size: 0.8rem;
+  font-size: var(--type-small);
 }
 
 .persona-builder__controls {
@@ -1601,8 +1650,8 @@ summary:focus-visible,
   display: grid;
   gap: 0.35rem;
   color: var(--muted);
-  font-size: 0.72rem;
-  font-weight: 800;
+  font-size: var(--type-label);
+  font-weight: var(--weight-display);
   text-transform: capitalize;
 }
 
@@ -1637,7 +1686,7 @@ summary:focus-visible,
 .reward-shelf .section-heading-row > span,
 .reward-state {
   color: var(--muted);
-  font-size: 0.75rem;
+  font-size: var(--type-small);
 }
 
 .reward-state { margin-top: 1rem; }
@@ -1664,9 +1713,9 @@ summary:focus-visible,
 .reward-list li.reward-entry--unlocked { opacity: 1; border-color: var(--mint-dark); }
 .reward-emblem { color: var(--mint-dark); font-size: 1.25rem; }
 .reward-list div { display: grid; gap: 0.2rem; }
-.reward-list strong { font-size: 0.78rem; }
-.reward-list div span { color: var(--muted); font-size: 0.66rem; line-height: 1.35; }
-.reward-list b { grid-column: 2; color: var(--mint-dark); font-size: 0.68rem; }
+.reward-list strong { font-size: var(--type-small); }
+.reward-list div span { color: var(--muted); font-size: var(--type-micro); line-height: 1.35; }
+.reward-list b { grid-column: 2; color: var(--mint-dark); font-size: var(--type-micro); }
 
 .reward-equip {
   grid-column: 2;
@@ -1678,19 +1727,19 @@ summary:focus-visible,
   border: 1px solid var(--mint-dark);
   border-radius: 0.5rem;
   font: inherit;
-  font-size: 0.68rem;
-  font-weight: 800;
+  font-size: var(--type-micro);
+  font-weight: var(--weight-display);
   cursor: pointer;
 }
 
 .reward-equip:disabled { cursor: wait; opacity: 0.6; }
-.reward-action-feedback { min-height: 1.25rem; margin-top: 0.75rem; color: var(--muted); font-size: 0.75rem; }
+.reward-action-feedback { min-height: 1.25rem; margin-top: 0.75rem; color: var(--muted); font-size: var(--type-small); }
 .reward-action-feedback--error { color: var(--gap); }
 
 .plans-state,
 .plans-feedback,
 .plans-note,
-.plans-empty { color: var(--muted); font-size: 0.78rem; }
+.plans-empty { color: var(--muted); font-size: var(--type-small); }
 .plans-state { padding: 1rem; }
 .plans-feedback { min-height: 1.25rem; margin-bottom: 0.75rem; }
 .plans-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
@@ -1702,20 +1751,20 @@ summary:focus-visible,
 .plans-list button > span:first-child { display: grid; width: 1.35rem; height: 1.35rem; place-items: center; border: 1px solid var(--mint-dark); border-radius: 0.35rem; }
 .plans-list button > span:nth-child(2) { display: grid; gap: 0.12rem; }
 .plans-list small,
-.goal-list small { color: var(--muted); font-size: 0.7rem; }
+.goal-list small { color: var(--muted); font-size: var(--type-label); }
 .grocery-quick-add { margin-top: 0.8rem; }
-.grocery-quick-add > label { color: var(--muted); font-size: 0.7rem; font-weight: 800; }
+.grocery-quick-add > label { color: var(--muted); font-size: var(--type-label); font-weight: var(--weight-display); }
 .grocery-quick-add > div { display: grid; grid-template-columns: 1fr auto; gap: 0.5rem; margin-top: 0.25rem; }
 .grocery-quick-add input,
 .grocery-quick-add button { min-height: 2.55rem; padding: 0.5rem 0.65rem; border: 1px solid var(--line); border-radius: 0.6rem; font: inherit; }
-.grocery-quick-add button { background: var(--mint); font-weight: 800; }
+.grocery-quick-add button { background: var(--mint); font-weight: var(--weight-display); }
 .goal-list { grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); }
 .goal-list li { display: grid; gap: 0.55rem; padding: 0.75rem; background: var(--canvas); border-radius: 0.75rem; }
 .goal-list li > div:first-child { display: grid; gap: 0.15rem; }
 .goal-progress { display: grid; gap: 0.3rem; }
 .goal-progress > span { height: 0.45rem; overflow: hidden; background: var(--line); border-radius: 99px; }
 .goal-progress i { display: block; height: 100%; background: var(--mint-dark); }
-.goal-progress b { font-size: 0.72rem; }
+.goal-progress b { font-size: var(--type-label); }
 .goal-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; }
 .goal-actions input { width: 5.5rem; }
 .goal-actions input,
@@ -1723,16 +1772,16 @@ summary:focus-visible,
 .goal-compose input,
 .goal-compose select,
 .goal-compose button,
-.goal-compose-toggle { min-height: 2.4rem; padding: 0.4rem 0.6rem; background: var(--paper); border: 1px solid var(--line); border-radius: 0.6rem; font: inherit; font-size: 0.78rem; }
+.goal-compose-toggle { min-height: 2.4rem; padding: 0.4rem 0.6rem; background: var(--paper); border: 1px solid var(--line); border-radius: 0.6rem; font: inherit; font-size: var(--type-small); }
 .goal-actions button:first-of-type,
 .goal-compose button,
-.goal-compose-toggle { background: var(--mint); font-weight: 800; }
+.goal-compose-toggle { background: var(--mint); font-weight: var(--weight-display); }
 .goal-actions button:disabled,
 .goal-compose button:disabled { opacity: 0.5; }
 .goal-retire { color: var(--muted); }
-.goal-retire-ask { font-size: 0.72rem; font-weight: 800; }
+.goal-retire-ask { font-size: var(--type-label); font-weight: var(--weight-display); }
 .goal-compose { display: grid; gap: 0.4rem; margin-top: 0.8rem; padding: 0.75rem; background: var(--canvas); border-radius: 0.75rem; }
-.goal-compose label { color: var(--muted); font-size: 0.7rem; font-weight: 800; }
+.goal-compose label { color: var(--muted); font-size: var(--type-label); font-weight: var(--weight-display); }
 .goal-compose-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.5rem; }
 .goal-compose-row span { display: grid; gap: 0.2rem; }
 .goal-compose-row input { min-width: 0; }
@@ -1746,7 +1795,7 @@ summary:focus-visible,
 .persona-unsaved,
 .persona-action-feedback {
   color: var(--muted);
-  font-size: 0.75rem;
+  font-size: var(--type-small);
 }
 
 .persona-action-feedback {
@@ -1841,7 +1890,7 @@ summary:focus-visible,
 }
 
 .ledger-scope summary b {
-  font-size: 1rem;
+  font-size: var(--type-heading);
 }
 
 .ledger-scope[open] summary > span:last-child {
@@ -1855,7 +1904,7 @@ summary:focus-visible,
 
 .ledger-scope__detail p,
 .tool-grid details > p {
-  font-size: 0.78rem;
+  font-size: var(--type-small);
 }
 
 .ledger-tools {
@@ -1900,8 +1949,8 @@ summary:focus-visible,
   display: inline-flex;
   align-items: center;
   gap: 0.55rem;
-  font-size: 0.8rem;
-  font-weight: 750;
+  font-size: var(--type-small);
+  font-weight: var(--weight-strong);
 }
 
 .display-view .world-scene {
@@ -1928,11 +1977,11 @@ summary:focus-visible,
 
 .display-readout strong {
   color: var(--ink);
-  font-size: 0.86rem;
+  font-size: var(--type-body);
 }
 
 .display-readout span {
-  font-size: 0.72rem;
+  font-size: var(--type-label);
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -2038,7 +2087,7 @@ summary:focus-visible,
     gap: 0.2rem;
     min-height: 3.8rem;
     padding: 0.35rem;
-    font-size: 0.67rem;
+    font-size: var(--type-micro);
   }
 
   .primary-nav__mark {
@@ -2156,7 +2205,7 @@ summary:focus-visible,
     max-width: 9.5rem;
     gap: 0.45rem;
     padding: 0.4rem 0.55rem 0.4rem 0.4rem;
-    font-size: 0.67rem;
+    font-size: var(--type-micro);
   }
 
   /* The level number is the point of this pill, so it stays visible and the
@@ -2164,7 +2213,7 @@ summary:focus-visible,
   .world-level__badge {
     width: 1.6rem;
     height: 1.6rem;
-    font-size: 0.7rem;
+    font-size: var(--type-label);
   }
 
   .world-scene {
@@ -2209,7 +2258,7 @@ summary:focus-visible,
   }
 
   .display-heading h1 {
-    font-size: 2.2rem;
+    font-size: var(--type-title);
   }
 }
 
@@ -2242,8 +2291,8 @@ summary:focus-visible,
   padding: 0;
   margin-bottom: 0.8rem;
   color: var(--muted);
-  font-size: 0.78rem;
-  font-weight: 800;
+  font-size: var(--type-small);
+  font-weight: var(--weight-display);
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -2287,8 +2336,8 @@ summary:focus-visible,
 
 .character-option span {
   color: var(--muted);
-  font-size: 0.76rem;
-  font-weight: 700;
+  font-size: var(--type-small);
+  font-weight: var(--weight-strong);
 }
 
 .character-option--chosen {
@@ -2310,7 +2359,7 @@ summary:focus-visible,
   align-items: center;
   gap: 0.4rem;
   color: var(--muted);
-  font-size: 0.82rem;
+  font-size: var(--type-small);
 }
 
 .move-reason::before {
@@ -2333,7 +2382,7 @@ summary:focus-visible,
 .scene-caption {
   margin: -0.4rem 0 0;
   color: var(--muted);
-  font-size: 0.9rem;
+  font-size: var(--type-body);
   text-align: center;
 }
 
@@ -2393,17 +2442,17 @@ summary:focus-visible,
 .rest-mode__label {
   display: grid;
   gap: 0.1rem;
-  font-size: 0.86rem;
+  font-size: var(--type-body);
 }
 
 .rest-mode__label span {
   color: var(--muted);
-  font-size: 0.8rem;
+  font-size: var(--type-small);
 }
 
 .rest-mode__error {
   color: var(--gap);
-  font-size: 0.82rem;
+  font-size: var(--type-small);
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -2438,13 +2487,13 @@ summary:focus-visible,
 .display-mode__day {
   color: var(--muted);
   font-size: clamp(0.9rem, 1.6vw, 1.3rem);
-  font-weight: 700;
+  font-weight: var(--weight-strong);
   letter-spacing: 0.14em;
   text-transform: uppercase;
 }
 
 .display-mode h1 {
-  font-size: clamp(2rem, 5vw, 4rem);
+  font-size: clamp(2.25rem, 5vw, 3.5rem);
   text-wrap: balance;
 }
 
@@ -2497,7 +2546,7 @@ summary:focus-visible,
   color: var(--accent-deep);
   background: var(--accent-soft);
   border-radius: 50%;
-  font-weight: 800;
+  font-weight: var(--weight-display);
 }
 
 .member-list li > span:last-child {
@@ -2507,7 +2556,7 @@ summary:focus-visible,
 
 .member-list small {
   color: var(--muted);
-  font-size: 0.8rem;
+  font-size: var(--type-small);
 }
 
 .invite-form {
@@ -2522,8 +2571,8 @@ summary:focus-visible,
   flex: 1 1 14rem;
   gap: 0.3rem;
   color: var(--muted);
-  font-size: 0.78rem;
-  font-weight: 700;
+  font-size: var(--type-small);
+  font-weight: var(--weight-strong);
 }
 
 .invite-form input {
@@ -2533,7 +2582,7 @@ summary:focus-visible,
   background: var(--paper);
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
-  font-size: 0.95rem;
+  font-size: var(--type-body);
 }
 
 .invite-form .action-button {
@@ -2547,13 +2596,13 @@ summary:focus-visible,
 .invitation-state,
 .quiet-note-text {
   color: var(--muted);
-  font-size: 0.9rem;
+  font-size: var(--type-body);
 }
 
 .household-feedback {
   min-height: 1.2rem;
   color: var(--accent-deep);
-  font-size: 0.85rem;
+  font-size: var(--type-body);
 }
 
 .household-feedback--error {
@@ -2566,7 +2615,7 @@ summary:focus-visible,
 }
 
 .world-scene--display .persona-label {
-  font-size: 0.8rem;
+  font-size: var(--type-small);
 }
 
 .alone-note {
@@ -2574,7 +2623,7 @@ summary:focus-visible,
   background: var(--accent-soft);
   border-radius: var(--radius-md);
   color: var(--accent-deep);
-  font-size: 0.88rem;
+  font-size: var(--type-body);
   text-align: center;
 }
 
@@ -2711,19 +2760,19 @@ summary:focus-visible,
 }
 
 .furnishing-list strong {
-  font-size: 0.9rem;
+  font-size: var(--type-body);
 }
 
 .furnishing-list span {
   color: var(--muted);
-  font-size: 0.78rem;
+  font-size: var(--type-small);
 }
 
 .furnishing-list b {
   margin-left: auto;
   color: var(--muted);
-  font-size: 0.74rem;
-  font-weight: 800;
+  font-size: var(--type-label);
+  font-weight: var(--weight-display);
   white-space: nowrap;
 }
 
@@ -2746,7 +2795,7 @@ summary:focus-visible,
 
 .furnishing-note {
   color: var(--muted);
-  font-size: 0.8rem;
+  font-size: var(--type-small);
 }
 
 /* Ledger: exact numbers, plainly laid out. */
@@ -2764,7 +2813,7 @@ summary:focus-visible,
 
 .ledger-empty {
   color: var(--muted);
-  font-size: 0.9rem;
+  font-size: var(--type-body);
 }
 
 .review-list,
@@ -2801,12 +2850,12 @@ summary:focus-visible,
 }
 
 .review-row__what strong {
-  font-size: 0.95rem;
+  font-size: var(--type-body);
 }
 
 .review-row__what span {
   color: var(--muted);
-  font-size: 0.8rem;
+  font-size: var(--type-small);
 }
 
 .review-row__amount,
@@ -2830,7 +2879,7 @@ summary:focus-visible,
   background: var(--paper);
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
-  font-size: 0.85rem;
+  font-size: var(--type-body);
 }
 
 .review-row__controls .action-button {
@@ -2854,7 +2903,7 @@ summary:focus-visible,
 
 .budget-row span {
   color: var(--muted);
-  font-size: 0.85rem;
+  font-size: var(--type-body);
   font-variant-numeric: tabular-nums;
 }
 
@@ -2872,7 +2921,7 @@ summary:focus-visible,
 
 .connection-list b {
   color: var(--accent-deep);
-  font-size: 0.8rem;
+  font-size: var(--type-small);
 }
 
 .connection--attention b,
@@ -2887,7 +2936,7 @@ summary:focus-visible,
 .ledger-feedback {
   min-height: 1.2rem;
   color: var(--accent-deep);
-  font-size: 0.85rem;
+  font-size: var(--type-body);
 }
 
 .ledger-feedback--error {
@@ -2906,7 +2955,7 @@ summary:focus-visible,
 
 .split-editor__lede {
   color: var(--muted);
-  font-size: 0.82rem;
+  font-size: var(--type-small);
 }
 
 .split-row {
@@ -2924,7 +2973,7 @@ summary:focus-visible,
   background: var(--paper);
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
-  font-size: 0.85rem;
+  font-size: var(--type-body);
 }
 
 .split-row select {
@@ -2953,9 +3002,9 @@ summary:focus-visible,
 .split-remainder {
   margin-right: auto;
   color: var(--gap);
-  font-size: 0.82rem;
+  font-size: var(--type-small);
   font-variant-numeric: tabular-nums;
-  font-weight: 700;
+  font-weight: var(--weight-strong);
 }
 
 .split-remainder--settled {
@@ -2998,7 +3047,7 @@ summary:focus-visible,
   background: var(--paper);
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
-  font-size: 0.88rem;
+  font-size: var(--type-body);
   font-variant-numeric: tabular-nums;
 }
 
@@ -3017,7 +3066,7 @@ summary:focus-visible,
   background: var(--paper);
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
-  font-size: 0.88rem;
+  font-size: var(--type-body);
 }
 
 .review-row__amount--refund {
@@ -3046,7 +3095,7 @@ summary:focus-visible,
   background: var(--paper);
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
-  font-size: 0.85rem;
+  font-size: var(--type-body);
 }
 
 .connect-bank .action-button {
@@ -3066,7 +3115,7 @@ summary:focus-visible,
   min-width: 2.4rem;
   min-height: 2.4rem;
   padding: 0;
-  font-size: 1.1rem;
+  font-size: var(--type-heading);
   line-height: 1;
 }
 
@@ -3087,14 +3136,14 @@ summary:focus-visible,
 
 .month-figures span {
   color: var(--muted);
-  font-size: 0.78rem;
-  font-weight: 700;
+  font-size: var(--type-small);
+  font-weight: var(--weight-strong);
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 
 .month-figures strong {
-  font-size: 1.25rem;
+  font-size: var(--type-heading);
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.02em;
 }
@@ -3139,20 +3188,20 @@ summary:focus-visible,
 
 .adventure-count strong {
   color: var(--ink);
-  font-size: 1.05rem;
+  font-size: var(--type-heading);
   font-variant-numeric: tabular-nums;
 }
 
 .adventure-count span {
   color: var(--muted);
-  font-size: 0.85rem;
+  font-size: var(--type-body);
 }
 
 .adventure-feedback {
   min-height: 1.2rem;
   margin-top: 0.6rem;
   color: var(--accent-deep);
-  font-size: 0.86rem;
+  font-size: var(--type-body);
 }
 
 .adventure-feedback--error {
@@ -3178,7 +3227,7 @@ summary:focus-visible,
 
 .finished-list span {
   color: var(--muted);
-  font-size: 0.82rem;
+  font-size: var(--type-small);
 }
 
 .finished-mark {
@@ -3189,7 +3238,7 @@ summary:focus-visible,
   height: 1.8rem;
   border-radius: 50%;
   font-size: 0.85rem;
-  font-weight: 800;
+  font-weight: var(--weight-display);
 }
 
 .finished-mark--complete {

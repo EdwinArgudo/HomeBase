@@ -4,6 +4,6 @@
   "description": "A calm shared home for money, plans, and goals.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#f5f5ef",
-  "theme_color": "#365d4c"
+  "background_color": "#f6f3f8",
+  "theme_color": "#177357"
 }
