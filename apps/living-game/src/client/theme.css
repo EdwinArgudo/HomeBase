@@ -1,0 +1,165 @@
+@import "tailwindcss";
+
+/*
+ * Tailwind scans markup for class names; the Vue templates are where they live.
+ */
+@source "../**/*.vue";
+@source "../**/*.ts";
+
+/*
+ * The design system stays in styles.css, which is the one place a value is ever
+ * written down. `inline` makes Tailwind emit utilities that point at those
+ * variables instead of copying their values, so `bg-paper` and `--paper` can
+ * never drift apart, and changing a token still changes the whole app at once.
+ *
+ * Only the vocabulary Homebase actually uses is defined. Tailwind's defaults for
+ * colour, type and spacing are cleared, because a palette you can leave by
+ * typing `bg-slate-400` is not a palette.
+ */
+@theme inline {
+  --color-*: initial;
+  --color-paper: var(--paper);
+  --color-canvas: var(--canvas);
+  --color-sunk: var(--surface-sunk);
+  --color-line: var(--line);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-transparent: transparent;
+  --color-current: currentcolor;
+
+  --color-accent: var(--accent);
+  --color-accent-deep: var(--accent-deep);
+  --color-accent-soft: var(--accent-soft);
+  --color-on-accent: var(--on-accent);
+  --color-on-accent-deep: var(--on-accent-deep);
+
+  --color-warm: var(--accent-warm);
+  --color-warm-deep: var(--accent-warm-deep);
+  --color-warm-soft: var(--accent-warm-soft);
+
+  --color-cool: var(--accent-cool);
+  --color-cool-deep: var(--accent-cool-deep);
+  --color-cool-soft: var(--accent-cool-soft);
+
+  --color-rose: var(--accent-rose);
+  --color-rose-deep: var(--accent-rose-deep);
+  --color-rose-soft: var(--accent-rose-soft);
+
+  --color-gap: var(--gap);
+  --color-partial: var(--partial);
+
+  --font-sans:
+    "Plus Jakarta Sans", ui-rounded, "SF Pro Rounded", system-ui, -apple-system,
+    BlinkMacSystemFont, "Segoe UI", sans-serif;
+
+  --text-*: initial;
+  --text-micro: var(--type-micro);
+  --text-label: var(--type-label);
+  --text-small: var(--type-small);
+  --text-body: var(--type-body);
+  --text-heading: var(--type-heading);
+  --text-title: var(--type-title);
+  --text-display: var(--type-display);
+
+  --font-weight-*: initial;
+  --font-weight-body: var(--weight-body);
+  --font-weight-medium: var(--weight-medium);
+  --font-weight-strong: var(--weight-strong);
+  --font-weight-display: var(--weight-display);
+
+  --radius-*: initial;
+  --radius-xs: var(--radius-xs);
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+  --radius-pill: var(--radius-pill);
+
+  --shadow-*: initial;
+  --shadow-lift-1: var(--lift-1);
+  --shadow-lift-2: var(--lift-2);
+  --shadow-lift-3: var(--lift-3);
+
+  --ease-spring: var(--ease-spring);
+}
+
+/*
+ * One spacing step, so every gap and pad in the app is a multiple of 4px and
+ * uneven rhythm becomes something you can see in the markup.
+ */
+@theme {
+  --spacing: 0.25rem;
+}
+
+/*
+ * Primitives. Homebase has perhaps six repeating shapes — a card, a row, a
+ * control, a field, a label — and writing them out as fifteen utilities every
+ * time is how they drift apart. Layout stays in the markup where it belongs;
+ * only the things that must match everywhere live here.
+ */
+@layer components {
+  .hb-card {
+    background: var(--color-paper);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-md);
+    padding: --spacing(5);
+  }
+
+  .hb-row {
+    display: flex;
+    align-items: center;
+    gap: --spacing(3);
+    width: 100%;
+    min-height: --spacing(12);
+    padding: --spacing(3);
+    background: var(--color-canvas);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-sm);
+    text-align: left;
+  }
+
+  /* 44px, which is the smallest a thumb should have to hit. */
+  .hb-control {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: --spacing(2);
+    min-height: --spacing(11);
+    padding-inline: --spacing(4);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-sm);
+    background: var(--color-paper);
+    font: inherit;
+    font-size: var(--text-small);
+    font-weight: var(--font-weight-strong);
+    white-space: nowrap;
+  }
+
+  .hb-control--primary {
+    background: var(--color-accent);
+    border-color: transparent;
+    color: var(--color-on-accent);
+    font-weight: var(--font-weight-display);
+  }
+
+  .hb-control--quiet { color: var(--color-muted); font-weight: var(--font-weight-medium); }
+  .hb-control:disabled { opacity: 0.5; }
+
+  .hb-field {
+    width: 100%;
+    min-height: --spacing(11);
+    padding-inline: --spacing(3);
+    background: var(--color-paper);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-sm);
+    font: inherit;
+    font-size: var(--text-small);
+  }
+
+  .hb-label {
+    display: block;
+    color: var(--color-muted);
+    font-size: var(--text-label);
+    font-weight: var(--font-weight-strong);
+    letter-spacing: 0.02em;
+  }
+}

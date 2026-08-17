@@ -108,6 +108,7 @@
   --shell-dark: var(--line);
 
   /* Soft, layered elevation instead of hard offset shadows. */
+  --radius-xs: 0.35rem;
   --radius-sm: 0.7rem;
   --radius-md: 1.1rem;
   --radius-lg: 1.75rem;
@@ -1738,60 +1739,6 @@ summary:focus-visible,
 
 .plans-state,
 .plans-feedback,
-.plans-note,
-.plans-empty { color: var(--muted); font-size: var(--type-small); }
-.plans-state { padding: 1rem; }
-.plans-feedback { min-height: 1.25rem; margin-bottom: 0.75rem; }
-.plans-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
-.plans-panel { padding: 1.15rem; background: var(--paper); border: 1px solid var(--line); border-radius: 1rem; }
-.plans-panel--goals { grid-column: 1 / -1; }
-.plans-list,
-.goal-list { display: grid; gap: 0.55rem; margin-top: 0.8rem; }
-.plans-list button { display: flex; align-items: center; gap: 0.65rem; width: 100%; min-height: 3rem; padding: 0.55rem; text-align: left; background: var(--canvas); border: 1px solid var(--line); border-radius: 0.65rem; }
-.plans-list button > span:first-child { display: grid; width: 1.35rem; height: 1.35rem; place-items: center; border: 1px solid var(--mint-dark); border-radius: 0.35rem; }
-.plans-list button > span:nth-child(2) { display: grid; gap: 0.12rem; }
-.plans-list small,
-.goal-list small { color: var(--muted); font-size: var(--type-label); }
-.grocery-quick-add { margin-top: 0.8rem; }
-.grocery-quick-add > label { color: var(--muted); font-size: var(--type-label); font-weight: var(--weight-display); }
-.grocery-quick-add > div { display: grid; grid-template-columns: 1fr auto; gap: 0.5rem; margin-top: 0.25rem; }
-.grocery-quick-add input,
-.grocery-quick-add button { min-height: 2.55rem; padding: 0.5rem 0.65rem; border: 1px solid var(--line); border-radius: 0.6rem; font: inherit; }
-.grocery-quick-add button { background: var(--mint); font-weight: var(--weight-display); }
-.goal-list { grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); }
-.goal-list li { display: grid; gap: 0.55rem; padding: 0.75rem; background: var(--canvas); border-radius: 0.75rem; }
-.goal-list li > div:first-child { display: grid; gap: 0.15rem; }
-.goal-progress { display: grid; gap: 0.3rem; }
-.goal-progress > span { height: 0.45rem; overflow: hidden; background: var(--line); border-radius: 99px; }
-.goal-progress i { display: block; height: 100%; background: var(--mint-dark); }
-.goal-progress b { font-size: var(--type-label); }
-.goal-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; }
-.goal-actions input { width: 5.5rem; }
-.goal-actions input,
-.goal-actions button,
-.goal-compose input,
-.goal-compose select,
-.goal-compose button,
-.goal-compose-toggle { min-height: 2.4rem; padding: 0.4rem 0.6rem; background: var(--paper); border: 1px solid var(--line); border-radius: 0.6rem; font: inherit; font-size: var(--type-small); }
-.goal-actions button:first-of-type,
-.goal-compose button,
-.goal-compose-toggle { background: var(--mint); font-weight: var(--weight-display); }
-.goal-actions button:disabled,
-.goal-compose button:disabled { opacity: 0.5; }
-.goal-retire { color: var(--muted); }
-.goal-retire-ask { font-size: var(--type-label); font-weight: var(--weight-display); }
-.goal-compose { display: grid; gap: 0.4rem; margin-top: 0.8rem; padding: 0.75rem; background: var(--canvas); border-radius: 0.75rem; }
-.goal-compose label { color: var(--muted); font-size: var(--type-label); font-weight: var(--weight-display); }
-.goal-compose-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.5rem; }
-.goal-compose-row span { display: grid; gap: 0.2rem; }
-.goal-compose-row input { min-width: 0; }
-
-@media (max-width: 46rem) {
-  .goal-compose-row { grid-template-columns: 1fr; }
-  .plans-grid { grid-template-columns: 1fr; }
-  .plans-panel--goals { grid-column: auto; }
-}
-
 .persona-unsaved,
 .persona-action-feedback {
   color: var(--muted);

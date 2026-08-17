@@ -26,7 +26,7 @@ describe("Plans view", () => {
     expect(wrapper.text()).toContain("both count the same way");
     await wrapper.get('button[aria-label="Complete Take recycling downstairs"]').trigger("click"); await flushPromises();
     expect(wrapper.find('button[aria-label="Reopen Take recycling downstairs"]').exists()).toBe(true);
-    await wrapper.get("#grocery-name").setValue("Apples"); await wrapper.get(".grocery-quick-add").trigger("submit"); await flushPromises();
+    await wrapper.get("#grocery-name").setValue("Apples"); await wrapper.get("form[aria-label='Add a grocery item']").trigger("submit"); await flushPromises();
     expect(wrapper.text()).toContain("Apples");
     await wrapper.get('button[aria-label="Pick up Apples"]').trigger("click"); await flushPromises();
     expect(wrapper.find('button[aria-label="Put back Apples"]').exists()).toBe(true);
@@ -66,13 +66,13 @@ describe("Plans view", () => {
   it("adds a goal and asks before finishing one", async () => {
     const wrapper = await mounted(); await flushPromises();
 
-    await wrapper.get(".goal-compose-toggle").trigger("click");
+    await wrapper.get("button[aria-expanded]").trigger("click");
     await wrapper.get("#goal-name").setValue("Read together");
     await wrapper.get("#goal-target").setValue("24");
-    await wrapper.get(".goal-compose").trigger("submit"); await flushPromises();
+    await wrapper.get("form[aria-label='Add a goal']").trigger("submit"); await flushPromises();
     expect(wrapper.text()).toContain("Read together");
     expect(wrapper.text()).toContain("0 sessions / 24 sessions");
-    expect(wrapper.find(".goal-compose").exists()).toBe(false);
+    expect(wrapper.find("form[aria-label='Add a goal']").exists()).toBe(false);
 
     // Finishing is not undoable from here, so it asks first.
     await wrapper.get('button[aria-label="Finish Practice Spanish"]').trigger("click");
@@ -91,8 +91,8 @@ describe("Plans view", () => {
     const fixture = createFixturePlansApi(); const empty = { ...(await fixture.load()), tasks: [], groceries: [], goals: [] };
     const load = vi.fn().mockRejectedValueOnce(new Error("Plans are resting briefly.")).mockResolvedValueOnce(empty);
     const wrapper = await mounted({ load, act: vi.fn() }); await flushPromises();
-    expect(wrapper.get(".plans-state[role='alert']").text()).toContain("resting briefly");
-    await wrapper.get(".plans-state button").trigger("click"); await flushPromises();
+    expect(wrapper.get("div[role='alert']").text()).toContain("resting briefly");
+    await wrapper.get("div[role='alert'] button").trigger("click"); await flushPromises();
     expect(wrapper.text()).toContain("No tasks need your attention");
     expect(wrapper.text()).toContain("The grocery list is clear");
     expect(wrapper.text()).toContain("No active goals");

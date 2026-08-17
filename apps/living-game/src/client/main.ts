@@ -32,6 +32,9 @@ import { configureDisplayWorldRuntime } from "./stores/displayWorld";
 import { configureLedgerRuntime } from "./stores/ledger";
 import { configureAdventuresRuntime } from "./stores/adventures";
 import { configurePlansRuntime } from "./stores/plans";
+// Tailwind first: its reset is a base for the app stylesheet to build on,
+// not something that should land on top of it.
+import "./theme.css";
 import "./styles.css";
 
 const liveMoves = import.meta.env.VITE_LIVE_MOVES === "true";
