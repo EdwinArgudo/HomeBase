@@ -20,7 +20,7 @@ describe("adventures", () => {
     await flushPromises();
     expect(wrapper.text()).toContain("On offer this week");
 
-    await wrapper.get(".adventure-card .action-button").trigger("click");
+    await wrapper.get("section[aria-labelledby='offer-heading'] button").trigger("click");
     await flushPromises();
 
     expect(accept).toHaveBeenCalledWith("dinners-together");
@@ -35,14 +35,14 @@ describe("adventures", () => {
     configureAdventuresRuntime({ api });
     const wrapper = mount(AdventuresView);
     await flushPromises();
-    await wrapper.get(".adventure-card .action-button").trigger("click");
+    await wrapper.get("section[aria-labelledby='offer-heading'] button").trigger("click");
     await flushPromises();
 
     const progress = wrapper.get('[role="progressbar"]');
     expect(progress.attributes("aria-valuenow")).toBe("1");
     expect(progress.attributes("aria-valuemax")).toBe("3");
     expect(wrapper.text()).toContain("nothing to tick off");
-    expect(wrapper.findAll(".adventure-card button")).toHaveLength(0);
+    expect(wrapper.findAll("section[aria-labelledby='active-heading'] button")).toHaveLength(0);
     wrapper.unmount();
   });
 
@@ -70,7 +70,7 @@ describe("adventures", () => {
 
     const wrapper = mount(AdventuresView);
     await flushPromises();
-    await wrapper.get(".adventure-card .action-button").trigger("click");
+    await wrapper.get("section[aria-labelledby='offer-heading'] button").trigger("click");
     await flushPromises();
 
     expect(wrapper.get('[role="alert"]').text()).toContain("A different adventure is on offer");

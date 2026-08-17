@@ -25,66 +25,66 @@ async function invite() {
     </header>
     <p class="view-lede">Homebase is built for two. Everything you keep here stays between the people below.</p>
 
-    <div v-if="loadState === 'idle' || loadState === 'loading'" class="move-state" role="status" aria-live="polite">
+    <div v-if="loadState === 'idle' || loadState === 'loading'" class="mt-5 rounded-md border border-line bg-paper p-4 text-small" role="status" aria-live="polite">
       Loading your household…
     </div>
-    <div v-else-if="loadState === 'error'" class="move-state" role="alert">
+    <div v-else-if="loadState === 'error'" class="mt-5 grid justify-items-start gap-2 rounded-md border border-line bg-paper p-4 text-small" role="alert">
       <p>{{ loadError }}</p>
       <button type="button" class="inline-retry" @click="household.ensureLoaded(true)">Retry</button>
     </div>
 
     <template v-else-if="summary">
-      <section class="household-card" aria-labelledby="members-heading">
+      <section class="hb-card mt-5 shadow-lift-1" aria-labelledby="members-heading">
         <div class="section-heading-row">
           <div>
             <p class="eyebrow">{{ summary.householdName }}</p>
             <h2 id="members-heading">Members</h2>
           </div>
         </div>
-        <ul class="member-list">
-          <li v-for="member in summary.members" :key="member.id">
-            <span class="member-initial" aria-hidden="true">{{ member.displayName.slice(0, 1) }}</span>
-            <span>
+        <ul class="mt-4 grid gap-2">
+          <li v-for="member in summary.members" :key="member.id" class="flex items-center gap-3">
+            <span class="grid size-10 shrink-0 place-items-center rounded-pill bg-accent-soft text-heading font-display text-accent-deep" aria-hidden="true">{{ member.displayName.slice(0, 1) }}</span>
+            <span class="grid gap-0.5">
               <strong>{{ member.displayName }}</strong>
-              <small>{{ member.isYou ? "You" : "Partner" }}{{ member.role === "owner" ? " · set up this household" : "" }}</small>
+              <small class="text-small text-muted">{{ member.isYou ? "You" : "Partner" }}{{ member.role === "owner" ? " · set up this household" : "" }}</small>
             </span>
           </li>
         </ul>
       </section>
 
-      <section v-if="summary.canInvite" class="household-card" aria-labelledby="invite-heading">
+      <section v-if="summary.canInvite" class="hb-card mt-4 shadow-lift-1" aria-labelledby="invite-heading">
         <div class="section-heading-row">
           <div>
             <p class="eyebrow">One more person</p>
             <h2 id="invite-heading">Invite your partner</h2>
           </div>
         </div>
-        <p>
+        <p class="mt-3 max-w-[60ch] text-small text-muted">
           Save their email here. The next time they sign in to Homebase they join this household automatically —
           there is nothing for them to accept.
         </p>
-        <p v-if="summary.invitation" class="invitation-state">
-          Waiting for <strong>{{ summary.invitation.email }}</strong> to sign in.
+        <p v-if="summary.invitation" class="mt-2 text-small text-muted">
+          Waiting for <strong class="text-ink">{{ summary.invitation.email }}</strong> to sign in.
         </p>
-        <form class="invite-form" @submit.prevent="invite">
-          <label>
-            Partner's email
-            <input v-model="partnerEmail" type="email" required autocomplete="email" placeholder="partner@example.com" />
+        <form class="mt-4 flex flex-wrap items-end gap-3" @submit.prevent="invite">
+          <label class="grid flex-1 basis-56 gap-1">
+            <span class="hb-label">Partner's email</span>
+            <input v-model="partnerEmail" class="hb-field" type="email" required autocomplete="email" placeholder="partner@example.com" />
           </label>
-          <button type="submit" class="action-button" :disabled="actionState !== 'idle' || partnerEmail.trim().length === 0">
+          <button type="submit" class="hb-control hb-control--primary" :disabled="actionState !== 'idle' || partnerEmail.trim().length === 0">
             {{ actionState === "inviting" ? "Saving…" : summary.invitation ? "Update invitation" : "Save invitation" }}
           </button>
         </form>
         <p
-          class="household-feedback"
-          :class="{ 'household-feedback--error': actionError }"
+          class="mt-3 min-h-5 text-small"
+          :class="actionError ? 'text-gap' : 'text-accent-deep'"
           :role="actionError ? 'alert' : 'status'"
           aria-live="polite"
         >{{ actionError || feedback }}</p>
       </section>
 
-      <section v-else-if="summary.members.length >= 2" class="household-card">
-        <p class="quiet-note-text">Your household is complete. Homebase keeps each person's private details to themselves.</p>
+      <section v-else-if="summary.members.length >= 2" class="hb-card mt-4 shadow-lift-1">
+        <p class="text-small text-muted">Your household is complete. Homebase keeps each person's private details to themselves.</p>
       </section>
     </template>
   </section>
