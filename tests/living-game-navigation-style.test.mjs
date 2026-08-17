@@ -9,7 +9,13 @@ test("anchors the header and desktop rail without changing the mobile bottom doc
 
   assert.match(css, /--app-header-height: calc\(5rem \+ env\(safe-area-inset-top, 0px\)\)/);
   assert.match(css, /\.app-header \{[\s\S]*?position: sticky;[\s\S]*?top: 0;[\s\S]*?min-height: var\(--app-header-height\)/);
-  assert.match(css, /\.app-header \{[\s\S]*?background: rgb\(247 245 237 \/ 95%\);[\s\S]*?backdrop-filter: blur\(14px\)/);
+  // Content scrolls under the header, so it needs a mostly-opaque fill and the
+  // blur behind it. The colour belongs to the palette and is free to change;
+  // the opacity is what keeps text from showing through.
+  const header = css.match(/\.app-header \{([\s\S]*?)\}/)?.[1] ?? "";
+  const headerOpacity = Number(header.match(/background: rgb\([\d\s]+\/\s*(\d+)%\)/)?.[1] ?? 0);
+  assert.ok(headerOpacity >= 85, `header fill should stay at least 85% opaque, got ${headerOpacity}%`);
+  assert.match(header, /backdrop-filter: blur\(14px\)/);
 
   const desktopRail = css.match(/\.primary-nav \{([\s\S]*?)\}/)?.[1] ?? "";
   assert.match(desktopRail, /position: sticky/);

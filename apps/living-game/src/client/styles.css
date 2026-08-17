@@ -1,27 +1,66 @@
 :root {
-  color: #203229;
-  background: #f7f5ed;
+  color: var(--ink);
+  background: var(--canvas);
   font-family:
     Inter, ui-rounded, "SF Pro Rounded", system-ui, -apple-system, BlinkMacSystemFont,
     "Segoe UI", sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
-  --ink: #3c3129;
-  --muted: #7d7168;
-  --paper: #fffdfa;
-  --canvas: #faf6f0;
-  --line: #ece4d9;
 
-  /* One warm accent family, plus supporting hues for the four move families. */
-  --accent: #46a883;
-  --accent-deep: #2f7a5e;
-  --accent-soft: #e2f2ea;
-  --accent-warm: #f0a860;
-  --accent-warm-soft: #fdeedd;
-  --accent-cool: #78b2cc;
-  --accent-cool-soft: #e6f1f6;
-  --accent-rose: #e88a9a;
-  --accent-rose-soft: #fbe7ea;
+  /* Ground. White cards on a cool, faintly lilac room tone: the paper is the
+     brightest thing on screen, so a card always reads as nearer than the app. */
+  --paper: #ffffff;
+  --canvas: #f6f3f8;
+  --surface-sunk: #efe9f3;
+  --line: #e9e3ee;
+  --ink: #2e2836;
+  --muted: #6e6579;
+
+  /* Four hues, each in three weights: a soft wash to sit behind things, a fill
+     for surfaces, and a deep that clears 4.5:1 on both paper and canvas so it
+     can be text. Pair every fill with the text colour that belongs on it —
+     white on a pastel is the mistake this layer exists to prevent. */
+  --accent: #6fd3b0;
+  --accent-deep: #177357;
+  --accent-soft: #e2f7ef;
+  --on-accent: var(--ink);
+  --on-accent-deep: #ffffff;
+
+  --accent-warm: #ffc24b;
+  --accent-warm-deep: #8a5d08;
+  --accent-warm-soft: #fff3d8;
+
+  --accent-cool: #7fb3ff;
+  --accent-cool-deep: #2f66bc;
+  --accent-cool-soft: #e6f0ff;
+
+  /* Rose is spoken for: it belongs to the companions and to affection, and the
+     interface does not borrow it for ordinary controls. */
+  --accent-rose: #ff7ea8;
+  --accent-rose-deep: #be3866;
+  --accent-rose-soft: #ffe8ef;
+
+  /* Money and progress states, dark enough to be read as words. */
+  --gap: #c0304f;
+  --partial: #8a5d08;
+
+  /* The room is painted from its own tokens so the world can be re-lit without
+     touching the interface. */
+  --scene-wall: #efe7f8;
+  --scene-wall-deep: #e4daf1;
+  --scene-floor: #f8e7d9;
+  --scene-floor-deep: #efd9c7;
+  --scene-sky: #bfdcff;
+  --scene-sky-soft: #eaf4ff;
+  --scene-wood: #c99a6e;
+  --scene-wood-deep: #ad7d54;
+  --scene-pot: #d08a5f;
+  --scene-foliage: #45a07c;
+  --scene-sofa: #8fbcf2;
+  --scene-sofa-soft: #a5cbf6;
+  --scene-rug: #ffe6b8;
+  --scene-lamp: #ffd98a;
+  --scene-lamp-deep: #f5bf52;
 
   /* Legacy aliases kept so untouched surfaces stay coherent during the pass. */
   --mint: var(--accent);
@@ -37,24 +76,25 @@
   --sun-vivid: var(--accent-warm);
   --sky-vivid: var(--accent-cool);
   --screen: var(--accent-soft);
-  --screen-deep: #cfe7db;
-  --shell: #f2ece2;
-  --shell-dark: #e2d8c9;
+  --screen-deep: #c9f0e0;
+  --shell: var(--canvas);
+  --shell-dark: var(--line);
 
   /* Soft, layered elevation instead of hard offset shadows. */
   --radius-sm: 0.7rem;
   --radius-md: 1.1rem;
   --radius-lg: 1.75rem;
   --radius-pill: 999px;
-  --lift-1: 0 0.15rem 0.4rem rgb(74 59 50 / 6%);
-  --lift-2: 0 0.5rem 1.4rem rgb(74 59 50 / 9%);
-  --lift-3: 0 1.2rem 2.8rem rgb(74 59 50 / 12%);
+  --lift-1: 0 0.15rem 0.4rem rgb(46 40 54 / 6%);
+  --lift-2: 0 0.5rem 1.4rem rgb(46 40 54 / 9%);
+  --lift-3: 0 1.2rem 2.8rem rgb(46 40 54 / 12%);
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
   --shadow: var(--lift-3);
   --pixel-shadow: var(--lift-2);
   --press-shadow: var(--lift-2);
   --app-header-height: calc(5rem + env(safe-area-inset-top, 0px));
 }
+
 
 * {
   box-sizing: border-box;
@@ -72,8 +112,8 @@ body {
   margin: 0;
   color: var(--ink);
   background:
-    radial-gradient(circle at 85% 0%, rgb(240 168 96 / 13%), transparent 28rem),
-    radial-gradient(circle at 0% 40%, rgb(70 168 131 / 10%), transparent 30rem),
+    radial-gradient(circle at 85% 0%, rgb(255 126 168 / 10%), transparent 28rem),
+    radial-gradient(circle at 0% 40%, rgb(127 179 255 / 12%), transparent 30rem),
     var(--canvas);
 }
 
@@ -125,7 +165,7 @@ a:focus-visible,
 button:focus-visible,
 summary:focus-visible,
 [tabindex]:focus-visible {
-  outline: 3px solid #176c79;
+  outline: 3px solid var(--accent-cool-deep);
   outline-offset: 4px;
 }
 
@@ -161,7 +201,7 @@ summary:focus-visible,
   align-items: center;
   min-height: var(--app-header-height);
   padding-top: env(safe-area-inset-top, 0px);
-  background: rgb(247 245 237 / 95%);
+  background: rgb(255 255 255 / 88%);
   border-bottom: 1px solid var(--line);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
@@ -188,7 +228,7 @@ summary:focus-visible,
   background: var(--accent);
   border-radius: 46% 46% 52% 52%;
   box-shadow: var(--lift-1);
-  color: #fff;
+  color: var(--on-accent);
   font-size: 0.56rem;
 }
 
@@ -293,7 +333,7 @@ summary:focus-visible,
 
 .primary-nav a:hover {
   color: var(--ink);
-  background: rgb(255 254 248 / 65%);
+  background: rgb(255 255 255 / 65%);
 }
 
 .primary-nav a.router-link-exact-active {
@@ -414,7 +454,7 @@ summary:focus-visible,
   min-height: clamp(24rem, 48vw, 37rem);
   margin-top: 2rem;
   padding: clamp(0.6rem, 1.4vw, 0.9rem);
-  background: linear-gradient(180deg, #fffdf9, #f4ece1);
+  background: linear-gradient(180deg, var(--paper), var(--canvas));
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
   box-shadow: var(--lift-3);
@@ -426,7 +466,7 @@ summary:focus-visible,
   overflow: hidden;
   height: 100%;
   min-height: inherit;
-  background: linear-gradient(180deg, #eaf5ef 0%, #e3f1ea 55%, #f6ecdd 55%, #f2e4d0 100%);
+  background: linear-gradient(180deg, var(--scene-wall) 0%, var(--scene-wall-deep) 55%, var(--scene-floor) 55%, var(--scene-floor-deep) 100%);
   border-radius: calc(var(--radius-lg) - 0.45rem);
   box-shadow: inset 0 0.1rem 0.6rem rgb(74 59 50 / 6%);
 }
@@ -436,7 +476,7 @@ summary:focus-visible,
   position: absolute;
   z-index: 6;
   inset: 0;
-  background: radial-gradient(ellipse at 22% 12%, rgb(255 246 224 / 55%), transparent 55%);
+  background: radial-gradient(ellipse at 22% 12%, rgb(255 249 236 / 60%), transparent 55%);
   content: "";
   pointer-events: none;
 }
@@ -501,7 +541,7 @@ summary:focus-visible,
   width: 25%;
   height: 52%;
   overflow: hidden;
-  background: linear-gradient(180deg, #d6ecf3, #eaf6f8);
+  background: linear-gradient(180deg, var(--scene-sky), var(--scene-sky-soft));
   border: 0.3rem solid rgb(255 255 255 / 85%);
     box-shadow: var(--lift-1);
 }
@@ -547,7 +587,7 @@ summary:focus-visible,
   width: 18%;
   height: 18%;
   padding: 0 0.55rem 0.28rem;
-  border-bottom: 0.3rem solid #cbb08f;
+  border-bottom: 0.3rem solid var(--scene-wood);
   border-radius: 0 0 0.2rem 0.2rem;
 }
 
@@ -603,7 +643,7 @@ summary:focus-visible,
   left: 30%;
   width: 42%;
   height: 45%;
-  background: #f0e2bb;
+  background: var(--scene-rug);
   border-radius: 50%;
 }
 
@@ -614,7 +654,7 @@ summary:focus-visible,
   bottom: 28%;
   width: 27%;
   height: 48%;
-  background: #6fa28b;
+  background: var(--scene-sofa);
   border-radius: 0.9rem 0.9rem 0.3rem 0.3rem;
   box-shadow: var(--lift-1);
 }
@@ -625,7 +665,7 @@ summary:focus-visible,
   bottom: -12%;
   left: -5%;
   height: 45%;
-  background: #78ad95;
+  background: var(--scene-sofa-soft);
   border-radius: 0.45rem;
   content: "";
 }
@@ -662,7 +702,7 @@ summary:focus-visible,
   bottom: 0;
   left: 18%;
   height: 35%;
-  background: #bd7956;
+  background: var(--scene-pot);
   content: "";
 }
 
@@ -672,7 +712,7 @@ summary:focus-visible,
   left: 37%;
   width: 35%;
   height: 42%;
-  background: #4f8568;
+  background: var(--scene-foliage);
   border-radius: 75% 8%;
   transform: rotate(-27deg);
 }
@@ -694,7 +734,7 @@ summary:focus-visible,
   bottom: 30%;
   width: 16%;
   height: 10%;
-  background: #ad7855;
+  background: var(--scene-wood-deep);
   box-shadow: var(--lift-1);
 }
 
@@ -754,21 +794,21 @@ summary:focus-visible,
 /* Palette. The appearance classes only set custom properties; every shape below
    paints from a fixed class, so nothing from persona data reaches an attribute. */
 .persona-anchor {
-  --coat: #f3e6d2;
-  --coat-deep: #e2cdb0;
-  --coat-soft: #fdf6ea;
-  --feature: #4a3b32;
+  --coat: #fff1f4;
+  --coat-deep: #f3d8de;
+  --coat-soft: #fffafb;
+  --feature: var(--ink);
 }
 
 /* Each roster character owns its palette. Nothing here is composed at runtime. */
-.persona-character--marshmallow { --coat: #f5e7d3; --coat-deep: #e3ceb1; --coat-soft: #fefaf2; }
-.persona-character--bunny { --coat: #f6cdd2; --coat-deep: #e5abb4; --coat-soft: #fdeaec; }
-.persona-character--cat { --coat: #fbe0a6; --coat-deep: #eec97f; --coat-soft: #fef5dd; }
-.persona-character--pup { --coat: #e8d3b6; --coat-deep: #cdb08a; --coat-soft: #f8eede; }
-.persona-character--bear { --coat: #d9cdf0; --coat-deep: #bbaade; --coat-soft: #efe9fb; }
-.persona-character--chick { --coat: #fbe8a4; --coat-deep: #ecd071; --coat-soft: #fef7dc; }
-.persona-character--moss-bunny { --coat: #b7e3cf; --coat-deep: #92cdb3; --coat-soft: #e5f6ee; }
-.persona-character--dusk-cat { --coat: #bcdcee; --coat-deep: #96c2da; --coat-soft: #e6f3fa; }
+.persona-character--marshmallow { --coat: #fff1f4; --coat-deep: #f3d8de; --coat-soft: #fffafb; }
+.persona-character--bunny { --coat: #ffb3c9; --coat-deep: #f28aab; --coat-soft: #ffe1ea; }
+.persona-character--cat { --coat: #ffcf7a; --coat-deep: #f0b04c; --coat-soft: #fff0d5; }
+.persona-character--pup { --coat: #f0b98a; --coat-deep: #d99a68; --coat-soft: #fce7d5; }
+.persona-character--bear { --coat: #c3b1f0; --coat-deep: #a48fdf; --coat-soft: #eae3fc; }
+.persona-character--chick { --coat: #ffe066; --coat-deep: #f2c93e; --coat-soft: #fff6cc; }
+.persona-character--moss-bunny { --coat: #8fdcc0; --coat-deep: #6ac4a4; --coat-soft: #dff6ec; }
+.persona-character--dusk-cat { --coat: #9cc6f0; --coat-deep: #77a9de; --coat-soft: #e2eefb; }
 
 .companion__body,
 .ear--fill,
@@ -805,7 +845,7 @@ summary:focus-visible,
 }
 
 .eye {
-  fill: #3c3129;
+  fill: var(--ink);
 }
 
 .eye-shine {
@@ -814,25 +854,25 @@ summary:focus-visible,
 
 .eye-line {
   fill: none;
-  stroke: #3c3129;
+  stroke: var(--ink);
   stroke-width: 2.2;
   stroke-linecap: round;
 }
 
 .mouth {
   fill: none;
-  stroke: #3c3129;
+  stroke: var(--ink);
   stroke-width: 1.9;
   stroke-linecap: round;
 }
 
 .blush {
-  fill: #f09aa4;
+  fill: var(--accent-rose);
   opacity: 0.5;
 }
 
 .whisker {
-  stroke: #3c3129;
+  stroke: var(--ink);
   stroke-width: 1.3;
   stroke-linecap: round;
   opacity: 0.5;
@@ -843,11 +883,11 @@ summary:focus-visible,
 }
 
 .nose {
-  fill: #3c3129;
+  fill: var(--ink);
 }
 
 .beak {
-  fill: #f2a94f;
+  fill: var(--accent-warm);
 }
 
 .accessory-fill {
@@ -855,18 +895,18 @@ summary:focus-visible,
 }
 
 .accessory-knot {
-  fill: color-mix(in srgb, var(--accent-warm) 78%, #3c3129);
+  fill: color-mix(in srgb, var(--accent-warm) 78%, var(--ink));
 }
 
 .accessory-lens {
   fill: rgb(255 255 255 / 35%);
-  stroke: #3c3129;
+  stroke: var(--ink);
   stroke-width: 1.8;
   opacity: 0.85;
 }
 
 .accessory-stroke {
-  stroke: #3c3129;
+  stroke: var(--ink);
   stroke-width: 1.8;
   stroke-linecap: round;
 }
@@ -885,7 +925,7 @@ summary:focus-visible,
   width: 1.6rem;
   height: 1.6rem;
   place-items: center;
-  color: #fff;
+  color: var(--on-accent);
   background: var(--accent);
   border-radius: 50%;
   box-shadow: 0 0.25rem 0.6rem rgb(74 59 50 / 25%);
@@ -902,7 +942,7 @@ summary:focus-visible,
   gap: 0.05rem;
   padding: 0.25rem 0.5rem;
   padding: 0.3rem 0.65rem;
-  background: rgb(255 253 250 / 92%);
+  background: rgb(255 255 255 / 92%);
   border-radius: var(--radius-pill);
   box-shadow: var(--lift-1);
   font-size: 0.66rem;
@@ -924,7 +964,7 @@ summary:focus-visible,
 }
 
 .persona-control[aria-pressed="true"] .persona-label {
-  color: #fff;
+  color: var(--on-accent-deep);
   background: var(--accent-deep);
 }
 
@@ -945,7 +985,7 @@ summary:focus-visible,
 .customization-panel,
 .ledger-tools {
   padding: clamp(1.15rem, 2.5vw, 1.65rem);
-  background: rgb(255 254 248 / 80%);
+  background: rgb(255 255 255 / 80%);
   border: 1px solid var(--line);
   border-radius: 1.25rem;
 }
@@ -1074,7 +1114,7 @@ summary:focus-visible,
   min-height: 0;
   padding: 0.85rem 1rem;
   opacity: 0.7;
-  background: var(--surface-sunk, #f0f1eb);
+  background: var(--surface-sunk);
   border-top-width: 1px;
   box-shadow: none;
 }
@@ -1132,7 +1172,7 @@ summary:focus-visible,
   min-height: 3rem;
   padding: 0.6rem 0.75rem 0.6rem 1rem;
   margin-top: auto;
-  color: #fff;
+  color: var(--on-accent-deep);
   background: var(--accent-deep);
   border: 0;
   border-radius: var(--radius-pill);
@@ -1242,7 +1282,7 @@ summary:focus-visible,
 
 .move-state {
   padding: 1rem;
-  background: rgb(255 254 248 / 70%);
+  background: rgb(255 255 255 / 70%);
   border: 1px solid var(--line);
   border-radius: 0.85rem;
 }
@@ -1283,7 +1323,7 @@ summary:focus-visible,
   min-height: 20rem;
   overflow: hidden;
   background:
-    linear-gradient(transparent 65%, #c6b38b 65%),
+    linear-gradient(transparent 65%, var(--scene-wood) 65%),
     repeating-linear-gradient(90deg, transparent 0 2.9rem, rgb(32 50 41 / 6%) 2.9rem calc(2.9rem + 1px)),
     var(--mint-pale);
 }
@@ -1294,7 +1334,7 @@ summary:focus-visible,
   bottom: 22%;
   width: 53%;
   height: 15%;
-  background: #b67c58;
+  background: var(--scene-wood-deep);
   border: 3px solid var(--ink);
   box-shadow: var(--pixel-shadow);
 }
@@ -1412,7 +1452,7 @@ summary:focus-visible,
   place-items: center;
   min-height: 15rem;
   padding: 1.4rem;
-  background: linear-gradient(180deg, #eef7f2, #f7efe3);
+  background: linear-gradient(180deg, var(--accent-soft), var(--canvas));
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
   box-shadow: var(--lift-2);
@@ -1645,7 +1685,7 @@ summary:focus-visible,
 
 .reward-equip:disabled { cursor: wait; opacity: 0.6; }
 .reward-action-feedback { min-height: 1.25rem; margin-top: 0.75rem; color: var(--muted); font-size: 0.75rem; }
-.reward-action-feedback--error { color: #8a3240; }
+.reward-action-feedback--error { color: var(--gap); }
 
 .plans-state,
 .plans-feedback,
@@ -1715,7 +1755,7 @@ summary:focus-visible,
 }
 
 .persona-action-feedback--error {
-  color: #8a3240;
+  color: var(--gap);
 }
 
 .swatch-row {
@@ -1981,7 +2021,7 @@ summary:focus-visible,
     left: 1rem;
     top: auto;
     padding: 0.35rem;
-    background: rgb(255 254 248 / 93%);
+    background: rgb(255 255 255 / 93%);
     border: 1px solid var(--line);
     border-radius: 1.15rem;
     box-shadow: 0 0.8rem 2.4rem rgb(32 50 41 / 20%);
@@ -2261,7 +2301,7 @@ summary:focus-visible,
 }
 
 .character-option:has(input:focus-visible) {
-  outline: 3px solid #176c79;
+  outline: 3px solid var(--accent-cool-deep);
   outline-offset: 3px;
 }
 
@@ -2329,7 +2369,7 @@ summary:focus-visible,
   width: 2.6rem;
   height: 1.5rem;
   padding: 0.18rem;
-  background: var(--surface-sunk, #ece4d9);
+  background: var(--surface-sunk);
   border-radius: 999px;
 }
 
@@ -2362,7 +2402,7 @@ summary:focus-visible,
 }
 
 .rest-mode__error {
-  color: var(--gap, #a94b40);
+  color: var(--gap);
   font-size: 0.82rem;
 }
 
@@ -2517,7 +2557,7 @@ summary:focus-visible,
 }
 
 .household-feedback--error {
-  color: var(--gap, #a94b40);
+  color: var(--gap);
 }
 
 /* The display names who is home; it does not narrate their state. */
@@ -2557,9 +2597,9 @@ summary:focus-visible,
   left: 50%;
   width: 2.4rem;
   height: 1.6rem;
-  background: linear-gradient(180deg, #fbe6b4, #f0c874);
+  background: linear-gradient(180deg, var(--scene-lamp), var(--scene-lamp-deep));
   border-radius: 0.6rem 0.6rem 0.9rem 0.9rem;
-  box-shadow: 0 0.5rem 1.6rem rgb(240 200 116 / 55%);
+  box-shadow: 0 0.5rem 1.6rem rgb(245 191 82 / 55%);
   transform: translateX(-50%);
 }
 
@@ -2569,7 +2609,7 @@ summary:focus-visible,
   left: 50%;
   width: 0.28rem;
   height: 3.4rem;
-  background: #b9a184;
+  background: var(--scene-wood);
   border-radius: 0.2rem;
   transform: translateX(-50%);
 }
@@ -2577,8 +2617,8 @@ summary:focus-visible,
 .world-item--framed-print {
   width: 3.4rem;
   height: 2.6rem;
-  background: #fdf7ec;
-  border: 0.28rem solid #cbb08f;
+  background: var(--paper);
+  border: 0.28rem solid var(--scene-wood);
   border-radius: 0.2rem;
   box-shadow: var(--lift-1);
 }
@@ -2589,7 +2629,7 @@ summary:focus-visible,
   bottom: 0.3rem;
   left: 0.35rem;
   height: 0.9rem;
-  background: #bcdcee;
+  background: var(--scene-sky);
   border-radius: 0.15rem;
 }
 
@@ -2606,7 +2646,7 @@ summary:focus-visible,
 .world-item--floor-cushion {
   width: 3.2rem;
   height: 1.5rem;
-  background: #e9b6bf;
+  background: var(--accent-rose);
   border-radius: 50%;
   box-shadow: inset 0 -0.2rem 0 rgb(74 59 50 / 10%);
 }
@@ -2654,7 +2694,7 @@ summary:focus-visible,
   align-items: center;
   gap: 0.7rem;
   padding: 0.6rem 0.75rem;
-  background: var(--surface-sunk, #f5f0e8);
+  background: var(--surface-sunk);
   border-radius: var(--radius-sm);
   opacity: 0.62;
 }
@@ -2699,9 +2739,9 @@ summary:focus-visible,
   border-radius: 0.5rem;
 }
 
-.furnishing-mark--home-lamp { background: radial-gradient(circle at 50% 35%, #fbe6b4, #f0c874); }
-.furnishing-mark--home-art { background: linear-gradient(160deg, #fdf7ec 55%, #bcdcee 55%); }
-.furnishing-mark--home-cushion { background: radial-gradient(circle at 50% 60%, #e9b6bf, #d896a3); }
+.furnishing-mark--home-lamp { background: radial-gradient(circle at 50% 35%, var(--scene-lamp), var(--scene-lamp-deep)); }
+.furnishing-mark--home-art { background: linear-gradient(160deg, var(--paper) 55%, var(--scene-sky) 55%); }
+.furnishing-mark--home-cushion { background: radial-gradient(circle at 50% 60%, var(--accent-rose), var(--accent-rose-deep)); }
 .furnishing-mark--home-lights { background: linear-gradient(90deg, var(--accent-warm), var(--accent-rose), var(--accent-cool)); }
 
 .furnishing-note {
@@ -2837,11 +2877,11 @@ summary:focus-visible,
 
 .connection--attention b,
 .connection--warning b {
-  color: var(--gap, #a94b40);
+  color: var(--gap);
 }
 
 .connection--stale b {
-  color: var(--partial, #a8761f);
+  color: var(--partial);
 }
 
 .ledger-feedback {
@@ -2851,7 +2891,7 @@ summary:focus-visible,
 }
 
 .ledger-feedback--error {
-  color: var(--gap, #a94b40);
+  color: var(--gap);
 }
 
 /* Splitting a purchase: the parts have to add up, so the remainder is visible
@@ -2912,7 +2952,7 @@ summary:focus-visible,
 
 .split-remainder {
   margin-right: auto;
-  color: var(--gap, #a94b40);
+  color: var(--gap);
   font-size: 0.82rem;
   font-variant-numeric: tabular-nums;
   font-weight: 700;
@@ -3060,7 +3100,7 @@ summary:focus-visible,
 }
 
 .month-figure--over {
-  color: var(--gap, #a94b40);
+  color: var(--gap);
 }
 
 /* Adventures: one week, named. */
@@ -3116,7 +3156,7 @@ summary:focus-visible,
 }
 
 .adventure-feedback--error {
-  color: var(--gap, #a94b40);
+  color: var(--gap);
 }
 
 .finished-list {
@@ -3153,11 +3193,11 @@ summary:focus-visible,
 }
 
 .finished-mark--complete {
-  color: #fff;
+  color: var(--on-accent);
   background: var(--accent);
 }
 
 .finished-mark--expired {
   color: var(--muted);
-  background: var(--surface-sunk, #ece4d9);
+  background: var(--surface-sunk);
 }
