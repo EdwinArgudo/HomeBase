@@ -44,7 +44,7 @@ test("type comes from the scale rather than from whatever looked right", async (
 
   // Unsized text used to fall through to the browser's 16px, which put half the
   // app outside the scale entirely.
-  const body = css.match(/\nbody \{([\s\S]*?)\}/)?.[1] ?? "";
+  const body = css.match(/\n\s*body \{([\s\S]*?)\}/)?.[1] ?? "";
   assert.match(body, /font-size: var\(--type-body\)/);
   assert.match(body, /font-weight: var\(--weight-body\)/);
 
@@ -57,4 +57,23 @@ test("type comes from the scale rather than from whatever looked right", async (
   // and 900, which left no step between quiet and loud.
   const weights = css.match(/font-weight: [\d]+;/g) ?? [];
   assert.deepEqual(weights, [], "weights belong to the scale");
+});
+
+test("element defaults stay in the base layer, where a component can outrank them", async () => {
+  const css = await readFile(stylesUrl, "utf8");
+
+  // Unlayered CSS beats every layer, so a bare `p` rule left outside one wins
+  // against both `.eyebrow` and `text-gap` however specific they are. That is
+  // not a specificity bug anyone can see by reading the selector, which is why
+  // it is worth a test: it cost the eyebrows their colour and stopped error
+  // text rendering red.
+  const base = css.match(/@layer base \{([\s\S]*?)\n\}/)?.[1] ?? "";
+  assert.notEqual(base, "", "styles.css should declare an @layer base block");
+  for (const selector of ["html", "body", "p", "ul", "button", "a"]) {
+    assert.match(base, new RegExp(`\n  ${selector}[ ,{]`), `${selector} belongs in the base layer`);
+  }
+
+  // Nothing that styles a bare element may sit outside a layer.
+  const unlayered = css.replace(/@layer[\s\S]*?\n\}\n/g, "");
+  assert.doesNotMatch(unlayered, /\n(p|body|html|ul|h1|h2|h3) \{/, "bare element rules must be layered");
 });

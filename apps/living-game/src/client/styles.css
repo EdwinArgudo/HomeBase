@@ -89,24 +89,6 @@
   --scene-lamp: #ffd98a;
   --scene-lamp-deep: #f5bf52;
 
-  /* Legacy aliases kept so untouched surfaces stay coherent during the pass. */
-  --mint: var(--accent);
-  --mint-dark: var(--accent-deep);
-  --mint-pale: var(--accent-soft);
-  --berry: var(--accent-rose);
-  --berry-pale: var(--accent-rose-soft);
-  --sun: var(--accent-warm);
-  --sun-pale: var(--accent-warm-soft);
-  --sky: var(--accent-cool);
-  --mint-vivid: var(--accent);
-  --berry-vivid: var(--accent-rose);
-  --sun-vivid: var(--accent-warm);
-  --sky-vivid: var(--accent-cool);
-  --screen: var(--accent-soft);
-  --screen-deep: #c9f0e0;
-  --shell: var(--canvas);
-  --shell-dark: var(--line);
-
   /* Soft, layered elevation instead of hard offset shadows. */
   --radius-xs: 0.35rem;
   --radius-sm: 0.7rem;
@@ -137,95 +119,103 @@
   --app-header-height: calc(5rem + env(safe-area-inset-top, 0px));
 }
 
-
-* {
-  box-sizing: border-box;
-}
-
-html {
-  min-width: 320px;
-  min-height: 100%;
-  background: var(--canvas);
-}
-
-body {
-  min-width: 320px;
-  min-height: 100vh;
-  margin: 0;
-  color: var(--ink);
-  /* Anything not given a size lands on the scale rather than the browser's 16px. */
-  font-size: var(--type-body);
-  font-weight: var(--weight-body);
-  line-height: 1.5;
-  background:
-    radial-gradient(circle at 85% 0%, rgb(255 126 168 / 10%), transparent 28rem),
-    radial-gradient(circle at 0% 40%, rgb(127 179 255 / 12%), transparent 30rem),
-    var(--canvas);
-}
-
-button,
-summary,
-a {
-  -webkit-tap-highlight-color: transparent;
-}
-
-button {
-  color: inherit;
-  font: inherit;
-}
-
-a {
-  color: inherit;
-}
-
-p {
-  margin: 0;
-  color: var(--muted);
-  line-height: 1.6;
-}
-
 /*
- * Leading tightens as type grows: 1.05 keeps a 40px headline from looking
- * spaced out, but the same figure on a 20px heading squeezes its descenders
- * into whatever sits underneath.
+ * These are defaults for bare elements, so they belong in the base layer. Left
+ * unlayered they outrank every component and every utility no matter how
+ * specific: `p { color: var(--muted) }` was quietly beating both `.eyebrow` and
+ * `text-gap`, which is why eyebrows lost their colour and error text was not
+ * red.
  */
-h1,
-h2,
-h3 {
-  margin: 0;
-  font-size: var(--type-heading);
-  font-weight: var(--weight-display);
-  color: var(--ink);
-  line-height: 1.25;
-  letter-spacing: -0.02em;
-}
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
 
-h1 {
-  font-size: var(--type-display);
-  font-weight: var(--weight-display);
-  line-height: 1.05;
-  letter-spacing: -0.035em;
-}
+  html {
+    min-width: 320px;
+    min-height: 100%;
+    background: var(--canvas);
+  }
 
-h2 {
-  font-size: var(--type-title);
-  font-weight: var(--weight-display);
-  line-height: 1.15;
-  letter-spacing: -0.03em;
-}
+  body {
+    min-width: 320px;
+    min-height: 100vh;
+    margin: 0;
+    color: var(--ink);
+    /* Anything not given a size lands on the scale rather than the browser's 16px. */
+    font-size: var(--type-body);
+    font-weight: var(--weight-body);
+    line-height: 1.5;
+    background:
+      radial-gradient(circle at 85% 0%, rgb(255 126 168 / 10%), transparent 28rem),
+      radial-gradient(circle at 0% 40%, rgb(127 179 255 / 12%), transparent 30rem),
+      var(--canvas);
+  }
 
-ul {
-  padding: 0;
-  margin: 0;
-  list-style: none;
-}
+  button,
+  summary,
+  a {
+    -webkit-tap-highlight-color: transparent;
+  }
 
-a:focus-visible,
-button:focus-visible,
-summary:focus-visible,
-[tabindex]:focus-visible {
-  outline: 3px solid var(--accent-cool-deep);
-  outline-offset: 4px;
+  button {
+    color: inherit;
+    font: inherit;
+  }
+
+  a {
+    color: inherit;
+  }
+
+  p {
+    margin: 0;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+
+  /*
+   * Leading tightens as type grows: 1.05 keeps a 40px headline from looking
+   * spaced out, but the same figure on a 20px heading squeezes its descenders
+   * into whatever sits underneath.
+   */
+  h1,
+  h2,
+  h3 {
+    margin: 0;
+    font-size: var(--type-heading);
+    font-weight: var(--weight-display);
+    color: var(--ink);
+    line-height: 1.25;
+    letter-spacing: -0.02em;
+  }
+
+  h1 {
+    font-size: var(--type-display);
+    font-weight: var(--weight-display);
+    line-height: 1.05;
+    letter-spacing: -0.035em;
+  }
+
+  h2 {
+    font-size: var(--type-title);
+    font-weight: var(--weight-display);
+    line-height: 1.15;
+    letter-spacing: -0.03em;
+  }
+
+  ul {
+    padding: 0;
+    margin: 0;
+    list-style: none;
+  }
+
+  a:focus-visible,
+  button:focus-visible,
+  summary:focus-visible,
+  [tabindex]:focus-visible {
+    outline: 3px solid var(--accent-cool-deep);
+    outline-offset: 4px;
+  }
 }
 
 .skip-link {
@@ -309,7 +299,7 @@ summary:focus-visible,
 .connection-pill > span {
   width: 0.48rem;
   height: 0.48rem;
-  background: var(--mint-dark);
+  background: var(--accent-deep);
   border-radius: 50%;
   box-shadow: 0 0 0 0.25rem rgb(129 189 164 / 25%);
 }
@@ -358,7 +348,7 @@ summary:focus-visible,
 .utility-nav .display-link:hover,
 .utility-nav .display-link.router-link-active {
   color: var(--paper);
-  background: var(--mint-dark);
+  background: var(--accent-deep);
   box-shadow: none;
 }
 
@@ -419,7 +409,7 @@ summary:focus-visible,
 
 .primary-nav a.router-link-exact-active .primary-nav__mark {
   color: var(--paper);
-  background: var(--mint-dark);
+  background: var(--accent-deep);
 }
 
 .view-shell {
@@ -455,7 +445,7 @@ summary:focus-visible,
   width: 2rem;
   height: 2rem;
   color: var(--ink);
-  background: var(--sun-pale);
+  background: var(--accent-warm-soft);
   border-radius: 50%;
   font-size: var(--type-small);
   font-weight: var(--weight-display);
@@ -588,7 +578,7 @@ summary:focus-visible,
   right: 13%;
   width: 2rem;
   height: 2rem;
-  background: var(--sun);
+  background: var(--accent-warm);
   border-radius: 50%;
 }
 
@@ -610,19 +600,19 @@ summary:focus-visible,
   border-radius: 0.18rem;
   width: 13%;
   height: 50%;
-  background: var(--berry);
+  background: var(--accent-rose);
 }
 
 .world-shelf span:nth-child(2) {
   width: 17%;
   height: 75%;
-  background: var(--sun);
+  background: var(--accent-warm);
 }
 
 .world-shelf span:nth-child(3) {
   width: 19%;
   height: 60%;
-  background: var(--mint);
+  background: var(--accent);
 }
 
 .world-clock {
@@ -692,14 +682,14 @@ summary:focus-visible,
   left: 12%;
   width: 34%;
   height: 30%;
-  background: var(--berry-pale);
+  background: var(--accent-rose-soft);
   border-radius: 0.4rem;
 }
 
 .world-sofa span + span {
   right: 12%;
   left: auto;
-  background: var(--sun-pale);
+  background: var(--accent-warm-soft);
 }
 
 .world-plant {
@@ -1008,7 +998,7 @@ summary:focus-visible,
 .status-orb {
   width: 0.65rem;
   height: 0.65rem;
-  background: var(--mint-dark);
+  background: var(--accent-deep);
   border-radius: 50%;
   box-shadow: 0 0 0 0.3rem rgb(129 189 164 / 22%);
 }
@@ -1035,32 +1025,18 @@ summary:focus-visible,
 
 .world-readout li button:hover,
 .world-readout li button[aria-pressed="true"] {
-  background: var(--mint-pale);
+  background: var(--accent-soft);
 }
 
 .world-readout li button > span:nth-child(2) {
   display: grid;
   gap: 0.15rem;
 }
-
 .world-readout small,
-.ledger-scope small,
 .tool-grid small {
   color: var(--muted);
   font-size: var(--type-label);
   text-transform: capitalize;
-}
-
-.mini-avatar {
-  width: 2.2rem;
-  height: 2.2rem;
-  background: var(--mint);
-  border: 2px solid var(--ink);
-  border-radius: 50%;
-}
-
-.mini-avatar--berry {
-  background: var(--berry);
 }
 
 .selected-persona-note {
@@ -1077,7 +1053,7 @@ summary:focus-visible,
 }
 
 .section-heading-row a {
-  color: var(--mint-dark);
+  color: var(--accent-deep);
   font-size: var(--type-small);
   font-weight: var(--weight-display);
 }
@@ -1094,7 +1070,7 @@ summary:focus-visible,
 }
 
 .move-card {
-  --move-tone: var(--mint-vivid);
+  --move-tone: var(--accent);
   display: flex;
   flex-direction: column;
   min-height: 18rem;
@@ -1107,15 +1083,15 @@ summary:focus-visible,
 }
 
 .move-card--move {
-  --move-tone: var(--sky-vivid);
+  --move-tone: var(--accent-cool);
 }
 
 .move-card--grow {
-  --move-tone: var(--sun-vivid);
+  --move-tone: var(--accent-warm);
 }
 
 .move-card--connect {
-  --move-tone: var(--berry-vivid);
+  --move-tone: var(--accent-rose);
 }
 
 /* A finished move settles out of the way instead of holding a full card. */
@@ -1198,7 +1174,7 @@ summary:focus-visible,
 }
 
 .action-button:hover:not(:disabled) {
-  background: var(--mint-dark);
+  background: var(--accent-deep);
 }
 
 .action-button:disabled {
@@ -1245,7 +1221,7 @@ summary:focus-visible,
   position: absolute;
   top: 20%;
   left: 47%;
-  color: var(--berry);
+  color: var(--accent-rose);
   font-size: 2.6rem;
   filter: drop-shadow(0.16rem 0.16rem 0 var(--ink));
 }
@@ -1509,12 +1485,12 @@ summary:focus-visible,
   opacity: 0.7;
 }
 
-.reward-list li.reward-entry--unlocked { opacity: 1; border-color: var(--mint-dark); }
-.reward-emblem { color: var(--mint-dark); font-size: 1.25rem; }
+.reward-list li.reward-entry--unlocked { opacity: 1; border-color: var(--accent-deep); }
+.reward-emblem { color: var(--accent-deep); font-size: 1.25rem; }
 .reward-list div { display: grid; gap: 0.2rem; }
 .reward-list strong { font-size: var(--type-small); }
 .reward-list div span { color: var(--muted); font-size: var(--type-micro); line-height: 1.35; }
-.reward-list b { grid-column: 2; color: var(--mint-dark); font-size: var(--type-micro); }
+.reward-list b { grid-column: 2; color: var(--accent-deep); font-size: var(--type-micro); }
 
 .reward-equip {
   grid-column: 2;
@@ -1523,7 +1499,7 @@ summary:focus-visible,
   padding: 0.35rem 0.6rem;
   color: var(--ink);
   background: var(--paper);
-  border: 1px solid var(--mint-dark);
+  border: 1px solid var(--accent-deep);
   border-radius: 0.5rem;
   font: inherit;
   font-size: var(--type-micro);
@@ -1552,63 +1528,20 @@ summary:focus-visible,
   color: var(--gap);
 }
 
-.swatch-row {
-  display: flex;
-  gap: 0.75rem;
-}
-
-.swatch {
-  width: 2.7rem;
-  height: 2.7rem;
-  background: var(--mint);
-  border: 2px solid var(--paper);
-  border-radius: 50%;
-  box-shadow: 0 0 0 1px var(--line);
-  cursor: pointer;
-}
-
-.swatch--berry {
-  background: var(--berry);
-}
-
-.swatch--sun {
-  background: var(--sun);
-}
-
-.swatch[aria-pressed="true"] {
-  box-shadow: 0 0 0 3px var(--ink);
-}
-
 .connection-pill {
   display: inline-flex;
   align-items: center;
   gap: 0.55rem;
 }
 
-.ledger-scopes {
-  display: grid;
-  gap: 0.75rem;
-  margin-top: 2.5rem;
-}
-
-.ledger-scope,
 .tool-grid details {
   overflow: hidden;
   background: var(--paper);
   border: 1px solid var(--line);
-  border-left: 0.35rem solid var(--mint);
+  border-left: 0.35rem solid var(--accent);
   border-radius: 1rem;
 }
 
-.ledger-scope--berry {
-  border-left-color: var(--berry);
-}
-
-.ledger-scope--sun {
-  border-left-color: var(--sun);
-}
-
-.ledger-scope summary,
 .tool-grid summary {
   display: grid;
   grid-template-columns: 1fr auto auto;
@@ -1619,35 +1552,16 @@ summary:focus-visible,
   list-style: none;
   cursor: pointer;
 }
-
-.ledger-scope summary::-webkit-details-marker,
 .tool-grid summary::-webkit-details-marker {
   display: none;
 }
-
-.ledger-scope summary > span:first-child,
 .tool-grid summary {
   display: grid;
 }
 
-.ledger-scope summary > span:first-child {
-  gap: 0.15rem;
-}
-
-.ledger-scope summary b {
-  font-size: var(--type-heading);
-}
-
-.ledger-scope[open] summary > span:last-child {
-  transform: rotate(45deg);
-}
-
-.ledger-scope__detail,
 .tool-grid details > p {
   padding: 0 1.25rem 1.2rem;
 }
-
-.ledger-scope__detail p,
 .tool-grid details > p {
   font-size: var(--type-small);
 }
@@ -1678,7 +1592,7 @@ summary:focus-visible,
   place-items: center;
   width: 2.2rem;
   height: 2.2rem;
-  background: var(--mint-pale);
+  background: var(--accent-soft);
   border-radius: 0.65rem;
 }
 
@@ -1734,14 +1648,12 @@ summary:focus-visible,
   .primary-nav a,
   .utility-nav a,
   .action-button,
-  .swatch,
   .persona-control,
   .world-readout button {
     transition: background-color 160ms ease, color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
   }
 
-  .action-button:hover:not(:disabled),
-  .swatch:hover {
+  .action-button:hover:not(:disabled) {
     transform: translateY(-2px);
   }
 
@@ -1989,14 +1901,6 @@ summary:focus-visible,
     grid-template-columns: 1fr;
   }
 
-  .ledger-scope summary {
-    grid-template-columns: 1fr auto;
-  }
-
-  .ledger-scope summary > span:last-child {
-    display: none;
-  }
-
   .display-heading h1 {
     font-size: var(--type-title);
   }
@@ -2006,7 +1910,6 @@ summary:focus-visible,
   .world-scene,
   .persona-stage,
   .move-card,
-  .ledger-scope,
   .tool-grid details,
   .primary-nav {
     border: 2px solid CanvasText;
