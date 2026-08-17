@@ -67,7 +67,7 @@ describe("Living Game world shell", () => {
       "◇Adventures",
       "●Persona",
     ]);
-    expect(utilityLinks.map((link) => link.text())).toEqual(["▦Ledger", "Household", "Display"]);
+    expect(utilityLinks.map((link) => link.text())).toEqual(["▦Ledger", "◫Household", "Display"]);
     expect(wrapper.get(".utility-nav .ledger-link").attributes("aria-label")).toBe("Ledger");
     expect(wrapper.get('.primary-nav a[href="/"]').attributes("aria-current")).toBe("page");
     expect(wrapper.find('.utility-nav a[aria-current="page"]').exists()).toBe(false);

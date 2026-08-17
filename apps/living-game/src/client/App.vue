@@ -41,7 +41,10 @@ onUnmounted(() => ledgerStore.stopAutoSync());
             <span aria-hidden="true">▦</span>
             <span class="ledger-link__label">Ledger</span>
           </RouterLink>
-          <RouterLink class="household-link" to="/household">Household</RouterLink>
+          <RouterLink class="household-link" to="/household" aria-label="Household">
+            <span aria-hidden="true">◫</span>
+            <span class="household-link__label">Household</span>
+          </RouterLink>
           <RouterLink class="display-link" to="/display">Display</RouterLink>
         </nav>
       </div>

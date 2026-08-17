@@ -260,10 +260,14 @@ summary:focus-visible,
   align-items: center;
   min-height: var(--app-header-height);
   padding-top: env(safe-area-inset-top, 0px);
-  background: rgb(255 255 255 / 88%);
+  /*
+   * Solid, not frosted. A backdrop-filter forces the browser to re-rasterise
+   * everything behind it on any repaint, which made the whole page expensive to
+   * touch; and at 88% the words scrolling underneath still showed through the
+   * words on top of it.
+   */
+  background: var(--paper);
   border-bottom: 1px solid var(--line);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
 }
 
 .brand {
@@ -332,7 +336,7 @@ summary:focus-visible,
   align-items: center;
   justify-content: center;
   gap: 0.45rem;
-  min-height: 2.6rem;
+  min-height: 2.75rem;
   padding: 0.5rem 0.85rem;
   border-radius: 999px;
   font-size: var(--type-small);
@@ -428,57 +432,9 @@ summary:focus-visible,
   scroll-margin-top: calc(var(--app-header-height) + 0.75rem);
 }
 
-.content-view,
-.world-view {
-  width: min(100%, 71rem);
-}
-
 .view-intro,
-.section-heading-row,
-.display-heading {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 1.5rem;
-}
-
-.view-intro {
-  margin-bottom: 0.9rem;
-}
-
 .view-intro--world {
   align-items: center;
-}
-
-.eyebrow {
-  margin-bottom: 0.5rem;
-  color: var(--mint-dark);
-  font-size: var(--type-label);
-  font-weight: var(--weight-display);
-  letter-spacing: 0.13em;
-  text-transform: uppercase;
-}
-
-.view-lede {
-  max-width: 38rem;
-  margin-bottom: 2.5rem;
-  font-size: clamp(0.95rem, 1.6vw, 1.05rem);
-}
-
-.count-bubble,
-.world-level,
-.persona-status,
-.connection-pill {
-  flex: 0 0 auto;
-  padding: 0.5rem 0.85rem;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-pill);
-  box-shadow: var(--lift-1);
-  color: var(--ink);
-  background: var(--paper);
-  font-size: var(--type-small);
-  font-weight: var(--weight-strong);
-  font-variant-numeric: tabular-nums;
 }
 
 .count-bubble strong {
@@ -1251,23 +1207,6 @@ summary:focus-visible,
   cursor: default;
 }
 
-.inline-retry {
-  min-height: 2.5rem;
-  padding: 0.45rem 0.6rem;
-  color: var(--ink);
-  background: var(--paper);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-pill);
-  box-shadow: var(--lift-1);
-  font-size: var(--type-small);
-  font-weight: var(--weight-strong);
-  cursor: pointer;
-}
-
-.inline-retry:active:not(:disabled) {
-  transform: scale(0.97);
-}
-
 .move-card .move-feedback {
   margin: 0.65rem 0;
   font-size: var(--type-small);
@@ -1876,11 +1815,12 @@ summary:focus-visible,
     left: 1rem;
     top: auto;
     padding: 0.35rem;
-    background: rgb(255 255 255 / 93%);
+    /* Fixed over scrolling content, so a blur here would be re-rasterised every
+       frame on the device least able to afford it. */
+    background: var(--paper);
     border: 1px solid var(--line);
     border-radius: 1.15rem;
-    box-shadow: 0 0.8rem 2.4rem rgb(32 50 41 / 20%);
-    backdrop-filter: blur(12px);
+    box-shadow: 0 0.8rem 2.4rem rgb(46 40 54 / 18%);
   }
 
   .primary-nav ul {
@@ -1936,7 +1876,9 @@ summary:focus-visible,
 
 @media (max-width: 38rem) {
   :root {
-    --app-header-height: calc(7.5rem + env(safe-area-inset-top, 0px));
+    /* One row again: the utilities collapse to marks, so the header stops
+       taking a fifth of a phone screen before anything is read. */
+    --app-header-height: calc(5rem + env(safe-area-inset-top, 0px));
   }
 
   .app-shell {
@@ -1944,15 +1886,18 @@ summary:focus-visible,
   }
 
   .app-header {
-    grid-template-columns: 1fr;
-    gap: 0.45rem;
+    grid-template-columns: 1fr auto;
+    gap: 0.5rem;
     min-height: var(--app-header-height);
     padding: calc(0.6rem + env(safe-area-inset-top, 0px)) 0 0.6rem;
   }
 
   .header-actions {
-    justify-self: stretch;
-    justify-content: space-between;
+    justify-self: end;
+  }
+
+  .utility-nav {
+    gap: 0.35rem;
   }
 
   .brand__pet {
@@ -1960,18 +1905,21 @@ summary:focus-visible,
     height: 1.9rem;
   }
 
-  /* Narrow phones show the Ledger entry as an icon. The label is dropped
-     rather than clipped, and aria-label keeps the accessible name. */
-  .ledger-link {
+  /* Narrow phones show the Ledger and Household entries as icons. The label is
+     dropped rather than clipped, and aria-label keeps the accessible name. */
+  .ledger-link,
+  .household-link {
     width: 2.65rem;
     padding-inline: 0;
   }
 
-  .ledger-link span {
+  .ledger-link span,
+  .household-link span {
     flex: 0 0 auto;
   }
 
-  .ledger-link__label {
+  .ledger-link__label,
+  .household-link__label {
     display: none;
   }
 
