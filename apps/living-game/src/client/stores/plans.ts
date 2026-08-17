@@ -27,10 +27,26 @@ export const usePlansStore = defineStore("plans", () => {
     return pending;
   }
 
+  /**
+   * Writes run one at a time because each one returns a whole new snapshot and
+   * the last reply would otherwise win. They queue rather than being dropped:
+   * tapping two things quickly should do both, not silently ignore the second.
+   *
+   * Only the thing you touched is marked busy. Disabling the whole page on
+   * every tap made one checkbox restyle every control on screen, which the
+   * browser paid for by repainting all of it.
+   */
+  let queue: Promise<unknown> = Promise.resolve();
+
   async function act(action: PlansActionV1, key: string, message: string) {
-    if (actionBusy.value) return false;
+    const run = queue.then(() => perform(action, key, message));
+    queue = run.catch(() => undefined);
+    return run;
+  }
+
+  async function perform(action: PlansActionV1, key: string, message: string) {
     actionBusy.value = true;
-    busyKeys.value = new Set([key]); actionError.value = ""; feedback.value = "";
+    busyKeys.value = new Set([...busyKeys.value, key]); actionError.value = ""; feedback.value = "";
     try {
       snapshot.value = await api().act(action);
       loadState.value = "ready"; feedback.value = message; return true;
@@ -38,9 +54,11 @@ export const usePlansStore = defineStore("plans", () => {
       actionError.value = error instanceof Error ? error.message : "Unable to update your plans."; return false;
     } finally {
       const next = new Set(busyKeys.value); next.delete(key); busyKeys.value = next;
-      actionBusy.value = false;
+      actionBusy.value = next.size > 0;
     }
   }
+
+  const isBusy = (key: string) => busyKeys.value.has(key);
 
   const toggleTask = (id: string) => act({ contractVersion: 1, action: "toggle_task", id }, `task:${id}`, "Task updated.");
   const toggleGrocery = (id: string) => act({ contractVersion: 1, action: "toggle_grocery", id }, `grocery:${id}`, "Grocery list updated.");
@@ -50,7 +68,7 @@ export const usePlansStore = defineStore("plans", () => {
   const addGoal = (goal: { text: string; ownership: PlanGoalOwnership; trackingType: PlanGoalTrackingType; targetValue: number }) =>
     act({ contractVersion: 1, action: "add_goal", ...goal }, "goal:add", "Goal added.");
   return {
-    snapshot, loadState, loadError, actionError, feedback, busyKeys, actionBusy, ensureLoaded,
+    snapshot, loadState, loadError, actionError, feedback, busyKeys, actionBusy, isBusy, ensureLoaded,
     toggleTask, toggleGrocery, addGrocery, logGoal, retireGoal, addGoal,
   };
 });

@@ -184,6 +184,11 @@ p {
   line-height: 1.6;
 }
 
+/*
+ * Leading tightens as type grows: 1.05 keeps a 40px headline from looking
+ * spaced out, but the same figure on a 20px heading squeezes its descenders
+ * into whatever sits underneath.
+ */
 h1,
 h2,
 h3 {
@@ -191,18 +196,22 @@ h3 {
   font-size: var(--type-heading);
   font-weight: var(--weight-display);
   color: var(--ink);
-  line-height: 1.05;
-  letter-spacing: -0.035em;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
 }
 
 h1 {
   font-size: var(--type-display);
   font-weight: var(--weight-display);
+  line-height: 1.05;
+  letter-spacing: -0.035em;
 }
 
 h2 {
   font-size: var(--type-title);
   font-weight: var(--weight-display);
+  line-height: 1.15;
+  letter-spacing: -0.03em;
 }
 
 ul {
