@@ -46,8 +46,10 @@ platform for authentication and for whatever custom-domain support it offers.
 **Consequences**
 
 - No Hono Worker rewrite. `apps/living-game/src/worker/` was the seed of that
-  architecture and is no longer on the path; the Vue client keeps shipping as a
-  bundle served by the existing application, calling its API routes.
+  architecture and has since been deleted, along with its Wrangler config and
+  the `hono`, `wrangler`, and Cloudflare Worker dependencies it alone needed;
+  the Vue client keeps shipping as a bundle served by the existing application,
+  calling its API routes.
 - The Ledger port targets the existing route handlers rather than a new backend,
   so it is unblocked and is now the longest remaining piece of work.
 - Custom domain becomes a question for the hosting platform rather than a

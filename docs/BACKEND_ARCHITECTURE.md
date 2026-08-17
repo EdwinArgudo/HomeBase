@@ -20,16 +20,27 @@ should import the focused service that owns its domain.
   or obtain a resolved household context and keep every query household-scoped.
 - `home-queries.ts` is the narrow task and grocery mutation boundary used to
   behaviorally verify cross-household denial.
+- `lib/http/` holds the shared request and response rules every adapter obeys:
+  size-capped JSON bodies, bounded route ids, and the single translation from a
+  thrown value to a JSON response.
 
 Domain modules depend on auth, database, and shared household types. They do not
 depend on React, Vinext, route files, or page components. Plaid and current API
-routes continue using the facade until their dedicated Hono routes are built.
+routes continue using the facade.
 
-## Hono reuse
+## Adapters
 
-Future Hono middleware will resolve identity and membership once, attach the
-typed household context to the request, and call these domain services. The
-services return domain data or throw `HttpError`; framework adapters remain
-responsible only for request validation and translating those results into the
-existing JSON response shapes. No authorization decision may be delegated to a
-Vue component or inferred from whether a control is visible.
+Each domain owns an `http.ts` that turns requests into service calls. An adapter
+takes its collaborators as injected dependencies, so it is testable without a
+framework, a route, or a database.
+
+An adapter may validate a request and shape a response. It may not make an
+authorization decision: services return domain data or throw `HttpError`, and
+`lib/http/errorResponse` is the only place that decides what a caller is allowed
+to read. Anything that is not an `HttpError` answers 500 with a fixed message,
+so an internal failure cannot leak its detail to the browser. No authorization
+decision may be delegated to a Vue component or inferred from whether a control
+is visible.
+
+Per `DECISIONS.md` D-002 there is no Hono rewrite on the path. These adapters
+are the API surface, not a staging post toward another one.

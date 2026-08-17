@@ -7,6 +7,9 @@
     "noEmit": true,
     "module": "ESNext",
     "moduleResolution": "Bundler",
+    // `@homebase/contracts` is consumed as source, and its internal imports
+    // carry the explicit `.ts` extension the runtime resolves.
+    "allowImportingTsExtensions": true,
     "isolatedModules": true,
     "skipLibCheck": true
   },

@@ -1,6 +1,7 @@
 import { isValidLocalDate, type DailyMoveIdContext, type MoveCandidate } from "@homebase/domain-game";
 
 import { HttpError } from "../auth/identity.ts";
+import { errorResponse } from "../http/index.ts";
 import type { HouseholdContext } from "../household/types.ts";
 import { getOrCreateDailyMoveSnapshot } from "./daily-moves.ts";
 
@@ -34,10 +35,7 @@ export function createMovesGetHandler(dependencies: MovesHttpDependencies) {
       });
       return Response.json({ moves });
     } catch (error) {
-      const isHttpError = error instanceof HttpError;
-      const status = isHttpError ? error.status : 500;
-      const message = isHttpError ? error.message : "Unable to load daily moves.";
-      return Response.json({ error: message }, { status });
+      return errorResponse(error, "Unable to load daily moves.");
     }
   };
 }

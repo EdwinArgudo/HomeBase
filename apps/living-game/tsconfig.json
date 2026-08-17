@@ -4,6 +4,9 @@
     "useDefineForClassFields": true,
     "module": "ESNext",
     "moduleResolution": "Bundler",
+    // `@homebase/contracts` is consumed as source, and its internal imports
+    // carry the explicit `.ts` extension the runtime resolves.
+    "allowImportingTsExtensions": true,
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "isolatedModules": true,
@@ -12,7 +15,7 @@
     "skipLibCheck": true,
     "noEmit": true,
     "lib": ["ES2023", "DOM", "DOM.Iterable"],
-    "types": ["vite/client", "@cloudflare/workers-types", "vitest/globals"]
+    "types": ["vite/client", "vitest/globals"]
   },
   "include": ["src/**/*.ts", "src/**/*.vue", "vite.config.ts", "vite.embedded.config.ts", "vitest.config.ts"]
 }

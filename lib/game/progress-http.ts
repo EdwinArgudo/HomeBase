@@ -1,4 +1,4 @@
-import { HttpError } from "../auth/identity.ts";
+import { errorResponse } from "../http/index.ts";
 import type { HouseholdContext } from "../household/types.ts";
 import { loadProgressSnapshot } from "./progress.ts";
 
@@ -13,11 +13,7 @@ export function createProgressGetHandler(dependencies: {
       const context = await dependencies.requireMember(request);
       return Response.json(await loadProgress(context, dependencies.generatedAt()));
     } catch (error) {
-      const isHttpError = error instanceof HttpError;
-      return Response.json(
-        { error: isHttpError ? error.message : "Unable to load progress." },
-        { status: isHttpError ? error.status : 500 },
-      );
+      return errorResponse(error, "Unable to load progress.");
     }
   };
 }

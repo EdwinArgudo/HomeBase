@@ -1,30 +1,12 @@
-import {
-  parsePersonaDraftInput,
-  type PersonaDraftInputV1,
-} from "@homebase/contracts";
+import { parsePersonaDraftInput } from "@homebase/contracts";
 
-import { HttpError } from "../auth/identity.ts";
+import { errorResponse, readJsonBody } from "../http/index.ts";
 import type { HouseholdContext } from "../household/types.ts";
 import {
   approveCurrentPersona,
   loadCurrentPersonaSnapshot,
   saveManualPersona,
 } from "./service.ts";
-
-async function requestBody(request: Request): Promise<PersonaDraftInputV1> {
-  const text = await request.text();
-  if (text.length > 8_192) throw new HttpError(400, "Persona details are too large.");
-  try {
-    return parsePersonaDraftInput(JSON.parse(text) as unknown);
-  } catch {
-    throw new HttpError(400, "Persona details are invalid.");
-  }
-}
-
-function safeError(error: unknown, fallback: string) {
-  const safe = error instanceof HttpError;
-  return Response.json({ error: safe ? error.message : fallback }, { status: safe ? error.status : 500 });
-}
 
 type Dependencies = {
   requireMember: (request: Request) => Promise<HouseholdContext>;
@@ -44,19 +26,24 @@ export function createCurrentPersonaHandlers(dependencies: Dependencies) {
         const context = await dependencies.requireMember(request);
         return Response.json(await load(context, dependencies.now()));
       } catch (error) {
-        return safeError(error, "Unable to load your persona.");
+        return errorResponse(error, "Unable to load your persona.");
       }
     },
     async PUT(request: Request) {
       try {
-        const body = await requestBody(request);
+        const body = await readJsonBody(request, {
+          limit: 8_192,
+          tooLarge: "Persona details are too large.",
+          invalid: "Persona details are invalid.",
+          parse: parsePersonaDraftInput,
+        });
         const context = await dependencies.requireMember(request);
         return Response.json(await save(context, body, {
           createId: dependencies.createId,
           updatedAt: dependencies.now(),
         }));
       } catch (error) {
-        return safeError(error, "Unable to save your persona.");
+        return errorResponse(error, "Unable to save your persona.");
       }
     },
   };
@@ -69,7 +56,7 @@ export function createApprovePersonaHandler(dependencies: Dependencies) {
       const context = await dependencies.requireMember(request);
       return Response.json(await approve(context, dependencies.now()));
     } catch (error) {
-      return safeError(error, "Unable to approve your persona.");
+      return errorResponse(error, "Unable to approve your persona.");
     }
   };
 }

@@ -1,4 +1,4 @@
-import { HttpError } from "../auth/identity.ts";
+import { errorResponse } from "../http/index.ts";
 import { withTelemetry } from "../observability/telemetry.ts";
 import type { HouseholdContext } from "../household/types.ts";
 import { loadDisplayWorldProjection, loadMemberWorldProjection } from "./service.ts";
@@ -16,11 +16,7 @@ export function createWorldGetHandler(dependencies: {
         () => loadWorld(context, dependencies.generatedAt()));
       return Response.json(projection);
     } catch (error) {
-      const safe = error instanceof HttpError;
-      return Response.json(
-        { error: safe ? error.message : "Unable to load the household world." },
-        { status: safe ? error.status : 500 },
-      );
+      return errorResponse(error, "Unable to load the household world.");
     }
   };
 }
@@ -38,11 +34,7 @@ export function createDisplayWorldGetHandler(dependencies: {
         () => loadDisplayWorld(context, dependencies.generatedAt()));
       return Response.json(projection);
     } catch (error) {
-      const safe = error instanceof HttpError;
-      return Response.json(
-        { error: safe ? error.message : "Unable to load the display." },
-        { status: safe ? error.status : 500 },
-      );
+      return errorResponse(error, "Unable to load the display.");
     }
   };
 }

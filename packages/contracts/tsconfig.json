@@ -7,8 +7,11 @@
     "noEmit": true,
     "module": "ESNext",
     "moduleResolution": "Bundler",
+    // The package is consumed as source, so its internal imports carry the
+    // explicit `.ts` extension the runtime resolves.
+    "allowImportingTsExtensions": true,
     "isolatedModules": true,
     "skipLibCheck": true
   },
-  "include": ["index.ts"]
+  "include": ["*.ts"]
 }

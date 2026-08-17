@@ -1,6 +1,6 @@
 # Homebase Vue Client
 
-This directory contains the Vue/Hono implementation of the Homebase Living
+This directory contains the Vue implementation of the Homebase Living
 Game. It is embedded as the sole Homebase product shell at `/` and uses authenticated daily moves,
 progress, the current member's persistent manual persona, and a privacy-filtered
 household persona projection. It also materializes permanent, deterministic
@@ -10,10 +10,12 @@ emblem rewards from canonical completion progress.
 
 - Vue 3 Single-File Components with TypeScript and `<script setup>`
 - Vite, Vue Router, and Pinia
-- Hono on a Cloudflare Worker
-- Cloudflare Workers Static Assets for the compiled Vue SPA
 - Vitest and Vue Test Utils
 - Shared runtime contracts from `packages/contracts`
+
+This package has no server of its own. Per `docs/DECISIONS.md` D-002 the API
+stays in the root application's route handlers, so the client ships as a bundle
+the root build serves.
 
 ## World-shell scope
 
@@ -61,7 +63,7 @@ Vue Router uses `/` as its embedded base, so routes such as
 `http://localhost:3000/persona` refresh through the root catch-all. Old
 `/living-game/*` bookmarks redirect through Vue compatibility routes. The
 generated browser assets live under `public/homebase-app/`; they are
-ignored and must not be committed. The normal standalone Vue/Hono build remains
+ignored and must not be committed. The standalone browser build remains
 available through this package's `npm run build` command.
 That standalone build explicitly installs fixture move, progress, persona,
 world, and reward adapters so local UI development and tests do not depend on
@@ -76,8 +78,10 @@ npm install
 npm run dev
 ```
 
-The Vite development server serves both the Vue application and the Worker API.
-The Worker health boundary is available at `GET /api/health`.
+The Vite development server serves the Vue application alone, against the
+fixtures in `src/client/fixtures`. There is no API behind it; the live API
+clients are selected by the `VITE_LIVE_*` flags that only
+`vite.embedded.config.ts` sets.
 
 ## Validation
 
